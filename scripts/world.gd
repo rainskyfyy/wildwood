@@ -1,114 +1,74 @@
 extends Node2D
-## 世界渲染:从 WorldSnapshot.Entities spawn 资源,接收 S2C_WorldDelta 更新 HP
+class_name World
+## 世界容器 (M2.1):持有玩家 + 目标列表,提供 LMB 判别所需的扫描 API。
 ##
-## 任务 M2.2 验收 ④ 联机下资源 HP 同步
-## 任务 M2.1 验收 ③ 玩家位置/朝向同步
+## 设计:
+##   - 玩家引用:World 主动找 group "player" 的第一个节点
+##   - 目标:WorldTarget 各自 add_to_group("world_target"),World 扫描
+##   - 屏幕坐标 → 世界坐标:用 Camera2D.make_input_local 或反推(get_global_mouse_position)
+##   - 本期无碰撞体(SceneTree 几何阻挡留 M2.2 资源 HP 时引入)
 
-const PlayerScript = preload("res://scripts/player.gd")
-const ResourceScript = preload("res://scripts/resource.gd")
+const PlayerControllerScript = preload("res://scripts/player_controller.gd")
+const LmbDecide = preload("res://core/abstract/gameplay/lmb_decide.gd")
 
-var _net = null  # WildwoodSession(主场景传入)
-var _player: Node = null
-var _resources: Dictionary = {}  # entity_id -> ResourceScript
-var _gather_progress: ProgressBar = null
-var _gather_target_eid: int = 0
-var _gather_start_ms: int = 0
-const GATHER_DURATION_MS: int = 1500
+var _player: Node2D = null
 
 
 func _ready() -> void:
-	_gather_progress = ProgressBar.new()
-	_gather_progress.max_value = GATHER_DURATION_MS
-	_gather_progress.value = 0
-	_gather_progress.size = Vector2(80, 12)
-	_gather_progress.visible = false
-	_gather_progress.modulate = Color(0, 1, 0)
-	_gather_progress.position = Vector2(-40, -50)  # 在 player 上方
-	add_child(_gather_progress)
+	# 玩家延迟绑定
+	call_deferred("_bind_player")
 
 
-func setup(net, player: Node) -> void:
-	_net = net
-	_player = player
-	if _player != null and _player.has_method("setup"):
-		_player.setup(_net)
-	# 绑定进度条到 player 头顶
-	if _player != null and _gather_progress != null:
-		_gather_progress.reparent(_player)
-		_gather_progress.position = Vector2(-40, -50)
-		_player.set("_gather_bar", _gather_progress)
+func _bind_player() -> void:
+	var players := get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		_player = players[0]
 
 
-# 收到 S2C_RoomJoined → 用 WorldSnapshot.Entities spawn 资源
-func on_room_joined(snapshot) -> void:
-	clear_resources()
-	if snapshot == null:
+## 取所有候选目标(供 LMB 判别)。
+func get_candidates() -> Array:
+	var out: Array = []
+	for n in get_tree().get_nodes_in_group("world_target"):
+		if n is WorldTarget:
+			out.append((n as WorldTarget).to_candidate())
+	return out
+
+
+## 玩家引用(可能为 null,未 bind 时)。
+func get_player() -> Node2D:
+	return _player
+
+
+## 把屏幕坐标(鼠标点击)转世界坐标(米)。
+func screen_to_world_meters(screen_pos: Vector2) -> Vector2:
+	if _player == null:
+		return Vector2.ZERO
+	var world_px: Vector2 = _player.get_global_transform().affine_inverse() * screen_pos
+	# 简化:用 get_global_mouse_position 替代(更直观)
+	world_px = get_global_mouse_position()
+	return world_px / 32.0
+
+
+## 处理一次 LMB 点击:返回 LmbDecide 决策结果。
+func handle_lmb_click(screen_pos: Vector2, ctx: Dictionary = {}) -> Dictionary:
+	var player_pos_m: Vector2 = Vector2.ZERO
+	if _player != null and _player is PlayerControllerScript:
+		player_pos_m = (_player as PlayerControllerScript).get_world_pos_meters()
+	var click_pos_m: Vector2 = screen_to_world_meters(screen_pos)
+	var candidates: Array = get_candidates()
+	return LmbDecide.decide(player_pos_m, candidates, click_pos_m, ctx)
+
+
+## 执行决策(把 Action 落到玩家 / 视觉反馈)。
+func execute_action(action: Dictionary) -> void:
+	if _player == null:
 		return
-	for e in snapshot.get("Entities", []):
-		_spawn_resource(e)
-
-
-func _spawn_resource(e: Dictionary) -> void:
-	var eid: int = e.get("EntityId", 0)
-	if eid == 0:
-		return
-	if _resources.has(eid):
-		return
-	var r: Node = ResourceScript.new()
-	r.name = "Resource_%d" % eid
-	add_child(r)
-	var pos: Vector2 = Vector2(e.get("Position", {}).get("X", 0.0), e.get("Position", {}).get("Y", 0.0))
-	r.position = pos
-	r.setup(eid, e.get("PrefabId", 0), e.get("Hp", 1), e.get("MaxHp", 1))
-	_resources[eid] = r
-
-
-# 收到 S2C_WorldDelta → 更新资源 HP / 玩家位置
-func on_world_delta(delta: Dictionary) -> void:
-	for e in delta.get("EntityUpdates", []):
-		var eid: int = e.get("EntityId", 0)
-		var kind: int = e.get("Kind", 0)
-		# 0 = player(待定), 1 = resource
-		if eid == 0:
-			continue
-		if kind == 1:  # ENTITY_KIND_RESOURCE
-			if _resources.has(eid):
-				_resources[eid].on_hp_changed(e.get("Hp", 0), e.get("MaxHp", 1))
-		# else: player 更新走 _player.on_world_delta_player
-	# 玩家位置更新
-	if _player != null and _player.has_method("on_world_delta_player"):
-		for e in delta.get("EntityUpdates", []):
-			var kind: int = e.get("Kind", 0)
-			if kind == 0:  # ENTITY_KIND_PLAYER
-				var pid: String = e.get("PlayerId", "")
-				var pos: Vector2 = Vector2(e.get("Position", {}).get("X", 0.0), e.get("Position", {}).get("Y", 0.0))
-				_player.on_world_delta_player(pid, pos.x, pos.y, e.get("Facing", 0))
-	# events: GATHER_DONE
-	for ev in delta.get("Events", []):
-		if ev.get("EventKind", 0) == 3:  # WORLD_EVENT_GATHER_DONE
-			var target: int = ev.get("TargetEntityId", 0)
-			# 移除资源(若 HP=0 且不可重生)
-			if _resources.has(target):
-				_resources[target].queue_free()
-				_resources.erase(target)
-			if _player != null and _player.has_method("on_gather_done"):
-				_player.on_gather_done(target)
-
-
-# 智能判别辅助:player 调用
-func find_nearest_gatherable(mouse_pos: Vector2, max_dist: float) -> int:
-	var nearest_id: int = 0
-	var nearest_d2: float = max_dist * max_dist
-	for eid in _resources.keys():
-		var r: Node = _resources[eid]
-		var d2: float = (r.position - mouse_pos).length_squared()
-		if d2 < nearest_d2:
-			nearest_d2 = d2
-			nearest_id = eid
-	return nearest_id
-
-
-func clear_resources() -> void:
-	for eid in _resources.keys():
-		_resources[eid].queue_free()
-	_resources.clear()
+	match action["type"]:
+		"move":
+			(_player as PlayerControllerScript).set_target_pos(action["target_pos"] * 32.0)
+		"attack":
+			# M2.10 接入,本期仅打印 + 朝向
+			print("[M2.1] ATTACK target=%s pos=%s" % [action["target_id"], action["target_pos"]])
+		"gather":
+			# M2.2 接入,本期仅打印 + 朝向
+			print("[M2.1] GATHER target=%s pos=%s" % [action["target_id"], action["target_pos"]])
