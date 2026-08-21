@@ -1,5 +1,6 @@
 {
-  "_meta": { "version": "1.0.0", "schema": "wildwood-recipes-v1" },
+  "_meta": { "version": "1.0.1", "schema": "wildwood-recipes-v1",
+             "note": "v1.0.1 新增 shovel 配方" },
   "torch": {
     "id": "torch", "name": "火把", "station": "hand", "grid": "2x2",
     "pattern": [["log", ""], ["", "twine"]],
@@ -24,5 +25,10 @@
     "id": "pickaxe", "name": "镐", "station": "science", "grid": "3x3",
     "pattern": [["", "iron_ore", "iron_ore"], ["", "log", ""], ["", "log", ""]],
     "output": { "itemId": "pickaxe", "count": 1 }
+  },
+  "shovel": {
+    "id": "shovel", "name": "铲", "station": "science", "grid": "3x3",
+    "pattern": [["", "", ""], ["iron_ore", "log", ""], ["", "log", ""]],
+    "output": { "itemId": "shovel", "count": 1 }
   }
 }

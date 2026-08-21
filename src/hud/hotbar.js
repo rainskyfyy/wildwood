@@ -1,9 +1,11 @@
 /**
  * Hotbar — 6-slot bottom-center strip driven by the real Inventory.
+ * v1.0.1 — shows tool durability bar at the bottom of each tool slot.
  */
 'use strict';
 
 import { HOTBAR_SIZE } from '../resources/inventory.js';
+import { isTool } from '../resources/catalog.js';
 
 const SLOT_SIZE = 44;
 const SLOT_GAP  = 4;
@@ -11,7 +13,7 @@ const SLOT_GAP  = 4;
 const ICON_COLOR = {
   log: '#8a5a2a', twine: '#5a8a3a', stone: '#7a7070', flint: '#3a3a3a',
   iron_ore: '#a85a3a', ice: '#a8d4e8', berries: '#8a2a4a', torch: '#ffb84a',
-  axe: '#8a5a2a', pickaxe: '#8a5a2a', campfire: '#d4622a'
+  axe: '#8a5a2a', pickaxe: '#8a5a2a', shovel: '#8a5a2a', campfire: '#d4622a'
 };
 
 export class Hotbar {
@@ -52,6 +54,21 @@ export class Hotbar {
           ctx.textAlign = 'right';
           ctx.textBaseline = 'bottom';
           ctx.fillText(String(stack.count), x + SLOT_SIZE - 3, y0 + SLOT_SIZE - 2);
+        }
+        // Tool durability bar
+        if (isTool(stack.itemId) && stack.durability != null && stack.maxDurability > 0) {
+          const frac = stack.durability / stack.maxDurability;
+          const w = SLOT_SIZE - 4;
+          const h = 3;
+          const bx = x + 2;
+          const by = y0 + SLOT_SIZE - h - 1;
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(bx, by, w, h);
+          // green > 50%, amber > 20%, red otherwise
+          ctx.fillStyle = frac > 0.5 ? '#7ec47e'
+                        : frac > 0.2 ? '#d4a64a'
+                        : '#e85a3a';
+          ctx.fillRect(bx, by, Math.max(0, w * frac), h);
         }
       }
       ctx.fillStyle = '#fff';

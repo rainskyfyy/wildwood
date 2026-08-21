@@ -1,6 +1,11 @@
 /**
  * Resource renderer — draws a harvestable ResourceEntity as a kind-tinted
  * sprite + (optional) progress bar over the tile.
+ *
+ * v1.0.1 — regrow visual state:
+ *   'full'       — normal
+ *   'regrowing'  — small stump / sapling with a regrow progress bar
+ *   'depleted'   — permanent depletion, very dim
  */
 'use strict';
 
@@ -83,23 +88,65 @@ const KIND_ICON = {
                        }
 };
 
-export function drawResource(ctx, sx, sy, entity, progress = 0) {
+/**
+ * Tiny stump drawn for regrowing state. Half-size, brown.
+ */
+function drawStump(ctx, s) {
+  ctx.fillStyle = '#5a3a2a';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 5*s, 3*s, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#3a2a1a';
+  ctx.beginPath();
+  ctx.ellipse(0, -1*s, 4*s, 2*s, 0, 0, Math.PI*2);
+  ctx.fill();
+}
+
+/**
+ * Sapling drawn for early regrow. Small green sprout.
+ */
+function drawSapling(ctx, s, t) {
+  // t = 0..1 regrow progress; size grows with t
+  const k = 0.4 + 0.6 * t;
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(-1*s, 0, 2*s, 4*s*k);
+  ctx.fillStyle = '#5a8a3a';
+  ctx.beginPath();
+  ctx.arc(0, -2*s*k, 3*s*k, 0, Math.PI*2);
+  ctx.fill();
+}
+
+export function drawResource(ctx, sx, sy, entity, progress = 0, now = Date.now()) {
   const s = (entity.size || 0.7) * 0.55;
   ctx.save();
   ctx.translate(sx, sy - 4);
   const icon = KIND_ICON[entity.icon] || KIND_ICON.rock;
-  icon(ctx, s);
-  if (entity.depleted) {
-    ctx.globalAlpha = 0.3;
-    icon(ctx, s);
-    ctx.globalAlpha = 1.0;
-  } else if (progress > 0 && progress < 1) {
-    // gather progress bar above the entity
+  const visual = entity.getVisualState ? entity.getVisualState() : (entity.depleted ? 'depleted' : 'full');
+  if (visual === 'regrowing') {
+    const frac = entity.regrowFraction ? entity.regrowFraction(now) : 0;
+    // Stump + sapling overlay: stump constant, sapling grows with frac.
+    drawStump(ctx, s * 0.5);
+    drawSapling(ctx, s * 0.5, frac);
+    // Regrow progress bar above
     const w = 24, h = 3;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(-w/2, -28, w, h);
-    ctx.fillStyle = '#d4a64a';
-    ctx.fillRect(-w/2, -28, w * progress, h);
+    ctx.fillStyle = '#7ec47e';
+    ctx.fillRect(-w/2, -28, w * frac, h);
+  } else if (visual === 'depleted') {
+    ctx.globalAlpha = 0.3;
+    icon(ctx, s);
+    ctx.globalAlpha = 1.0;
+  } else {
+    icon(ctx, s);
+    if (progress > 0 && progress < 1) {
+      // gather progress bar above the entity
+      const w = 24, h = 3;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(-w/2, -28, w, h);
+      ctx.fillStyle = '#d4a64a';
+      ctx.fillRect(-w/2, -28, w * progress, h);
+    }
   }
   ctx.restore();
 }

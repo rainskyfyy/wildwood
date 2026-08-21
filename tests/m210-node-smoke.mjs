@@ -116,12 +116,14 @@ ok('tree.harvestTime = 1.5', tree.harvestTime === 1.5);
 ok('tree.distTo self = 0', tree.distTo(10, 10) < 0.001);
 
 const loot = tree.harvest(bag);
-ok('tree.harvest returns array', Array.isArray(loot));
+ok('tree.harvest returns granted array', Array.isArray(loot.granted));
 ok('tree.harvested -> depleted', tree.depleted === true);
+ok('tree.regrowAt set to future timestamp', loot.regrowAt > 0 && loot.regrowAt > Date.now());
 ok('at least one drop landed in bag', bag.countOf('log') > 0 || bag.countOf('twine') > 0,
    `bag=${JSON.stringify(bag.slots.filter(Boolean))}`);
 
-ok('re-harvesting depleted returns []', tree.harvest(bag).length === 0);
+const reHarvest = tree.harvest(bag);
+ok('re-harvesting depleted returns empty granted', reHarvest.granted.length === 0);
 
 const a = new ResourceEntity({ id: 'tree', x: 5, y: 5, rngSeed: 100 });
 const b = new ResourceEntity({ id: 'tree', x: 5, y: 5, rngSeed: 100 });
@@ -129,7 +131,7 @@ const bagA = new Inventory();
 const bagB = new Inventory();
 const lootA = a.harvest(bagA);
 const lootB = b.harvest(bagB);
-ok('same rng seed -> same loot', JSON.stringify(lootA) === JSON.stringify(lootB));
+ok('same rng seed -> same loot', JSON.stringify(lootA.granted) === JSON.stringify(lootB.granted));
 
 // ---------- 5. gather state machine ----------
 console.log('gather');
