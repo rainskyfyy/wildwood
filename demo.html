@@ -15,6 +15,10 @@
   <link rel="stylesheet" href="./src/ui/screens/crafting.css">
   <link rel="stylesheet" href="./src/ui/screens/map.css">
   <link rel="stylesheet" href="./src/ui/screens/quest.css">
+  <!-- M2.11 图鉴(v0.5.3 扩展食谱 Tab) -->
+  <link rel="stylesheet" href="./src/ui/codex/codex.css">
+  <!-- v0.5.3 烹饪 · 烹饪锅 + 加工站 -->
+  <link rel="stylesheet" href="./src/ui/cooking/cooking.css">
   <style>
     :root {
       --bg: #0d0d18;
@@ -73,6 +77,19 @@
       font-size: 11px;
       line-height: 1.4;
     }
+    /* v0.5.3: 烹饪触发按钮(controls 行) */
+    .Controls-Btn {
+      background: var(--night-elev);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 3px;
+      padding: 4px 10px;
+      font-family: -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+    .Controls-Btn:hover { background: var(--accent); color: var(--bg); }
     /* M2.12 队伍槽 36×36 内部文字(基础类已有) */
     .PartySlot-Name {
       position: absolute; bottom: 2px; left: 2px; right: 2px;
@@ -207,13 +224,20 @@
       <div id="screen-crafting"  class="Screen" style="display: none; top: 36px;"></div>
       <div id="screen-map"       class="Screen" style="display: none; top: 36px;"></div>
       <div id="screen-quest"     class="Screen" style="display: none; top: 36px;"></div>
+      <!-- M2.11 / v0.5.3: 图鉴挂载点(含食谱 Tab) -->
+      <div id="screen-codex"     class="Screen Codex-Mount" style="display: none; top: 36px;"></div>
     </div>
     <div class="controls">
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
       <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
-      <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>M</kbd> 地图 · <kbd>Q</kbd> 任务 · <kbd>Esc</kbd> 关闭</span>
+      <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>M</kbd> 地图 · <kbd>Q</kbd> 任务 · <kbd>K</kbd> 图鉴(含食谱) · <kbd>Esc</kbd> 关闭</span>
       <span><kbd>B</kbd> 建造(5 楔菜单)· <kbd>1</kbd>~<kbd>5</kbd> 选建筑 · <kbd>RMB</kbd> 取消/拆除</span>
+      <button id="btn-cooking-pot"  class="Controls-Btn" title="烹饪锅(K:图鉴 → 食谱)">🍳 烹饪锅</button>
+      <button id="btn-drying-rack" class="Controls-Btn" title="晒肉架">🥓 晒肉架</button>
+      <button id="btn-fermenter"   class="Controls-Btn" title="发酵桶">🧪 发酵桶</button>
+      <button id="btn-open-codex"  class="Controls-Btn" title="图鉴 · 含食谱(K)">📖 图鉴</button>
       <span>v0.4 · 单人/联机菜单 · WebSocket relay · 2-4 人 · 30s 断线重连</span>
+      <span>v0.5.3 · 烹饪 UI · 30 食谱 · 4 食材槽 + 1 成品槽 · 晒肉/发酵</span>
     </div>
   </div>
 
@@ -221,10 +245,16 @@
   <script src="./src/ui/hud.js"></script>
   <!-- M2.13: 4 屏 subtab 路由 + 拖拽 4 状态机(订阅 hudBus) -->
   <script src="./src/ui/screens/screens.js"></script>
+  <!-- v0.5.3: 食谱数据(24 食材 + 30 食谱,挂到 window.__wildwoodRecipes) -->
+  <script src="./src/ui/cooking/recipes.js"></script>
+  <!-- v0.5.3: 烹饪锅 + 晒肉架 + 发酵桶(挂到 window.__wildwoodCooking) -->
+  <script src="./src/ui/cooking/cooking.js"></script>
   <!-- v0.4 联机:主菜单(单人/创建房间/加入房间)→ bootGame 注入联机参数 -->
   <script type="module">
     import { bootGame } from './src/main.js';
     import { NetMenu } from './src/net/menu.js';
+    // v0.5.3: 动态加载图鉴模块(含食谱 Tab 扩展)
+    import { initCodex, exitCodex } from './src/ui/codex/codex.js';
 
     // relay URL 通过查询参数 ?relay=ws://host:port 覆盖,否则默认 localhost:8787
     const params = new URLSearchParams(location.search);
@@ -233,6 +263,58 @@
     const skipMenu = params.get('mode') === 'offline' && !params.get('forceMenu');
 
     const canvas = document.getElementById('game');
+
+    // v0.5.3: 图鉴 / 烹饪 UI 控制器
+    function openCodex() {
+      const mount = document.getElementById('screen-codex');
+      if (!mount) return;
+      // 关闭其他屏
+      document.querySelectorAll('.Screen').forEach((s) => { if (s !== mount) s.style.display = 'none'; });
+      mount.style.display = 'block';
+      mount.style.position = 'absolute';
+      mount.style.inset = '0';
+      mount.style.background = 'var(--night-deep)';
+      initCodex(mount);
+      window.__wildwoodExitCodex = () => {
+        exitCodex();
+        mount.style.display = 'none';
+        mount.innerHTML = '';
+      };
+    }
+
+    function openCookingPot() {
+      if (window.__wildwoodCooking) window.__wildwoodCooking.openCookingPot();
+    }
+    function openDryingRack() {
+      if (window.__wildwoodCooking) window.__wildwoodCooking.openDryingRack();
+    }
+    function openFermenter() {
+      if (window.__wildwoodCooking) window.__wildwoodCooking.openFermenter();
+    }
+
+    // 绑定 4 个触发按钮
+    document.getElementById('btn-cooking-pot')?.addEventListener('click', openCookingPot);
+    document.getElementById('btn-drying-rack')?.addEventListener('click', openDryingRack);
+    document.getElementById('btn-fermenter')?.addEventListener('click', openFermenter);
+    document.getElementById('btn-open-codex')?.addEventListener('click', openCodex);
+
+    // K 键 → 图鉴(在屏幕未开时打开,开时关闭)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'k' || e.key === 'K') {
+        if (e.target instanceof HTMLInputElement) return;
+        const mount = document.getElementById('screen-codex');
+        if (mount && mount.style.display !== 'none') {
+          if (typeof window.__wildwoodExitCodex === 'function') window.__wildwoodExitCodex();
+        } else {
+          openCodex();
+        }
+      }
+      // Esc 关闭图鉴 / 烹饪
+      if (e.key === 'Escape') {
+        if (typeof window.__wildwoodExitCodex === 'function') window.__wildwoodExitCodex();
+        if (window.__wildwoodCooking) window.__wildwoodCooking.closeAll();
+      }
+    });
 
     async function start(result) {
       if (result.mode === 'offline' || result.mode === 'cancel') {

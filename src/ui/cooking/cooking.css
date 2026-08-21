@@ -1,0 +1,603 @@
+/* Wildwood UI · v0.5.3 烹饪系统
+ * 依赖: tokens.css / components.css
+ * 复用: M1.8 Dialog / Button-Primary / Button-Secondary / Button-Danger
+ *
+ * 暗黑哥特风 · 8/16px 网格 · 0/2px 圆角 · 像素字体
+ *
+ * 视觉语言:
+ *  - 烹饪锅 = 4 食材槽环绕中心锅体(火苗 ♨ 提示) + 1 成品槽
+ *  - 品质标签 3 档: 普通(灰) / 优秀(琥珀) / 完美(红), 圆环 icon
+ *  - 加工站 = 横排 3 槽 [放入] → [进度] → [取出], 与烹饪锅共享槽样式
+ */
+
+/* ===================== 烹饪锅 Dialog (复用 M1.8 Dialog, 扩宽) ===================== */
+.PotDialog {
+  width: 880px;
+  max-width: 90vw;
+}
+.PotHeader-Icon {
+  font-size: var(--fs-18);
+  color: var(--warn-hp);
+  letter-spacing: 1px;
+}
+
+/* ===================== Body 三列布局 ===================== */
+.PotBody {
+  padding: var(--sp-16);
+}
+.PotLayout {
+  display: grid;
+  grid-template-columns: 320px 1fr 200px;
+  gap: var(--sp-16);
+  align-items: start;
+  min-height: 380px;
+}
+
+/* ===================== 锅体区(左列) ===================== */
+.PotArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-16);
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  position: relative;
+}
+
+.PotVisual {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--sp-8);
+}
+.PotVisual-Ring {
+  position: absolute;
+  inset: 0;
+  border: 4px solid var(--border-bold);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--night-deep) 30%, var(--night-elev) 70%);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--night-black);
+}
+.PotVisual-Ring::after {
+  /* 内圈 */
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border: 1px solid var(--accent-3);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, transparent 30%, rgba(212, 166, 74, 0.08) 70%);
+}
+.PotVisual-Fire {
+  position: relative;
+  z-index: 1;
+  font-size: 64px;
+  color: var(--warn-hp);
+  text-shadow: 0 0 16px rgba(196, 58, 58, 0.6), 0 0 4px var(--accent);
+  animation: pot-fire 1.2s steps(2) infinite;
+  line-height: 1;
+}
+@keyframes pot-fire {
+  0%   { transform: scale(1)    translateY(0);    filter: brightness(1); }
+  50%  { transform: scale(1.05) translateY(-2px); filter: brightness(1.3); }
+  100% { transform: scale(1)    translateY(0);    filter: brightness(1); }
+}
+
+/* 4 食材槽环绕(2x2 在锅体四角) */
+.PotSlotRing {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.PotSlotRing .PotSlot {
+  position: absolute;
+  pointer-events: auto;
+}
+/* 四角定位(基于 PotArea 320px 内,锅体居中 200×200) */
+.PotSlotRing .PotSlot:nth-child(1) { top: 4px;   left: 4px;   }   /* 左上 */
+.PotSlotRing .PotSlot:nth-child(2) { top: 4px;   right: 4px;  }   /* 右上 */
+.PotSlotRing .PotSlot:nth-child(3) { bottom: 92px; left: 4px; }  /* 左下 */
+.PotSlotRing .PotSlot:nth-child(4) { bottom: 92px; right: 4px;}  /* 右下 */
+
+/* 因为 PotArea 是 flex column 且 PotVisual 占中,改为相对于 PotArea 自身定位
+   这里采用更直接的方式:用 grid 2x2 + 锅体居中
+   ↑ 上面是尝试的 absolute,因 PotArea 是 flex 而失效 → 改用 relative 内联 */
+
+/* 实际渲染:PotSlotRing 用 position:absolute 覆盖在 PotArea 上,
+   通过 z-index 2 在 PotVisual(默认 1)之上。
+   PotArea position:relative 已设。
+   上面 4 个 nth-child 已给 absolute 位置 */
+
+/* 烹饪锅底部按钮 + 进度条 */
+.PotFooter {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+}
+.PotCookBtn {
+  width: 100%;
+  height: 36px;
+  font-size: var(--fs-14);
+  letter-spacing: 2px;
+}
+.PotCookBtn[disabled],
+.PotCookBtn.Button-Disabled {
+  background: var(--night-elev);
+  color: var(--fg-faint);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+.PotCookBar {
+  width: 100%;
+  height: 16px;
+  background: var(--bar-track);
+  border: 1px solid var(--border-bold);
+  position: relative;
+  overflow: hidden;
+}
+.PotCookBar-Fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--warn-hp), var(--accent));
+  transition: width 80ms linear;
+}
+.PotCookBar-Text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg);
+  text-shadow: 1px 1px 0 var(--night-black);
+  letter-spacing: 1px;
+}
+
+/* ===================== 食材槽(共享) ===================== */
+.PotSlot {
+  background: var(--night-deep);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: border-color 80ms linear, background 80ms linear, transform 80ms linear;
+}
+.PotSlot.is-empty {
+  background: rgba(26, 26, 42, 0.4);
+  border-style: dashed;
+  border-color: var(--border);
+  cursor: copy;
+}
+.PotSlot.is-empty:hover { border-color: var(--fg-muted); }
+.PotSlot.is-filled {
+  background: var(--night-elev);
+  border-color: var(--accent);
+}
+.PotSlot.is-filled:hover {
+  border-color: var(--warn-hp);
+  box-shadow: 0 0 0 1px var(--warn-hp);
+}
+.PotSlot.DragMove { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.PotSlot.DragReject { animation: pot-slot-reject 0.22s steps(2) 1; }
+@keyframes pot-slot-reject {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-2px); }
+  75%      { transform: translateX(2px); }
+}
+.PotSlot-Index {
+  position: absolute;
+  top: 2px; left: 2px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-faint);
+  line-height: 1;
+  pointer-events: none;
+}
+.PotSlot.is-filled .PotSlot-Index { display: none; }
+.PotSlot-Art {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-24);
+  color: var(--accent);
+  text-shadow: 1px 1px 0 var(--night-black);
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+/* ===================== 实时预览(中列) ===================== */
+.PotPreview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  min-height: 380px;
+  max-height: 460px;
+  overflow: hidden;
+}
+.PotPreview-Title {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--accent);
+  letter-spacing: 1px;
+  padding-bottom: var(--sp-8);
+  border-bottom: 1px solid var(--border);
+}
+.PotPreview-List {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  overflow-y: auto;
+  padding-right: var(--sp-8);
+}
+.PotPreview-List::-webkit-scrollbar { width: 8px; }
+.PotPreview-List::-webkit-scrollbar-track { background: var(--night-deep); }
+.PotPreview-List::-webkit-scrollbar-thumb { background: var(--border-bold); }
+
+.PotPreview-Empty {
+  padding: var(--sp-24);
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-faint);
+  letter-spacing: 1px;
+}
+
+.PotPreview-Card {
+  background: var(--night-deep);
+  border: 1px solid var(--border);
+  padding: var(--sp-8);
+  cursor: pointer;
+  transition: border-color 80ms linear, background 80ms linear;
+}
+.PotPreview-Card.is-exact {
+  border-color: var(--accent);
+  background: rgba(212, 166, 74, 0.05);
+}
+.PotPreview-Card.is-exact:hover {
+  border-color: var(--warn-hp);
+  background: rgba(212, 166, 74, 0.1);
+}
+.PotPreview-Card.is-exact.is-selected {
+  border-color: var(--warn-hp);
+  box-shadow: 0 0 0 1px var(--warn-hp);
+  background: rgba(196, 58, 58, 0.05);
+}
+.PotPreview-Card.is-partial {
+  border-style: dashed;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.PotPreview-Card.is-partial:hover { opacity: 0.8; }
+.PotPreview-Card-Head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-8);
+}
+.PotPreview-Card-Name {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-14);
+  color: var(--fg);
+  letter-spacing: 1px;
+  flex: 1;
+}
+.PotPreview-Card.is-exact .PotPreview-Card-Name { color: var(--accent); }
+.PotPreview-Card-Cat {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  padding: 2px 6px;
+  border: 1px solid var(--border-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  background: var(--night-elev);
+}
+.PotPreview-Card-Cat-meat    { color: #c43a3a; border-color: #c43a3a; }
+.PotPreview-Card-Cat-fish    { color: #4a7a9a; border-color: #4a7a9a; }
+.PotPreview-Card-Cat-veg     { color: #4a8a4a; border-color: #4a8a4a; }
+.PotPreview-Card-Cat-sweet   { color: #d4628a; border-color: #d4628a; }
+.PotPreview-Card-Cat-special { color: var(--warn-sanity); border-color: var(--warn-sanity); }
+
+.PotPreview-Card-Quality {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-muted);
+  letter-spacing: 1px;
+}
+.PotPreview-Card-Req {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--sp-8);
+}
+.PotPreview-Ing {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  border: 1px solid var(--border);
+  background: var(--night-elev);
+  color: var(--fg-muted);
+  letter-spacing: 0.5px;
+}
+.PotPreview-Ing.is-have {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(212, 166, 74, 0.1);
+}
+.PotPreview-Ing.is-miss {
+  border-color: var(--border);
+  color: var(--fg-faint);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.PotPreview-Ing-Mark { font-size: 9px; }
+.PotPreview-Card-Missing {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--warn-hp);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.PotPreview-Card-Stats {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-muted);
+  letter-spacing: 0.5px;
+  display: flex;
+  gap: var(--sp-8);
+  flex-wrap: wrap;
+}
+.PotPreview-Card-Stats span { white-space: nowrap; }
+
+/* ===================== 成品槽(右列) ===================== */
+.PotResultSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  min-height: 380px;
+}
+.PotResultSlot-Label {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.PotResultBox {
+  width: 100%;
+  min-height: 160px;
+  background: var(--night-deep);
+  border: 2px solid var(--border-bold);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  padding: var(--sp-16);
+  position: relative;
+  transition: border-color 200ms linear;
+}
+.PotResultBox.is-empty { border-style: dashed; }
+.PotResultBox.is-filled { border-color: var(--accent); }
+.PotResultBox.is-cooking { border-color: var(--warn-hp); animation: pot-result-cooking 0.4s steps(2) infinite; }
+@keyframes pot-result-cooking {
+  50% { opacity: 0.7; }
+}
+.PotResultBox-Art {
+  font-family: var(--font-pixel);
+  font-size: 64px;
+  color: var(--accent);
+  text-shadow: 2px 2px 0 var(--night-black);
+  line-height: 1;
+}
+.PotResultBox.is-cooking .PotResultBox-Art { color: var(--warn-hp); }
+.PotResultBox-Name {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  letter-spacing: 1px;
+  text-align: center;
+}
+.PotResultSlot-Hint {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-faint);
+  letter-spacing: 0.5px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* 品质标签(成品槽内, 也可在食谱卡片用) */
+.PotQualityTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  letter-spacing: 1px;
+  background: var(--night-elev);
+}
+.PotQualityTag-Icon { font-size: var(--fs-12); line-height: 1; }
+.PotQualityTag-1 { color: #aaa; }
+.PotQualityTag-2 { color: var(--accent); border-color: var(--accent); background: rgba(212, 166, 74, 0.1); }
+.PotQualityTag-3 { color: var(--warn-hp); border-color: var(--warn-hp); background: rgba(196, 58, 58, 0.1); }
+
+/* ===================== 加工站(晒肉架 / 发酵桶) ===================== */
+.StationDialog {
+  width: 640px;
+  max-width: 90vw;
+}
+.StationHeader-Icon {
+  font-size: var(--fs-18);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.StationBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  padding: var(--sp-16);
+}
+.StationHint {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border);
+}
+.StationFlow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-16) 0;
+}
+.StationInputSlot {
+  width: 80px !important;
+  height: 80px !important;
+}
+.StationArrow {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-18);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.StationProcess {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border);
+  align-items: center;
+}
+.StationProcess-Icon {
+  font-size: 32px;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(212, 166, 74, 0.4);
+  line-height: 1;
+}
+.StationProcess-Bar {
+  width: 100%;
+  height: 16px;
+  background: var(--bar-track);
+  border: 1px solid var(--border-bold);
+  position: relative;
+  overflow: hidden;
+}
+.StationProcess-Bar-Fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition: width 80ms linear;
+}
+.StationProcess-Bar-Text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg);
+  text-shadow: 1px 1px 0 var(--night-black);
+  letter-spacing: 1px;
+}
+.StationOutputSlot {
+  width: 80px;
+  height: 80px;
+}
+.StationOutputSlot .PotResultBox {
+  width: 100%;
+  height: 100%;
+  min-height: auto;
+  padding: var(--sp-8);
+  gap: 2px;
+}
+.StationOutputSlot .PotResultBox-Art {
+  font-size: 28px;
+}
+.StationOutputSlot .PotResultBox-Name {
+  font-size: var(--fs-10);
+}
+
+.StationAcceptList {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  letter-spacing: 0.5px;
+}
+.StationAcceptList-Label { color: var(--fg-faint); }
+.StationAcceptList-Item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: var(--night-deep);
+  border: 1px solid var(--border-bold);
+  color: var(--fg-muted);
+}
+.StationAcceptList-Art { font-size: var(--fs-12); }
+
+/* ===================== toast ===================== */
+.Cooking-Toast {
+  position: fixed;
+  top: var(--sp-24);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--sp-8) var(--sp-16);
+  background: var(--night-elev);
+  border: 1px solid var(--accent);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--accent);
+  letter-spacing: 1px;
+  z-index: 200;
+  animation: cooking-toast-in 1.8s steps(2) 1;
+}
+@keyframes cooking-toast-in {
+  0%   { opacity: 0; transform: translate(-50%, -8px); }
+  10%  { opacity: 1; transform: translate(-50%, 0); }
+  85%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}

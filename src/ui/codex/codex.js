@@ -111,6 +111,7 @@ const ITEMS = [
 const INIT_UNLOCKED = {
   creatures: new Set(["hound", "spider", "bat", "merm", "treant", "hound_winter"]),
   items:     new Set(["twigs", "flint", "log", "axe", "pickaxe", "torch"]),
+  recipes:   new Set(),   // v0.5.3 烹饪 — 启动时从 window.__wildwoodRecipes.INIT_UNLOCKED 同步
 };
 
 // ============================================================================
@@ -118,14 +119,21 @@ const INIT_UNLOCKED = {
 // ============================================================================
 
 const state = {
-  tab: "creatures",            // 当前 Tab
+  tab: "creatures",            // 当前 Tab (creatures | items | recipes)
+  recipesSub: "category",      // recipes 子 Tab (category | quality)
   unlocked: {
     creatures: new Set(INIT_UNLOCKED.creatures),
     items:     new Set(INIT_UNLOCKED.items),
+    recipes:   new Set(INIT_UNLOCKED.recipes),
   },
   justUnlocked: new Set(),     // 解锁瞬间的 ID(脉冲高亮 1.2s 后清除)
   currentDetail: null,         // 当前打开的详情
 };
+
+// v0.5.3 烹饪: 启动时把 recipes.js 的初始解锁条目同步进来
+if (typeof window !== "undefined" && window.__wildwoodRecipes && window.__wildwoodRecipes.INIT_UNLOCKED) {
+  for (const id of window.__wildwoodRecipes.INIT_UNLOCKED) state.unlocked.recipes.add(id);
+}
 
 // ============================================================================
 // 渲染层
@@ -234,9 +242,10 @@ function renderTabs() {
   const counts = {
     creatures: `${state.unlocked.creatures.size}/${CREATURES.length}`,
     items:     `${state.unlocked.items.size}/${ITEMS.length}`,
+    recipes:   `${state.unlocked.recipes.size}/${(window.__wildwoodRecipes && window.__wildwoodRecipes.RECIPES) ? window.__wildwoodRecipes.RECIPES.length : 30}`,
   };
   els.tabs.innerHTML = "";
-  for (const [k, label] of [["creatures", "生物"], ["items", "物品"]]) {
+  for (const [k, label] of [["creatures", "生物"], ["items", "物品"], ["recipes", "食谱"]]) {
     const tab = el("button", {
       class: "Codex-Tab" + (state.tab === k ? " is-active" : ""),
       dataset: { tab: k },
@@ -251,6 +260,11 @@ function renderTabs() {
 
 function renderList() {
   els.list.innerHTML = "";
+  // v0.5.3 烹饪: 食谱 Tab 走专门渲染(双二级 Tab)
+  if (state.tab === "recipes") {
+    renderRecipesList();
+    return;
+  }
   const data = state.tab === "creatures" ? CREATURES : ITEMS;
   for (const item of data) {
     els.list.append(buildItemCard(item, state.tab));
@@ -265,6 +279,242 @@ function renderList() {
   }
 }
 
+// ============================================================================
+// v0.5.3 烹饪 · 食谱图鉴(双二级 Tab: 分类 / 品质)
+// 复用 M1.8 Dialog(详情卡) + M2.11 Codex 卡样式
+// ============================================================================
+
+const RECIPES_SUBTABS = [
+  { id: "category", label: "按分类" },
+  { id: "quality",  label: "按品质" }
+];
+
+const QUALITY_META = {
+  1: { label: "普通", color: "#aaa",     short: "N" },
+  2: { label: "优秀", color: "#d4a64a",  short: "E" },
+  3: { label: "完美", color: "#c43a3a",  short: "P" }
+};
+
+const CATEGORY_META = {
+  meat:    { label: "肉食", color: "#c43a3a" },
+  fish:    { label: "鱼类", color: "#4a7a9a" },
+  veg:     { label: "素食", color: "#4a8a4a" },
+  sweet:   { label: "甜品", color: "#d4628a" },
+  special: { label: "特殊", color: "#6a4a8a" }
+};
+
+function ingredientNameForCodex(id) {
+  if (window.__wildwoodRecipes) {
+    const ing = window.__wildwoodRecipes.getIngredient(id);
+    if (ing) return ing.name;
+  }
+  // 兜底(items.json 已存在的)
+  const map = { log:'木头', twine:'草绳', stone:'石头', flint:'燧石', iron_ore:'铁矿', dirt:'泥土', petals:'花瓣', ice:'冰',
+              berries:'浆果', carrot:'胡萝卜', mushroom:'蘑菇' };
+  return map[id] || id;
+}
+
+function renderRecipesList() {
+  // 二级 Tab(分类 / 品质)
+  const sub = el("div", { class: "Codex-Recipes-Sub" });
+  for (const st of RECIPES_SUBTABS) {
+    const t = el("button", {
+      class: "Codex-Recipes-Sub-Tab" + (state.recipesSub === st.id ? " is-active" : ""),
+      dataset: { sub: st.id }
+    }, st.label);
+    t.addEventListener("click", () => {
+      state.recipesSub = st.id;
+      renderRecipesList();
+    });
+    sub.append(t);
+  }
+  els.list.append(sub);
+
+  const recipes = (window.__wildwoodRecipes && window.__wildwoodRecipes.RECIPES) || [];
+
+  if (state.recipesSub === "category") {
+    // 按分类分块
+    for (const catId of Object.keys(CATEGORY_META)) {
+      const block = recipes.filter(r => r.cat === catId);
+      if (!block.length) continue;
+      const head = el("div", { class: "Codex-Recipes-GroupHead" }, [
+        el("span", { class: "Codex-Recipes-GroupLabel", style: { color: CATEGORY_META[catId].color } }, CATEGORY_META[catId].label),
+        el("span", { class: "Codex-Recipes-GroupCount" }, `${block.filter(r => state.unlocked.recipes.has(r.id)).length}/${block.length}`),
+      ]);
+      els.list.append(head);
+      const grid = el("div", { class: "Codex-Recipes-Grid" });
+      for (const r of block) grid.append(buildRecipeCard(r));
+      els.list.append(grid);
+    }
+  } else {
+    // 按品质分块(3 档)
+    for (const q of [1, 2, 3]) {
+      const block = recipes.filter(r => r.quality === q);
+      if (!block.length) continue;
+      const head = el("div", { class: "Codex-Recipes-GroupHead" }, [
+        el("span", { class: "Codex-Recipes-GroupLabel", style: { color: QUALITY_META[q].color } }, QUALITY_META[q].label + "品质"),
+        el("span", { class: "Codex-Recipes-GroupCount" }, `${block.filter(r => state.unlocked.recipes.has(r.id)).length}/${block.length}`),
+      ]);
+      els.list.append(head);
+      const grid = el("div", { class: "Codex-Recipes-Grid" });
+      for (const r of block) grid.append(buildRecipeCard(r));
+      els.list.append(grid);
+    }
+  }
+
+  // 解锁脉冲
+  for (const id of state.justUnlocked) {
+    const card = els.list.querySelector(`.Codex-Item[data-id="${id}"]`);
+    if (card) {
+      card.classList.add("is-just-unlocked");
+      setTimeout(() => card.classList.remove("is-just-unlocked"), 1200);
+    }
+  }
+}
+
+function buildRecipeCard(r) {
+  const isUnlocked = state.unlocked.recipes.has(r.id);
+  const q = QUALITY_META[r.quality];
+  const cat = CATEGORY_META[r.cat];
+  const card = el("div", {
+    class: "Codex-Item Codex-Recipe" + (isUnlocked ? "" : " is-locked") + " Codex-Recipe-Q" + r.quality,
+    dataset: { id: r.id, kind: "recipes" },
+    role: "button",
+    tabindex: "0",
+    "aria-label": isUnlocked ? r.name : "未解锁"
+  });
+
+  // 64px 插画(用首字 + 分类色)
+  const art = el("div", { class: "Codex-Item-Art" });
+  art.append(el("span", {
+    style: {
+      position: "absolute", inset: "0",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "var(--font-pixel)", fontSize: "var(--fs-18)",
+      color: isUnlocked ? cat.color : "var(--fg-faint)", letterSpacing: "1px"
+    }
+  }, r.name.charAt(0)));
+  card.append(art);
+
+  // 名称
+  card.append(el("div", { class: "Codex-Item-Name" }, isUnlocked ? r.name : "·"));
+
+  // 4 食材缩写(锁: 灰显 + ?)
+  if (isUnlocked) {
+    const ingLine = el("div", { class: "Codex-Recipe-Ing" });
+    r.ingredients.forEach((iid) => {
+      ingLine.append(el("span", { class: "Codex-Recipe-Ing-Item" }, ingredientNameForCodex(iid).charAt(0)));
+    });
+    card.append(ingLine);
+    // 品质标签
+    card.append(el("div", { class: "Codex-Recipe-Quality" }, [
+      el("span", { class: "Codex-Recipe-Quality-Icon", style: { color: q.color } }, q.short),
+      el("span", { class: "Codex-Recipe-Quality-Label", style: { color: q.color } }, q.label),
+    ]));
+  } else {
+    // 锁状态: 占位
+    const ingLine = el("div", { class: "Codex-Recipe-Ing" });
+    for (let k = 0; k < 4; k++) ingLine.append(el("span", { class: "Codex-Recipe-Ing-Item" }, "?"));
+    card.append(ingLine);
+    card.append(el("div", { class: "Codex-Recipe-Quality" }, [
+      el("span", { class: "Codex-Recipe-Quality-Icon" }, "?"),
+      el("span", { class: "Codex-Recipe-Quality-Label" }, "??"),
+    ]));
+  }
+
+  card.addEventListener("click", () => openDetail(r, "recipes"));
+  card.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(r, "recipes"); }
+  });
+  return card;
+}
+
+function openRecipeDetail(r) {
+  const isUnlocked = state.unlocked.recipes.has(r.id);
+  const q = QUALITY_META[r.quality];
+  const cat = CATEGORY_META[r.cat];
+
+  if (els.overlay) closeDetail();
+
+  const overlay = el("div", { class: "Dialog-Overlay" });
+  const dialog = el("div", { class: "Dialog Codex-Recipe-Detail", role: "dialog", "aria-label": r.name });
+
+  // Header: 64px 插画 + 名称 + 品质 + 分类
+  const headerArt = el("div", { class: "Codex-Item-Art" });
+  headerArt.append(el("span", {
+    style: {
+      position: "absolute", inset: "0",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "var(--font-pixel)", fontSize: "var(--fs-24)",
+      color: isUnlocked ? cat.color : "var(--fg-faint)", letterSpacing: "1px"
+    }
+  }, isUnlocked ? r.name.charAt(0) : "?"));
+  const headerLeft = el("div", { style: { display: "flex", alignItems: "center", gap: "var(--sp-8)" } }, [
+    headerArt,
+    el("div", {}, [
+      el("div", { class: "Dialog-Title" }, isUnlocked ? r.name : "?? ?? ??"),
+      isUnlocked
+        ? el("div", { class: "Codex-Detail-Sci" }, `${cat.label} · 基础品质 ${q.label}`)
+        : el("div", { class: "Codex-Detail-Sci" }, r.hint || "未解锁 · 烹饪对应食材后开放"),
+    ]),
+  ]);
+  const closeBtn = el("button", { class: "Dialog-Close", "aria-label": "关闭" }, "×");
+  closeBtn.addEventListener("click", closeDetail);
+  const header = el("div", { class: "Dialog-Header" }, [headerLeft, closeBtn]);
+
+  // Body
+  const body = el("div", { class: "Dialog-Body" });
+  if (isUnlocked) {
+    // 食材需求
+    const ingSec = el("div", { class: "Codex-Detail-Section" }, [
+      el("div", { class: "Codex-Detail-Section-Title" }, "▸ 所需食材"),
+      el("div", { class: "Codex-Recipe-Detail-Ing" },
+        r.ingredients.map((iid) => el("span", { class: "Codex-Recipe-Ing-Item Codex-Recipe-Ing-Item-Detail" }, ingredientNameForCodex(iid)))
+      ),
+    ]);
+    body.append(ingSec);
+    // 数值表
+    const stats = el("div", { class: "Codex-Detail-Stats" });
+    const items = [
+      { k: "饥", v: r.hunger },
+      { k: "精", v: r.sanity },
+      { k: "血", v: r.health },
+      { k: "保", v: r.perishDays + " 天" },
+    ];
+    for (const it of items) {
+      const isWarn = (it.k === "血" && (typeof it.v === "number" && it.v < 0)) ||
+                     (it.k === "精" && (typeof it.v === "number" && it.v < 0));
+      stats.append(el("div", { class: "Codex-Detail-Stat" + (isWarn ? " is-warn" : "") }, [
+        el("span", { class: "Codex-Detail-Stat-Key" }, it.k),
+        el("span", { class: "Codex-Detail-Stat-Val" }, String(it.v)),
+      ]));
+    }
+    body.append(stats);
+    // 烹饪说明
+    body.append(el("div", { class: "Codex-Detail-Section" }, [
+      el("div", { class: "Codex-Detail-Section-Title" }, "▸ 烹饪指南"),
+      el("div", { class: "Codex-Detail-Section-Body" },
+        `放入全部 4 种食材到烹饪锅,点击「开始烹饪」即可制作。基础品质 ${q.label},4 食材精准匹配时有概率升档为完美;缺料将降档或失败。`),
+    ]));
+  } else {
+    body.append(el("div", { class: "Codex-Detail-Section-Body", style: { textAlign: "center", padding: "var(--sp-24)" } },
+      r.hint || "该食谱尚未解锁。\n完成对应条件后,5Hz 同步将自动开放。"));
+  }
+
+  // Footer
+  const closeBtn2 = el("button", { class: "Button Button-Secondary" }, "关闭");
+  closeBtn2.addEventListener("click", closeDetail);
+  const footer = el("div", { class: "Dialog-Footer" }, [closeBtn2]);
+
+  dialog.append(header, body, footer);
+  overlay.addEventListener("click", closeDetail);
+  document.body.append(overlay, dialog);
+
+  els.overlay = overlay;
+  els.dialog = dialog;
+  document.addEventListener("keydown", onDetailKey);
+}
+
 function switchTab(tab) {
   if (state.tab === tab) return;
   state.tab = tab;
@@ -277,6 +527,8 @@ function switchTab(tab) {
 // ============================================================================
 
 function openDetail(item, kind) {
+  // v0.5.3 烹饪: 食谱走专门详情卡(用 openRecipeDetail)
+  if (kind === "recipes") { openRecipeDetail(item); return; }
   state.currentDetail = { id: item.id, kind };
   // 关闭已有
   if (els.overlay) closeDetail();
@@ -378,15 +630,23 @@ function unlockOne(id, kind) {
   renderTabs();
   renderList();
   // toast
-  const item = (kind === "creatures" ? CREATURES : ITEMS).find((x) => x.id === id);
+  let item = null;
+  if (kind === "creatures") item = CREATURES.find((x) => x.id === id);
+  else if (kind === "items") item = ITEMS.find((x) => x.id === id);
+  else if (kind === "recipes" && window.__wildwoodRecipes) item = window.__wildwoodRecipes.RECIPES.find((x) => x.id === id);
   if (item) showToast(`✦ 新解锁 · ${item.name}`);
   setTimeout(() => state.justUnlocked.delete(id), 1300);
 }
 
-/** 接收广播:挑一个未解锁的 id 解锁 */
+/** 接收广播:挑一个未解锁的 id 解锁(creatures / items / recipes 三类随机) */
 function onBroadcast() {
-  const kind = Math.random() < 0.5 ? "creatures" : "items";
-  const pool = kind === "creatures" ? CREATURES : ITEMS;
+  const kinds = ["creatures", "items"];
+  if (window.__wildwoodRecipes && window.__wildwoodRecipes.RECIPES) kinds.push("recipes");
+  const kind = kinds[Math.floor(Math.random() * kinds.length)];
+  let pool = [];
+  if (kind === "creatures") pool = CREATURES;
+  else if (kind === "items") pool = ITEMS;
+  else if (kind === "recipes" && window.__wildwoodRecipes) pool = window.__wildwoodRecipes.RECIPES;
   const locked = pool.filter((x) => !state.unlocked[kind].has(x.id));
   if (locked.length === 0) return;
   const target = locked[Math.floor(Math.random() * locked.length)];
@@ -446,12 +706,19 @@ export function initCodex(mountPoint) {
   mountPoint.querySelector('[data-act="unlock-all"]').addEventListener("click", () => {
     for (const x of CREATURES) state.unlocked.creatures.add(x.id);
     for (const x of ITEMS) state.unlocked.items.add(x.id);
+    if (window.__wildwoodRecipes && window.__wildwoodRecipes.RECIPES) {
+      for (const x of window.__wildwoodRecipes.RECIPES) state.unlocked.recipes.add(x.id);
+    }
     renderTabs(); renderList();
     showToast("✦ 全部条目已解锁");
   });
   mountPoint.querySelector('[data-act="reset"]').addEventListener("click", () => {
     state.unlocked.creatures = new Set(INIT_UNLOCKED.creatures);
     state.unlocked.items = new Set(INIT_UNLOCKED.items);
+    state.unlocked.recipes = new Set(INIT_UNLOCKED.recipes);
+    if (window.__wildwoodRecipes && window.__wildwoodRecipes.INIT_UNLOCKED) {
+      for (const id of window.__wildwoodRecipes.INIT_UNLOCKED) state.unlocked.recipes.add(id);
+    }
     renderTabs(); renderList();
   });
 
