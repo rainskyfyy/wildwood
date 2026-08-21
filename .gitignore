@@ -17,12 +17,6 @@ data_*/
 .directory
 *~
 
-# Python bytecode (M2.4+ tests use pytest)
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-
 # .NET / C# build outputs (if using C# in future)
 bin/
 obj/
