@@ -2,12 +2,14 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>Wildwood M4 Demo — 核心游戏系统</title>
+  <title>Wildwood M4 Demo — 核心游戏系统 + M1.7/M1.8 UI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- M1.7 UI 基础布局(tokens 必须先于其他) -->
   <link rel="stylesheet" href="./src/ui/layout/tokens.css">
   <link rel="stylesheet" href="./src/ui/layout/grid.css">
   <link rel="stylesheet" href="./src/ui/layout/anchors.css">
+  <!-- M1.8 UI 组件库(6 类 × 3 变体) -->
+  <link rel="stylesheet" href="./src/ui/components/components.css">
   <style>
     :root {
       --bg: #0d0d18;
@@ -59,43 +61,125 @@
       font-family: ui-monospace, monospace; font-size: 11px;
       color: #fff;
     }
-    /* M1.7: 5 锚定区占位 · 内容由 M1.8 / M2.12 填充 */
-    .Anchor-TL::before, .Anchor-TR::before, .Anchor-BR::before,
-    .Anchor-BL::before, .Anchor-B::before {
-      content: attr(data-label);
-      font-family: var(--font-pixel);
-      font-size: var(--fs-10);
-      color: var(--fg-faint);
-      letter-spacing: 1px;
-    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Wildwood · M4 核心游戏系统 MVP</h1>
+    <h1>Wildwood · M4 核心游戏系统 + M1.7/M1.8 UI</h1>
     <div class="stage">
       <canvas id="game" width="1440" height="900"></canvas>
-      <!-- M1.7: UI 锚定层,5 区域绝对定位 -->
+      <!-- M1.7 + M1.8: 5 锚定区填上实际组件实例 -->
       <div class="UILayer">
-        <div class="Anchor-TL" data-label="[TL · 队伍+状态 280×...]"></div>
-        <div class="Anchor-TR" data-label="[TR · 时间+季节 240×...]"></div>
-        <div class="Anchor-BR" data-label="[BR · 小地图 200×200]"></div>
-        <div class="Anchor-BL" data-label="[BL · 快捷栏 520×60]"></div>
-        <div class="Anchor-B"   data-label="[B · 聊天 全宽×160]"></div>
+
+        <!-- 左上 · 4 队伍槽 + 3 三围条 -->
+        <div class="Anchor-TL">
+          <div class="GridRow GridGap-8">
+            <div class="PartySlot"></div>
+            <div class="PartySlot"></div>
+            <div class="PartySlot"></div>
+            <div class="PartySlot"></div>
+          </div>
+          <div class="VitalBar VitalBar-HP" data-value="82">
+            <div class="VitalBar-Fill" style="width: 82%"></div>
+            <div class="VitalBar-Value">82/100</div>
+          </div>
+          <div class="VitalBar VitalBar-Hunger" data-value="45">
+            <div class="VitalBar-Fill" style="width: 45%"></div>
+            <div class="VitalBar-Value">45/100</div>
+          </div>
+          <div class="VitalBar VitalBar-Sanity" data-value="60">
+            <div class="VitalBar-Fill" style="width: 60%"></div>
+            <div class="VitalBar-Value">60/100</div>
+          </div>
+        </div>
+
+        <!-- 右上 · 时间 + 季节 -->
+        <div class="Anchor-TR">
+          <div class="TimeDisplay">Day 12 · 14:32</div>
+          <div class="SeasonTag">AUTUMN</div>
+        </div>
+
+        <!-- 右下 · 小地图 200×200 -->
+        <div class="Anchor-BR">
+          <div class="Minimap">
+            <canvas class="MinimapCanvas" width="200" height="200"></canvas>
+            <div class="Minimap-PlayerDot"></div>
+            <div class="Minimap-PartyDot Minimap-PartyDot-Party-2" style="top: 30%; left: 40%"></div>
+            <div class="Minimap-PartyDot Minimap-PartyDot-Party-3" style="top: 65%; left: 70%"></div>
+            <div class="Minimap-POIDot" style="top: 20%; left: 80%"></div>
+            <div class="Minimap-Compass">
+              <span class="Minimap-Compass-N">N</span>
+              <span class="Minimap-Compass-S">S</span>
+              <span class="Minimap-Compass-E">E</span>
+              <span class="Minimap-Compass-W">W</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 左下 · 快捷栏 5 格 + 2 扩展(共 7) -->
+        <div class="Anchor-BL">
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">1</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Active">
+            <span class="HotbarSlot-Key">2</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">3</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">4</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">5</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Disabled" aria-disabled="true">
+            <span class="HotbarSlot-Key">6</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Disabled" aria-disabled="true">
+            <span class="HotbarSlot-Key">7</span>
+          </div>
+        </div>
+
+        <!-- 底部 · 聊天 -->
+        <div class="Anchor-B">
+          <div class="ChatChannel-Tab">
+            <span class="Active">[全局]</span>
+            <span>[队伍]</span>
+            <span>[私聊]</span>
+          </div>
+          <div class="ChatLine">[系统] Day 12 · 落叶渐红,寒意将至</div>
+          <div class="ChatLine">[玩家A] 那边有棵树可以砍伐</div>
+          <div class="ChatLine">[玩家B] 我去收集石头</div>
+          <input class="ChatInput" type="text" placeholder="按 Enter 发送消息...">
+        </div>
+
       </div>
     </div>
     <div class="controls">
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
       <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
-      <span>摄像机跟随 · 32×32 tile · 4 群系(森林/平原/矿区/雪原) · UI 锚定层 M1.7</span>
+      <span>M4 核心 · M1.7 布局 · M1.8 组件库 · 6 类 × 3 变体</span>
     </div>
   </div>
   <script type="module">
     import { bootGame } from './src/main.js';
     const canvas = document.getElementById('game');
     bootGame(canvas);
-    // expose for debug
-    window.__wildwood = { canvas };
+    // M1.8 演示:点击快捷栏切换 active
+    const slots = document.querySelectorAll('.HotbarSlot');
+    slots.forEach(slot => {
+      if (slot.getAttribute('aria-disabled') === 'true') return;
+      slot.addEventListener('click', () => {
+        slots.forEach(s => {
+          s.classList.remove('HotbarSlot-Active');
+          s.classList.add('HotbarSlot-Default');
+        });
+        slot.classList.remove('HotbarSlot-Default');
+        slot.classList.add('HotbarSlot-Active');
+      });
+    });
+    window.__wildwood = { canvas, slots };
   </script>
 </body>
 </html>

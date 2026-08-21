@@ -1,0 +1,424 @@
+/* Wildwood UI · 6 类基础组件 · 暗黑哥特风
+ * 依赖: src/ui/layout/tokens.css
+ * 6 类 × 3 变体 = 18 组件实例
+ *
+ * 三围条: VitalBar-HP / VitalBar-Hunger / VitalBar-Sanity
+ *         (变体:default / .is-low<30% / .is-critical<10% / .is-disabled)
+ * 快捷栏: Hotbar / HotbarSlot-Default / HotbarSlot-Active / HotbarSlot-Disabled
+ * 小地图: Minimap / Minimap-PlayerDot / Minimap-PartyDot / Minimap-Compass
+ * 对话框: Dialog / Dialog-Header / Dialog-Body / Dialog-Footer / Dialog-Overlay
+ * 按钮:   Button-Primary / Button-Secondary / Button-Danger
+ *         (变体:default / :hover / :active / :disabled)
+ * 输入框: Input / Input-Textarea
+ *         (变体:default / :focus / :disabled / .is-error)
+ */
+
+/* ===================== 容器基础 ===================== */
+.Panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-16);
+}
+.Panel-Header {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-14);
+  color: var(--accent);
+  letter-spacing: 1px;
+  padding-bottom: var(--sp-8);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-16);
+}
+.Panel-Body {
+  font-size: var(--fs-12);
+  color: var(--fg);
+}
+.Panel-Footer {
+  margin-top: var(--sp-16);
+  padding-top: var(--sp-8);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: var(--sp-8);
+  justify-content: flex-end;
+}
+
+/* ===================== 三围条(生命/饥饿/理智) ===================== */
+.VitalBar {
+  width: var(--bar-w);
+  height: var(--bar-h);
+  background: var(--bar-track);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  position: relative;
+  overflow: hidden;
+}
+.VitalBar-Fill {
+  height: 100%;
+  width: 100%;            /* 默认满,JS 改 width 改值 */
+  background: var(--accent);
+  transition: width 200ms linear, background 200ms linear;
+}
+.VitalBar-Value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  text-shadow: 1px 1px 0 var(--night-black);
+  letter-spacing: 1px;
+}
+.VitalBar-Icon {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+}
+
+/* HP 红色 */
+.VitalBar-HP .VitalBar-Fill     { background: var(--warn-hp); }
+/* 饥饿 琥珀 */
+.VitalBar-Hunger .VitalBar-Fill { background: var(--warn-hunger); }
+/* 理智 暗紫 */
+.VitalBar-Sanity .VitalBar-Fill { background: var(--warn-sanity); }
+
+/* 状态:低(< 30%) 闪烁边 */
+.VitalBar.is-low {
+  animation: vitalbar-low 1s steps(2) infinite;
+}
+@keyframes vitalbar-low {
+  50% { border-color: var(--warn-hp); }
+}
+/* 状态:危险(< 10%) 红边 + 抖动 */
+.VitalBar.is-critical {
+  border-color: var(--warn-hp);
+  box-shadow: 0 0 0 1px var(--warn-hp);
+  animation: vitalbar-critical 0.4s steps(2) infinite;
+}
+@keyframes vitalbar-critical {
+  50% { opacity: 0.7; }
+}
+/* 状态:禁用 灰显 */
+.VitalBar.is-disabled,
+.VitalBar[aria-disabled="true"] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ===================== 快捷栏(5/10 格) ===================== */
+.Hotbar {
+  display: flex;
+  gap: var(--sp-8);
+  align-items: center;
+  padding: var(--sp-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+}
+.HotbarSlot {
+  width: 44px;
+  height: 44px;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  position: relative;
+  image-rendering: pixelated;
+  cursor: pointer;
+  transition: border-color 80ms linear, box-shadow 80ms linear;
+}
+/* 默认:1-2px 边 */
+.HotbarSlot-Default { /* 占位,与 .HotbarSlot 等价 */ }
+/* 激活:琥珀边 + 2px 外环 */
+.HotbarSlot-Active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-2);
+}
+/* 禁用:灰显 */
+.HotbarSlot-Disabled,
+.HotbarSlot[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+/* hover:边变亮 */
+.HotbarSlot:not(.HotbarSlot-Disabled):hover {
+  border-color: var(--fg-muted);
+}
+.HotbarSlot-Key {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-faint);
+  line-height: 1;
+}
+.HotbarSlot-Icon {
+  position: absolute;
+  inset: 4px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.HotbarSlot-Stack {
+  position: absolute;
+  bottom: 0;
+  right: 2px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg);
+  text-shadow: 1px 1px 0 var(--night-black);
+  line-height: 1;
+}
+
+/* ===================== 小地图 ===================== */
+.Minimap {
+  width: 200px;
+  height: 200px;
+  position: relative;
+  background: var(--night-deep);
+  border: 1px solid var(--border-bold);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+.MinimapCanvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  background:
+    /* 8px 像素感调试网格 */
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0/8px 8px,
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0/8px 8px;
+}
+/* 玩家点:中央白方 */
+.Minimap-PlayerDot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: var(--fg);
+  border: 1px solid var(--night-black);
+  transform: translate(-50%, -50%);
+}
+/* 队友点:4 队伍色(队伍 1-4) */
+.Minimap-PartyDot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border: 1px solid var(--night-black);
+  transform: translate(-50%, -50%);
+}
+.Minimap-PartyDot-Party-1 { background: #d4a64a; }  /* 琥珀 */
+.Minimap-PartyDot-Party-2 { background: #6a8aa4; }  /* 钢蓝 */
+.Minimap-PartyDot-Party-3 { background: #8a4a4a; }  /* 暗红 */
+.Minimap-PartyDot-Party-4 { background: #4a8a4a; }  /* 暗绿 */
+/* 兴趣点(POI) */
+.Minimap-POIDot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  border: 1px solid var(--night-black);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+/* 罗盘边框 */
+.Minimap-Compass {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-muted);
+}
+.Minimap-Compass-N { position: absolute; top: 2px;    left: 50%; transform: translateX(-50%); }
+.Minimap-Compass-S { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); }
+.Minimap-Compass-E { position: absolute; right: 2px;  top: 50%;  transform: translateY(-50%); }
+.Minimap-Compass-W { position: absolute; left: 2px;   top: 50%;  transform: translateY(-50%); }
+
+/* ===================== 对话框(模态) ===================== */
+.Dialog-Overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+}
+.Dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 320px;
+  max-width: 640px;
+  background: var(--bg-panel-solid);
+  border: 2px solid var(--border-bold);
+  box-shadow: 4px 4px 0 var(--night-black);
+  z-index: 101;
+}
+.Dialog-Header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8) var(--sp-16);
+  background: var(--night-elev);
+  border-bottom: 1px solid var(--border-bold);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-14);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.Dialog-Title {
+  /* 占位,父级 .Dialog-Header 已经有字体 */
+}
+.Dialog-Close {
+  width: 24px;
+  height: 24px;
+  background: var(--night-deep);
+  border: 1px solid var(--border-bold);
+  color: var(--fg-muted);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.Dialog-Close:hover { color: var(--warn-hp); border-color: var(--warn-hp); }
+.Dialog-Body {
+  padding: var(--sp-16);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  line-height: 1.5;
+  min-height: 80px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.Dialog-Footer {
+  padding: var(--sp-8) var(--sp-16);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: var(--sp-8);
+  justify-content: flex-end;
+  background: var(--night-deep);
+}
+
+/* 模态变体(与 Overlay 配合) */
+.Dialog.is-modal { /* 强制带遮罩,由 HTML 决定 */ }
+/* 加载中 */
+.Dialog.is-loading .Dialog-Body {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ===================== 按钮 ===================== */
+.Button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  min-width: 80px;
+  height: 32px;
+  padding: 0 var(--sp-16);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-2);
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: transform 80ms linear, box-shadow 80ms linear;
+  user-select: none;
+}
+/* 主操作(琥珀) */
+.Button-Primary {
+  background: var(--accent);
+  color: var(--night-black);
+  border-color: var(--accent-3);
+}
+/* 次操作(暗底) */
+.Button-Secondary {
+  background: var(--night-elev);
+  color: var(--fg);
+  border-color: var(--border-bold);
+}
+/* 危险(暗红) */
+.Button-Danger {
+  background: var(--warn-hp);
+  color: var(--fg);
+  border-color: #8a2a2a;
+}
+/* 状态:hover */
+.Button:hover:not(.Button-Disabled):not([aria-disabled="true"]) {
+  border-color: var(--accent);
+}
+/* 状态:active 按下 */
+.Button:active:not(.Button-Disabled):not([aria-disabled="true"]),
+.Button.is-active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--night-black);
+}
+/* 状态:disabled */
+.Button-Disabled,
+.Button[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ===================== 输入框 ===================== */
+.Input {
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--sp-8);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-2);
+  outline: none;
+  transition: border-color 80ms linear, box-shadow 80ms linear;
+}
+.Input::placeholder { color: var(--fg-faint); }
+.Input:focus,
+.Input.is-focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.Input:disabled,
+.Input[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* 错误状态 */
+.Input.is-error {
+  border-color: var(--warn-hp);
+  box-shadow: 0 0 0 1px var(--warn-hp);
+}
+.Input-Textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: var(--sp-8);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-2);
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+}
+.Input-Textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.Input-Textarea.is-error { border-color: var(--warn-hp); box-shadow: 0 0 0 1px var(--warn-hp); }
