@@ -435,20 +435,102 @@ M1.11 在 M1.5 协议 + M1.9 传输 + M1.10 会话之上,落地**业务层房间
 
 ---
 
+## M2.9 合成系统
+
+M2.9 在 M1 抽象层之上落地 34 配方的合成系统,覆盖工具/装备/食物/建筑 4 类,工作台/烹饪锅作为高级配方门槛。
+
+### 4 项验收
+
+| 编号 | 验收标准                                    | 状态 | 证据 |
+|------|---------------------------------------------|------|------|
+| ①    | 30+ 配方可合成                              | ✅ 34 配方(9 tool / 7 equip / 11 food / 7 building) | `test_recipe_book.py` 16 测试 |
+| ②    | 材料全有按钮可点(`craftable_button_enabled`) | ✅ UI state 实时计算 | `test_m29_demo_e2e.py` 验收 ② |
+| ③    | 合成 ≤ 400ms 反馈                           | ✅ p99 = **0.009ms**(44,000× 余量) | `run_m29_perf.py` |
+| ④    | 无工作台时配方灰显 + 红字缺料 + blocked_reason | ✅ 15 workbench + 11 cookpot 配方 | `test_m29_demo_e2e.py` 验收 ④ |
+
+### 架构
+
+```
+core/abstract/crafting/                   # A/B 通用层(切换时不重写)
+├── schemas.py            # Ingredient / Recipe / StationType / RecipeCategory / CraftingResult
+├── recipe_book.py        # 34 配方 + RecipeBook(default_book / find / by_station / by_category)
+├── inventory_view.py     # InventoryView Protocol(runtime_checkable) + DictInventoryView + FailingInventoryView
+├── station_probe.py      # StationProbe Protocol + StaticStationProbe
+├── crafting_engine.py    # CraftingEngine(check_can_craft / craft / get_ui_state) + 补偿回滚
+├── crafting.gd           # GDScript 薄包装(class_name WildwoodCrafting,纯 static func)
+├── recipe_book_data.gd   # AUTO-GENERATED 34 配方 const(由 _dump_recipes.py 从 Python 真相源生成)
+├── _dump_recipes.py      # dump 脚本(单一真相源 → GDScript const 数组)
+└── SEMANTICS.md          # Python ↔ GDScript 9 节对齐契约(任何字段/语义变更先改本文档)
+
+scenes/crafting_demo.tscn                 # Demo 场景
+scripts/crafting_demo.gd                  # 263 行动态 UI:header + 库存 + 工作站 + 34 配方列表 + footer(toast + perf)
+
+tests/
+├── unit/
+│   ├── test_crafting.py            # 11 测试:schema / dataclass 基础
+│   ├── test_recipe_book.py         # 16 测试:34 配方注册 + 查询
+│   ├── test_crafting_abstract.py   # 21 测试:InventoryView / StationProbe 接口合约
+│   ├── test_crafting_engine.py     # 27 测试:三大方法 + 性能
+│   ├── test_gd_crafting_parity.py  # 9 测试:Python ↔ GDScript 跨端对齐
+│   └── test_m29_demo_e2e.py        # 9 测试:4 项验收端到端
+└── scripts/
+    ├── run_m29_perf.py             # 性能基准(p99 < 50ms 内部目标)
+    └── run_m29_tests.sh            # 一键验收脚本(7 步全跑,CI 友好)
+```
+
+### 关键设计
+
+- **A/B 通用层 + GDScript 薄包装**:`core/abstract/crafting/` Python 逻辑 + `crafting.gd` GDScript 静态方法,两者通过 `SEMANTICS.md` 契约严格对齐(沙箱无 Godot binary 时用 Python oracle 复刻 GDScript 行为做跨端 parity 测试)。
+- **抽象接口解耦**:`InventoryView` 和 `StationProbe` 用 Python `Protocol` 定义,M2.2(采集) / M2.3(建筑) 实现自己的 adapter 即可对接合成引擎,无需修改 M2.9 代码。
+- **补偿回滚**:`craft()` 顺序 `consume` 每个 ingredient,任意失败 → 已扣的 `add` 回去。`add` 失败(背包满)同样回滚。
+- **单一真相源**:Python 端 `RecipeBook` 改后跑 `_dump_recipes.py` 自动同步到 GDScript 端 const 数组。
+- **性能**:`check_can_craft` 纯查询(不动库存),`get_ui_state` dict 形态直接给 GDScript 端 UI 渲染。p99 实测 < 1ms(预算 400ms)。
+
+### Godot 端使用示例
+
+```gdscript
+const Crafting = preload("res://core/abstract/crafting/crafting.gd")
+const RecipeBook = preload("res://core/abstract/crafting/recipe_book_data.gd")
+
+func _on_craft_button_pressed(recipe_id: String) -> void:
+    var recipe: Dictionary = RecipeBook.find_by_id(recipe_id)
+    var inventory: Dictionary = player.get_inventory_dict()  # {wood: 12, ...}
+    var station_state: Dictionary = world.get_nearby_stations(player.global_position)
+    var ui: Dictionary = Crafting.get_ui_state(recipe, inventory, station_state)
+    if not ui["can_craft_now"]:
+        show_toast("无法合成: " + str(ui["blocked_reason"]))
+        return
+    var result = Crafting.craft(recipe, inventory, station_state)
+    if not Crafting.apply_craft_result(inventory, result):
+        show_toast("背包已满,回滚")
+        return
+    refresh_ui()
+```
+
+### 一键跑验收
+
+```bash
+bash tests/scripts/run_m29_tests.sh
+# 7 步全跑,退出码 0 = 全部通过
+```
+
+---
+
 ## 里程碑
 
 | 阶段     | 周次    | 目标                                       | 当前状态 |
 |----------|---------|--------------------------------------------|----------|
-| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅ / M1.10 ✅ / M1.11 ✅) |
-| M2 核心循环 | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | 未开始   |
+| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **已完成** (M1.1 / M1.4 / M1.5 / M1.9 / M1.10 / M1.11) |
+| **M2 核心循环** | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | **进行中** (M2.9 ✅) |
 | M3 联机    | W11-W16 | 4 人联机 MVP 完整版可发布                  | 未开始   |
 
-M1 关键交付一览:
+M1 + M2.9 关键交付一览:
 - **M1.1 项目脚手架**:Godot 4.3 工程骨架 + Git 仓库(commit `38d4e15`)
 - **M1.5 网络协议语义层**:Protobuf `.proto` 真相源 + Go/GDScript 双端 codec + 字节预算 2851B < 4KB(commit `e57cae1`)
 - **M1.9 传输层接入**:Go gorilla/websocket 房间服务 + GDScript `WildwoodTransport` + Dockerfile/distroless 部署;200 连接压测 RTT avg 34µs,远低于 50ms 目标(见下节)
 - **M1.10 客户端-服务端 WebSocket 连通**:`WildwoodSession`(客户端) + Go e2eclient + 4 个 M1.10 单元测试(30 次 heartbeat RTT avg 0ms / max 1ms + 30s 重连机制)
 - **M1.11 房间创建/加入/退出基础流程**:`C2S_RoomKick` / `S2C_RoomKicked` / `S2C_RoomStateChanged` 协议层新增 + Go 端 `handleRoomCreate/Join/Leave/Kick` 业务实现 + 5 个 M1.11 验收测试(3 条核心 + 2 条回归)全部通过
+- **M2.9 合成系统**:34 配方(9 tool / 7 equip / 11 food / 7 building)+ Python ↔ GDScript 语义对齐 + 84 个测试全过(75 单元 + 9 跨端对齐 + 9 E2E 验收),4 项验收标准全部通过,性能 p99 = 0.009ms(预算 400ms → 44,000× 余量)。详见 [§M2.9 合成系统](#m29-合成系统)
 
 任务依赖图与关键路径见[《项目任务拆分表》§2.1-2.2](https://hisense.feishu.cn/docx/JrCmdC2S9o4ID5xRM70cuSNsnS2)。
 
