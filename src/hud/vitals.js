@@ -1,73 +1,64 @@
 /**
- * Vital bars — HP / Hunger / Sanity (Don't Starve style).
+ * Vitals — 生命/饥饿/理智 三围条 (M2.12 DOM 版)
  *
- * Pure draw. State (current/max) is read from the player model passed in.
- * Drawn in the top-left corner of the canvas overlay.
+ * M2.12 changes vs M4 Canvas 绘制:
+ *   - 不再画 ctx,改为读 M1.8 .VitalBar 组件的 DOM 操作
+ *   - 改 .VitalBar-Fill width 改值,改 .VitalBar-Value text 改数字
+ *   - 状态类(is-low < 30% / is-critical < 10% / is-disabled)由 components.css 控制
+ *   - 节流由 HUD.draw 负责,本类每次调用都做全量更新(轻量,3 个 <div>)
  *
- * Layout: 3 horizontal bars, stacked, each 120px wide × 14px tall.
- *  - HP:    red gradient
- *  - Hunger: amber
- *  - Sanity: purple
- *
- * Below each bar: a label. This layer lives in HUD coordinates (after
- * the world is drawn), so it's not affected by camera transform.
+ * 容器结构(M1.7 .Anchor-TL):
+ *   <div class="Anchor-TL">
+ *     ...
+ *     <div class="VitalBar VitalBar-HP"     data-value="82">
+ *       <div class="VitalBar-Fill" style="width:82%"></div>
+ *       <div class="VitalBar-Value">82/100</div>
+ *     </div>
+ *     <div class="VitalBar VitalBar-Hunger" data-value="45">...</div>
+ *     <div class="VitalBar VitalBar-Sanity" data-value="60">...</div>
+ *   </div>
  */
 
 'use strict';
 
-const BAR_W = 140;
-const BAR_H = 16;
-const GAP   = 6;
-const PAD   = 12;
-const ICON_W = 16;
-
 const VITALS = [
-  { key: 'hp',     label: '生命', color: '#d04040', bg: '#3a1414' },
-  { key: 'hunger', label: '饥饿', color: '#d0a040', bg: '#3a2a14' },
-  { key: 'sanity', label: '理智', color: '#8040a0', bg: '#241430' }
+  { key: 'hp',     sel: '.VitalBar-HP' },
+  { key: 'hunger', sel: '.VitalBar-Hunger' },
+  { key: 'sanity', sel: '.VitalBar-Sanity' }
 ];
 
 export class Vitals {
-  constructor(ctx) {
-    this.ctx = ctx;
+  constructor(containerEl) {
+    this.container = containerEl || null;
+    // 缓存 3 个 VitalBar 元素引用,避免每次 querySelector
+    this.bars = {};
+    VITALS.forEach(function (v) {
+      this.bars[v.key] = this.container ? this.container.querySelector(v.sel) : null;
+    }.bind(this));
   }
 
   /**
    * @param {{hp:{cur,max}, hunger:{cur,max}, sanity:{cur,max}}} state
    */
   draw(state) {
-    const ctx = this.ctx;
-    let y = PAD;
-    for (const v of VITALS) {
-      const s = state[v.key] || { cur: 0, max: 1 };
-      const ratio = Math.max(0, Math.min(1, s.cur / Math.max(1, s.max)));
+    var s = state || {};
+    for (var i = 0; i < VITALS.length; i++) {
+      var cfg = VITALS[i];
+      var bar = this.bars[cfg.key];
+      if (!bar) continue;
+      var vs = s[cfg.key] || { cur: 0, max: 1 };
+      var ratio = Math.max(0, Math.min(1, vs.cur / Math.max(1, vs.max)));
+      var pct = Math.round(ratio * 100);
+      var curRounded = Math.round(vs.cur);
 
-      // Background frame.
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(PAD - 2, y - 2, BAR_W + ICON_W + 4, BAR_H + 4);
-
-      // Background bar.
-      ctx.fillStyle = v.bg;
-      ctx.fillRect(PAD + ICON_W, y, BAR_W, BAR_H);
-
-      // Filled bar.
-      ctx.fillStyle = v.color;
-      ctx.fillRect(PAD + ICON_W, y, BAR_W * ratio, BAR_H);
-
-      // Icon (drawn as a small colored circle for placeholder).
-      ctx.fillStyle = v.color;
-      ctx.beginPath();
-      ctx.arc(PAD + ICON_W / 2, y + BAR_H / 2, 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Label.
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(v.label, PAD + ICON_W + 4, y + BAR_H / 2 + 0.5);
-
-      y += BAR_H + GAP;
+      var fill = bar.querySelector('.VitalBar-Fill');
+      var valEl = bar.querySelector('.VitalBar-Value');
+      if (fill) fill.style.width = pct + '%';
+      if (valEl) valEl.textContent = curRounded + '/' + vs.max;
+      // 状态类(对照 components.css)
+      bar.classList.toggle('is-low', ratio < 0.3 && ratio >= 0.1);
+      bar.classList.toggle('is-critical', ratio < 0.1);
+      bar.setAttribute('data-value', String(curRounded));
     }
   }
 }
