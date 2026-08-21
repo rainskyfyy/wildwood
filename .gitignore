@@ -64,6 +64,3 @@ pnpm-lock.yaml
 .env.local
 *.secret
 *.key
-core/abstract/__pycache__/
-**/__pycache__/
-*.pyc
