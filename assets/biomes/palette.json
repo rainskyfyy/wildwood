@@ -1,0 +1,65 @@
+{
+  "$schema": "https://hisense.feishu.cn/file/wildwood/biome/v1",
+  "version": "1.0.0",
+  "name": "wildwood_24_warm_palette",
+  "description": "M2.7 24 暖色调色板 — 项目总方案 §4.1 + 美术风格指南 §色板规范。暖色族 17 / 冷色族 3 / 中性 4,禁止纯黑纯白(用 #1a1410 与 #f4e4c1 替代)。",
+  "size": 24,
+  "ratio_constraint": {
+    "warm_min": 17,
+    "cool_max": 3,
+    "neutral": 4,
+    "no_pure_black": true,
+    "no_pure_white": true
+  },
+  "categories": {
+    "warm_base": {
+      "description": "暖色基底 — 主光、皮肤、UI 主色",
+      "colors": {
+        "burnt_umber":      "#7d4a2a",
+        "parchment":        "#c8b694",
+        "torchlight_amber": "#d4a056",
+        "honey_gold":       "#c8923c",
+        "clay_red":         "#9c4a2a"
+      }
+    },
+    "nature": {
+      "description": "自然色 — 草地、树、岩石、土壤(主色族)",
+      "colors": {
+        "forest_moss": "#5a6b3a",
+        "bark_brown":  "#3d2f24",
+        "leaf_green":  "#7d8b4d",
+        "pine_needle": "#4a5a3a",
+        "dry_grass":   "#a89968",
+        "moss_green":  "#6b8a4a",
+        "earth_ochre": "#8a6a3a"
+      }
+    },
+    "alert": {
+      "description": "警示色 — 血、火焰、毒",
+      "colors": {
+        "rust_red":      "#a85a3a",
+        "blood_crimson": "#7a2e1f",
+        "ember_orange":  "#d97a3a",
+        "warm_amber":    "#b87a2a",
+        "sienna":        "#8a4a2a"
+      }
+    },
+    "cool": {
+      "description": "冷色点缀 — 雪、冰、月光(上限 3 色,场景暖色视觉占比 ≥ 70%)",
+      "colors": {
+        "steel_blue":   "#5a7080",
+        "moonlit_grey": "#3a3f47",
+        "ice_cyan":     "#8fb4c0"
+      }
+    },
+    "neutral": {
+      "description": "中性色 — 阴影、亮色、暖灰(替代纯黑纯白)",
+      "colors": {
+        "night_black":     "#1a1410",
+        "shadow_brown":    "#2a211b",
+        "highlight_beige": "#f4e4c1",
+        "warm_grey":       "#5a5048"
+      }
+    }
+  }
+}

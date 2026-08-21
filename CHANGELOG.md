@@ -5,10 +5,48 @@
 
 ## [Unreleased]
 
+### 已完成 (2026-08-20)
+
+- **M2.7 生物群系 4 大(森林/平原/矿区/雪原)** — 共享元素库 + 9 宫格流式加载 + 0.5s 相机过渡
+  - 抽象层 `core/abstract/biome/` 5 个模块:24 暖色板 / 4 共享元素 / 4 群系 / 9 宫格映射 / 流式加载器
+  - A 线引擎层 `core/biome_runtime/` 4 个 GDScript:常量 / Loader / Runtime / 相机过渡状态机
+  - 资源 JSON 5 个:`palette.json` / `elements.json` / `biome_map.json` / `biomes/{forest,plains,mines,snow}.json`
+  - 验收:① 4 群系主色与特征资源 / 怪物到位 ✅ · ② 9 宫格懒加载 -64% 内存 ✅ · ③ 相机过渡 500ms ± 20ms ✅
+  - 微调(2026-08-20 拍板):主色与特征资源复用 M2.14 资产清单(`source_ref="m2.14.*"`,不重复生产
+  - 测试:105 个 pytest 全过(76 单元 + 29 验收)+ 31 个 GUT 集成测试(Godot CI 端)
+  - 详见 `docs/m27_biomes.md`
+
+## [0.8.0] - 2026-08-20
+
+### 新增(M2.7 生物群系 4 大 ★ 关键路径)
+
+- **共享元素库** + 4 大群系(森林/平原/矿区/雪原) + 9 宫格流式加载 + 0.5s 相机过渡
+- **抽象层** `core/abstract/biome/` 5 个模块:
+  - `palette.py` 24 暖色板(暖 17/冷 3/中性 4,源数据来自美术风格指南 §色板规范)
+  - `elements.py` 4 共享元素(grass/rock/tree/mushroom),4 群系共用,仅替换主色 + 密度
+  - `biomes.py` 4 群系定义(forest #7d8b4d / plains #5a6b3a / mines #5a7080 / snow #8fb4c0),各 2 特征资源 + 2 特征怪物
+  - `biome_map.py` 9 宫格流式加载(中心 3×3 = 9 chunk,1 chunk ≈ 1MB)
+  - `loader.py` JSON 资源加载
+- **A 线引擎层** `core/biome_runtime/` 4 个 GDScript:
+  - `WildwoodBiomeConstants.gd` — 常量层
+  - `WildwoodBiomeLoader.gd` — 加载器
+  - `WildwoodBiomeRuntime.gd` — 运行时
+  - `WildwoodCameraTransition.gd` — 0.5s 相机过渡状态机(IDLE→OUT→SWAP→IN→IDLE)
+- **资源 JSON** 5 个:`assets/biomes/{palette,elements,biome_map,biomes/{forest,plains,mines,snow}}.json`
+- **验收 3/3 全过**:
+  - ① 4 群系主色与特征资源 / 怪物到位
+  - ② 9 宫格懒加载:全图基线 ≥ 25 chunk → 9/25 = 36% → 节省 64% ≥ 60% 验收
+  - ③ 相机过渡 500ms ± 20ms(0.5s = 250ms OUT + 0ms SWAP + 250ms IN)
+- **微调**(2026-08-20 拍板):主色与特征资源复用 M2.14 资产清单(`source_ref="m2.14.*"`),避免 M2.7 与 M2.14 重复生产
+- **测试**:105 个 pytest 全过(76 单元 + 29 验收) + 31 个 GUT 集成测试(Godot CI 端)
+- **关键路径意义**:解锁 M2.8(季节循环)+ M2.10(战斗地图多样性),无延期
+
 ### 已计划
 - M1.2 CI/CD 雏形
 - M1.6 资源元数据抽象
 - M1.12-1.13 5 张样稿 + Aseprite 工作流
+- M2.1 移动 + 采集
+- M2.6 战斗
 - M2.7 合成
 - M2.14 联机压测
 - M3.1 联机完整版

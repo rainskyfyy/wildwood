@@ -367,6 +367,32 @@ cd core/abstract/network/go && go run ./cmd/e2eclient -url ws://127.0.0.1:8080/w
 
 ---
 
+## M2.7 生物群系 4 大(森林/平原/矿区/雪原)
+
+4 大群系共享元素库(草地/岩石/树/蘑菇),仅替换主色与组合比例;9 宫格流式加载;相机过渡 0.5s。
+
+### 验收
+- ① 4 群系主色 + 特征资源 / 怪物到位(各 2 个 M2.14 资源 + 2 个 M2.14 怪物)
+- ② 9 宫格懒加载,内存占用 -64%(9 / 25 chunks)
+- ③ 相机过渡 500ms ± 20ms(状态机 IDLE → OUT 250ms → SWAP 0ms → IN 250ms → IDLE)
+- 微调(2026-08-20 拍板):主色与特征资源复用 M2.14 资产清单(`source_ref="m2.14.*"`),不重复生产
+
+### 目录
+- `core/abstract/biome/` 5 个模块:palette(24 暖色板) / elements(4 共享元素) / biomes(4 群系) / biome_map(9 宫格映射) / loader(流式加载)
+- `core/biome_runtime/` 4 个 GDScript:WildwoodBiomeConstants / WildwoodBiomeLoader / WildwoodBiomeRuntime / WildwoodCameraTransition
+- `assets/biomes/` 5 个 JSON:palette / elements / biome_map / biomes/{forest,plains,mines,snow}
+
+### 测试
+```bash
+# 105 个 pytest 测试(76 单元 + 29 验收)
+python3 -m pytest core/abstract/biome/ -v
+
+# 31 个 GUT 测试(Godot 端)
+godot --headless --quit -s addons/gut/gut_cmdln.gd     -gdir=res://core/biome_runtime/tests -gprefix=test_ -gexit
+```
+
+详见 `docs/m27_biomes.md` 与 `core/abstract/biome/README.md`。
+
 ## M1.11 房间创建/加入/退出基础流程
 
 M1.11 在 M1.5 协议 + M1.9 传输 + M1.10 会话之上,落地**业务层房间状态机**:建房 / 加入 / 离开 / 踢人 / 满员拒绝 / 状态广播。这是联机 MVP 拼图的最后一块 — M1.11 通过后即可解锁 M2.1-M2.x 业务流。
