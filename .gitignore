@@ -57,7 +57,7 @@ coverage/
 # Lock files (Godot doesn't have package lock, but just in case)
 package-lock.json
 yarn.lock
-pnpm-lock.lock
+pnpm-lock.yaml
 
 # Secrets / local config
 .env
@@ -65,8 +65,9 @@ pnpm-lock.lock
 *.secret
 *.key
 
-# Python
+# Python build artifacts (M1.4 / M2.9+ 引入 Python 测试后需要)
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .pytest_cache/
