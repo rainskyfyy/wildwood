@@ -1,5 +1,5 @@
 // =====================================================================
-// Wildwood 网络协议语义层 — 公共类型 (M1.5)
+// Wildwood 网络协议语义层 — 公共类型 (M1.5 + M2.11 扩展)
 //
 // 设计原则:
 //   1. transport-agnostic: 不绑 WebSocket/UDP/QUIC,由传输层(M1.9+)承载
@@ -77,6 +77,23 @@ enum WorldEventKind {
   WORLD_EVENT_KNOCKBACK     = 7;    // 击退
 }
 
+// -------------------- 枚举:图鉴类别 (M2.11) --------------------
+
+enum CodexCategory {
+  CODEX_CATEGORY_UNSPECIFIED = 0;
+  CODEX_CATEGORY_CREATURE    = 1;   // 生物:树精/蜘蛛/...
+  CODEX_CATEGORY_ITEM        = 2;   // 物品:资源/工具/建筑/食物
+  CODEX_CATEGORY_BIOME       = 3;   // 群系(M2.7 留接口,M2.11 不下发)
+}
+
+// -------------------- 枚举:图鉴查询种类 (M2.11) --------------------
+
+enum CodexQueryKind {
+  CODEX_QUERY_KIND_UNSPECIFIED = 0;
+  CODEX_QUERY_KIND_FULL        = 1;   // 拉全量 CodexSync(join 时自动下发,客户端可重拉)
+  CODEX_QUERY_KIND_ENTRY       = 2;   // 按 entry_id 拉单条详情(预留)
+}
+
 // -------------------- 公共消息结构 --------------------
 
 // 二维浮点位置/向量(32px 网格坐标系,米=32px)
@@ -139,4 +156,28 @@ message WorldSnapshot {
   string              world_seed    = 6;  // 字符串形式 seed(跨语言安全)
   string              season        = 7;  // spring/summer/autumn/winter
   uint32              day           = 8;  // 1-30
+}
+
+// -------------------- 图鉴系统 (M2.11) --------------------
+
+// 图鉴条目(图鉴数据库的静态预置条目 + 客户端详情卡数据)
+// 详细字段约定见 docs/codex/SCHEMA.md
+message CodexEntry {
+  string        entry_id         = 1;   // 唯一 ID,例 "creature.tree_sprite"
+  CodexCategory category         = 2;   // 分类
+  uint32        prefab_id        = 3;   // 复用 M2.x prefab 体系
+  string        display_name     = 4;   // 显示名(中文 ≤ 16 字符)
+  string        scientific_name  = 5;   // 拉丁学名
+  string        sprite_key       = 6;   // 64px 资源 key(占位 "TBD_64")
+  repeated string stats          = 7;   // 严格 6 项属性
+  string        behavior         = 8;   // 行为模式
+  string        weakness         = 9;   // 克制方法
+  repeated string drop_table     = 10;  // 采集/击杀产出 entry_id
+  uint32        rarity           = 11;  // 0=常见 1=罕见 2=稀有 3=Boss
+}
+
+// 单条解锁记录(per-room state)
+message CodexUnlock {
+  string entry_id        = 1;
+  uint64 unlock_time_ms  = 2;
 }
