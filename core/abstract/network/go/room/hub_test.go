@@ -428,9 +428,10 @@ func TestStress_200Rooms_4Players(t *testing.T) {
 			}(j)
 		}
 		wg.Wait()
-		// host 收 3 次 PlayerJoined
+		// host 收 3 次 PlayerJoined + 3 次 RoomStateChanged(M1.11 验收 ③ 加的状态广播)
 		for j := 0; j < PlayersPer-1; j++ {
-			_, _ = s.host.recv(t, 2*time.Second)
+			_, _ = s.host.recv(t, 2*time.Second) // PlayerJoined
+			_, _ = s.host.recv(t, 2*time.Second) // RoomStateChanged
 		}
 		// 让 members 也把 host 收的 PlayerJoined 排空(每个 member 收到 host 的广播)
 		// — 实际上 broadcast 是发给所有 member 的,host 加入时其他已加入 member 也会收到

@@ -27,15 +27,16 @@ const MaxPlayersPerRoom = 4
 
 // Hub 房间注册表 + 玩家注册表
 type Hub struct {
-	mu       sync.RWMutex
-	rooms    map[string]*Room
-	players  map[string]*Player
-	roomSeq  atomic.Uint32
-	tokenSeq atomic.Uint32
-	tickHz   int
-	onTick   func(tick uint32, r *Room)
-	stop     chan struct{}
-	wg       sync.WaitGroup
+	mu        sync.RWMutex
+	rooms     map[string]*Room
+	players   map[string]*Player
+	playerSeq atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
+	roomSeq   atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
+	tokenSeq  atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
+	tickHz    int
+	onTick    func(tick uint32, r *Room)
+	stop      chan struct{}
+	wg        sync.WaitGroup
 }
 
 // NewHub 构造房间中心
@@ -153,6 +154,8 @@ func (h *Hub) Handle(conn *transport.Conn, msg proto.Message) error {
 		return h.handleRoomJoin(conn, m)
 	case *wildwoodv1.C2S_RoomLeave:
 		return h.handleRoomLeave(conn, m)
+	case *wildwoodv1.C2S_RoomKick:
+		return h.handleRoomKick(conn, m)
 	case *wildwoodv1.C2S_RoomList:
 		return h.handleRoomList(conn)
 	case *wildwoodv1.C2S_PlayerInput:
@@ -289,12 +292,18 @@ func (h *Hub) handleRoomJoin(conn *transport.Conn, m *wildwoodv1.C2S_RoomJoin) e
 		ServerTick: 1,
 	})
 
-	// 2) 广播给其他成员:PlayerJoined
+	// 2) 广播给其他成员:PlayerJoined + RoomStateChanged (M1.11 验收 ③ 房间状态变更对全队广播)
 	joined := &wildwoodv1.S2C_PlayerJoined{
 		RoomId: r.ID,
 		Player: p.Snapshot(),
 	}
 	r.BroadcastExcept(encodeFrame("S2C_PlayerJoined", joined), p.ID)
+	r.Broadcast(encodeFrame("S2C_RoomStateChanged", &wildwoodv1.S2C_RoomStateChanged{
+		RoomId:         r.ID,
+		CurrentPlayers: uint32(r.MemberCount()),
+		MaxPlayers:     uint32(r.MaxPlayers),
+		Trigger:        "join",
+	}))
 	return nil
 }
 
@@ -320,6 +329,13 @@ func (h *Hub) handleRoomLeave(conn *transport.Conn, m *wildwoodv1.C2S_RoomLeave)
 	r.Broadcast(encodeFrame("S2C_PlayerLeft", &wildwoodv1.S2C_PlayerLeft{
 		RoomId:   r.ID,
 		PlayerId: playerID,
+		Reason:   "leave",
+	}))
+	r.Broadcast(encodeFrame("S2C_RoomStateChanged", &wildwoodv1.S2C_RoomStateChanged{
+		RoomId:         r.ID,
+		CurrentPlayers: uint32(r.MemberCount()),
+		MaxPlayers:     uint32(r.MaxPlayers),
+		Trigger:        "leave",
 	}))
 
 	// 房间空 → 清理
@@ -333,6 +349,114 @@ func (h *Hub) handleRoomLeave(conn *transport.Conn, m *wildwoodv1.C2S_RoomLeave)
 	_ = conn.Send("S2C_RoomLeft", &wildwoodv1.S2C_RoomLeft{
 		RoomId: r.ID,
 	})
+	return nil
+}
+
+// handleRoomKick 房主踢人 (M1.11 验收 ②)
+//
+// 流程:
+//  1. 调用方必须是 host(hostID 比对)
+//  2. 目标必须在同房间
+//  3. 目标收到 S2C_RoomKicked + ROOM_ERROR_KICKED(明确错误码)
+//  4. 全队(包括被踢者以外的成员)收到 S2C_PlayerLeft(reason="kicked")
+//  5. 全队收到 S2C_RoomStateChanged 槽位刷新
+//  6. 槽位立即释放(MemberCount 减 1),下个 join 不再返回 ROOM_ERROR_FULL
+//
+// 错误码约定:
+//   - ROOM_ERROR_NOT_FOUND      房间不存在
+//   - ROOM_ERROR_INVALID_INPUT  非 host / 目标不在房间
+func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) error {
+	hostID, ok := conn.GetPlayerID()
+	if !ok {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_UNSPECIFIED, "handshake required", "")
+	}
+	if m.TargetPlayerId == "" {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "missing target_player_id", hostID)
+	}
+	if m.TargetPlayerId == hostID {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "cannot kick self", hostID)
+	}
+	if len(m.Reason) > 64 {
+		m.Reason = m.Reason[:64]
+	}
+	if m.Reason == "" {
+		m.Reason = "kicked_by_host"
+	}
+
+	h.mu.RLock()
+	r, exists := h.rooms[m.RoomId]
+	target, targetOK := h.players[m.TargetPlayerId]
+	hostPlayer, hostOK := h.players[hostID]
+	h.mu.RUnlock()
+	if !exists {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_NOT_FOUND, "room not found", m.RoomId)
+	}
+	if !targetOK {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_NOT_FOUND, "target player not found", m.TargetPlayerId)
+	}
+	if !hostOK || hostPlayer.RoomID != r.ID {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "caller not in room", hostID)
+	}
+	if r.HostID() != hostID {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "only host can kick", hostID)
+	}
+	if target.RoomID != r.ID {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "target not in this room", m.TargetPlayerId)
+	}
+
+	// 1) 踢出 (持有写锁,避免并发 join 误判满员)
+	h.mu.Lock()
+	r.RemoveMember(target.ID)
+	target.RoomID = ""
+	roomEmpty := r.MemberCount() == 0
+	if roomEmpty {
+		delete(h.rooms, r.ID)
+	}
+	currentPlayers := uint32(r.MemberCount())
+	maxPlayers := uint32(r.MaxPlayers)
+	roomID := r.ID
+	targetConn := target.Conn
+	h.mu.Unlock()
+
+	// 2) 通知被踢者:S2C_RoomKicked(直接给客户端)+ S2C_Error(明确错误码,符合"明确错误码"验收)
+	if targetConn != nil {
+		_ = targetConn.Send("S2C_RoomKicked", &wildwoodv1.S2C_RoomKicked{
+			RoomId:        roomID,
+			KickedById:    hostID,
+			Reason:        m.Reason,
+			ServerTimeMs:  uint64(time.Now().UnixMilli()),
+		})
+		_ = targetConn.Send("S2C_Error", &wildwoodv1.S2C_Error{
+			Code:    wildwoodv1.RoomErrorCode_ROOM_ERROR_KICKED,
+			Message: "kicked by host: " + m.Reason,
+			Context: roomID,
+		})
+	}
+
+	// 3) 通知全队(包括被踢者,作为冗余):PlayerLeft
+	if !roomEmpty {
+		r.Broadcast(encodeFrame("S2C_PlayerLeft", &wildwoodv1.S2C_PlayerLeft{
+			RoomId:   roomID,
+			PlayerId: target.ID,
+			Reason:   "kicked",
+		}))
+	}
+
+	// 4) 通知全队:RoomStateChanged(槽位刷新,触发 UI 重新计算剩余位)
+	// 注意:host 也在 r.members 中(只要他没被踢),Broadcast 已覆盖;无需再单独 conn.Send
+	if !roomEmpty {
+		r.Broadcast(encodeFrame("S2C_RoomStateChanged", &wildwoodv1.S2C_RoomStateChanged{
+			RoomId:         roomID,
+			CurrentPlayers: currentPlayers,
+			MaxPlayers:     maxPlayers,
+			Trigger:        "kick",
+		}))
+	}
+
+	// 5) 房主 ack:已在步骤 4 收到 RoomStateChanged,无需冗余发送
+	//    (历史版本此处有 conn.Send 重复发,导致 host 收到 2 份 RoomStateChanged,
+	//     污染后续 p5.rejoin 的广播断言 — 2026-08-20 修复)
+
 	return nil
 }
 
@@ -427,7 +551,7 @@ func encodeFrame(typeName string, m proto.Message) transport.Frame {
 }
 
 func (h *Hub) nextPlayerID() string {
-	return fmt.Sprintf("p-%d", h.roomSeq.Add(1))
+	return fmt.Sprintf("p-%d", h.playerSeq.Add(1))
 }
 
 func (h *Hub) nextRoomID() string {
@@ -496,6 +620,13 @@ func (r *Room) MemberCount() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.members)
+}
+
+// HostID 返回房主 id(供测试/外部观察用)
+func (r *Room) HostID() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.hostID
 }
 
 func (r *Room) Broadcast(f transport.Frame) {
