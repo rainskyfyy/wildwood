@@ -2,6 +2,13 @@
 .godot/
 .import/
 
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
 # Godot-specific ignores
 android/
 .android/
