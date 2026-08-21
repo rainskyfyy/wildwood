@@ -55,7 +55,7 @@ jobs:
 
       - name: Split .pck (dry-run with sample manifest)
         run: |
-          node scripts/split-pck.mjs m3-10-tcode02-pck/test_input/resource-list.json --dry-run
+          node scripts/split-pck.mjs scripts/split-pck/test_input/resource-list.json --dry-run
           echo "✓ split-pck dry-run passed"
 
       - name: Upload scripts
