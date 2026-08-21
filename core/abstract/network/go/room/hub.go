@@ -95,6 +95,9 @@ func (h *Hub) ForceLeave(playerID, roomID string) {
 // SetTickHook 设置 tick 钩子(测试或上层业务用)
 func (h *Hub) SetTickHook(fn func(tick uint32, r *Room)) { h.onTick = fn }
 
+// TickCount 返回自 Hub.Start 以来的 tick 计数(测试用,用于压测统计)
+func (h *Hub) TickCount() uint64 { return h.tickCount.Load() }
+
 // Start 启动 20Hz tick 循环
 func (h *Hub) Start() {
 	h.wg.Add(1)
