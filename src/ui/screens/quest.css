@@ -1,0 +1,93 @@
+/* Wildwood UI · M2.13 4 屏交互 · 任务
+ * 依赖: tokens.css / components.css / inventory.css
+ */
+
+#screen-quest {
+  padding: var(--sp-16);
+}
+
+.QuestList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.QuestSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.QuestCard {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.QuestCard-Title {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-14);
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.QuestCard-Desc {
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+.QuestCard-Progress {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: var(--bar-track);
+  border: 1px solid var(--border-bold);
+  margin-top: var(--sp-8);
+}
+.QuestCard-Progress-Fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+.QuestCard-Progress-Text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg);
+  text-shadow: 1px 1px 0 var(--night-black);
+  letter-spacing: 1px;
+}
+
+/* 状态:进行中 */
+.QuestCard-active {
+  border-left: 3px solid var(--accent);
+}
+/* 状态:已完成 */
+.QuestCard-done {
+  opacity: 0.55;
+  border-left: 3px solid var(--fg-muted);
+}
+.QuestCard-done .QuestCard-Title {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+}
+.QuestCard-done .QuestCard-Progress-Fill {
+  background: var(--fg-muted);
+}
+/* 状态:未解锁 */
+.QuestCard-locked {
+  opacity: 0.35;
+  border-left: 3px solid var(--fg-faint);
+  filter: grayscale(0.6);
+}
+.QuestCard-locked .QuestCard-Title {
+  color: var(--fg-faint);
+}

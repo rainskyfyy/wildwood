@@ -1,0 +1,101 @@
+/* Wildwood UI · M2.13 4 屏交互 · 合成
+ * 依赖: tokens.css / components.css / inventory.css(共享 .ItemSlot 等)
+ */
+
+#screen-crafting {
+  display: flex;
+  gap: var(--sp-16);
+  padding: var(--sp-16);
+}
+
+.CraftingList {
+  flex: 1;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  overflow-y: auto;
+}
+
+.CraftingCard {
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-16);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto;
+  gap: var(--sp-8) var(--sp-16);
+  align-items: center;
+}
+.CraftingCard-Name {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-14);
+  color: var(--accent);
+  letter-spacing: 1px;
+  grid-column: 1;
+  grid-row: 1;
+}
+.CraftingCard-Cost {
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  grid-column: 1;
+  grid-row: 2;
+}
+.CraftingCard-Result {
+  font-size: var(--fs-12);
+  color: var(--fg);
+  grid-column: 1;
+  grid-row: 3;
+}
+.CraftingCard-Craft {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  min-width: 96px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  padding: var(--sp-8) var(--sp-16);
+  border: 1px solid var(--border-bold);
+  background: var(--accent);
+  color: var(--night-black);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 80ms linear;
+}
+.CraftingCard-Craft:hover:not([disabled]) {
+  background: var(--accent-2);
+}
+.CraftingCard-Craft[disabled] {
+  background: var(--night-elev);
+  color: var(--fg-faint);
+  cursor: not-allowed;
+  border-color: var(--border);
+}
+
+/* 分类 Tab(右侧) */
+.CraftingTabs {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.CraftingTab {
+  display: block;
+  padding: var(--sp-8) var(--sp-16);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 80ms linear, border-color 80ms linear, background 80ms linear;
+  text-align: center;
+}
+.CraftingTab:hover { color: var(--fg); }
+.CraftingTab.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(212, 166, 74, 0.1);
+}

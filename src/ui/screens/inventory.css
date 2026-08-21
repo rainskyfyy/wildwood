@@ -1,0 +1,194 @@
+/* Wildwood UI · M2.13 4 屏交互 · 背包
+ * 依赖: tokens.css / components.css
+ */
+
+/* ===================== 通用屏容器 ===================== */
+.Screen {
+  position: absolute;
+  inset: 0;
+  padding: var(--sp-16);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  overflow: auto;
+  /* 屏幕切换 < 200ms:SPA 路由只是 display:none/block 切换,无重绘开销 */
+  animation: screen-fade-in 120ms linear;
+}
+@keyframes screen-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================== subtab 导航条 ===================== */
+.SubtabBar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-panel-solid);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--sp-16);
+  z-index: 10;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  letter-spacing: 1px;
+}
+.Subtab {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-16);
+  color: var(--fg-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 80ms linear, border-color 80ms linear;
+  user-select: none;
+}
+.Subtab:hover { color: var(--fg); }
+.Subtab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.Subtab-Key {
+  display: inline-block;
+  width: 16px; height: 16px;
+  line-height: 16px;
+  text-align: center;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  margin-right: var(--sp-8);
+  font-size: var(--fs-10);
+  color: var(--fg-faint);
+}
+.Subtab.is-active .Subtab-Key { color: var(--accent); border-color: var(--accent); }
+.Subtab-Divider {
+  flex: 1;
+}
+.Subtab-Hint {
+  color: var(--fg-faint);
+  font-size: var(--fs-10);
+  letter-spacing: 0.5px;
+}
+
+/* ===================== 物品槽 ===================== */
+.ItemSlot {
+  width: 64px; height: 64px;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 80ms linear, background 80ms linear, transform 80ms linear;
+  image-rendering: pixelated;
+}
+.ItemSlot:hover { border-color: var(--fg-muted); }
+.ItemSlot.is-empty {
+  background: rgba(26, 26, 42, 0.4);
+  border-style: dashed;
+  border-color: var(--border);
+  cursor: default;
+}
+.ItemSlot.is-filled.is-disabled,
+.ItemSlot[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+.ItemSlot-Art {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-18);
+  color: var(--accent);
+  text-shadow: 1px 1px 0 var(--night-black);
+  letter-spacing: 1px;
+}
+.ItemSlot-Name {
+  position: absolute;
+  bottom: 1px; left: 2px; right: 2px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg);
+  text-shadow: 1px 1px 0 var(--night-black);
+  text-align: center;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ItemSlot-Stack {
+  position: absolute;
+  top: 1px; right: 2px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--accent);
+  text-shadow: 1px 1px 0 var(--night-black);
+  line-height: 1;
+}
+.ItemSlot-Empty {
+  color: var(--fg-faint);
+  font-size: var(--fs-14);
+}
+
+/* ===================== 拖拽反馈 ===================== */
+.ItemSlot.DragSource {
+  opacity: 0.4;
+  border-color: var(--fg-muted);
+}
+.ItemSlot.DragMerge {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-2);
+  background: rgba(212, 166, 74, 0.15);
+}
+.ItemSlot.DragMove {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 2px var(--fg), var(--shadow-2);
+  background: rgba(240, 240, 240, 0.1);
+}
+.ItemSlot.DragReject {
+  border-color: var(--warn-hp);
+  box-shadow: 0 0 0 2px var(--warn-hp);
+  background: rgba(196, 58, 58, 0.15);
+}
+.ItemSlot.DragRejectShake {
+  animation: drag-reject-shake 200ms linear;
+}
+@keyframes drag-reject-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-2px); }
+  80%      { transform: translateX(2px); }
+}
+.HotbarSlot.DragHotbarTarget {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-2);
+  background: rgba(212, 166, 74, 0.2);
+}
+
+/* ===================== 背包网格 ===================== */
+.InventoryGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 64px);
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  width: max-content;
+  margin: 0 auto;
+}
+.InventorySummary {
+  margin-top: var(--sp-16);
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  letter-spacing: 1px;
+}

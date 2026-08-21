@@ -1,0 +1,77 @@
+/* Wildwood UI · M2.13 4 屏交互 · 地图
+ * 依赖: tokens.css / components.css / inventory.css
+ */
+
+#screen-map {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-16);
+  gap: var(--sp-8);
+}
+
+.MapWrap {
+  position: relative;
+  width: 800px;
+  max-width: 100%;
+  background: var(--night-black);
+  border: 1px solid var(--border-bold);
+  box-shadow: var(--shadow-2);
+}
+.MapCanvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.MapOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.MapPin {
+  position: absolute;
+  width: 12px; height: 12px;
+  border: 1px solid var(--fg);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--night-black);
+  transition: transform 80ms linear;
+}
+.MapPin:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+.MapPin-Tip {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border-bold);
+  padding: 2px 6px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 80ms linear;
+  letter-spacing: 0.5px;
+}
+.MapPin:hover .MapPin-Tip { opacity: 1; }
+
+.MapInfo {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  letter-spacing: 1px;
+  padding: var(--sp-8) var(--sp-16);
+  background: var(--bg-panel-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+}
