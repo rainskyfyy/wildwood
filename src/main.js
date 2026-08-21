@@ -1,5 +1,15 @@
 /**
- * Main entry — M4 (world) + M2.10 (resources) + v0.4 (audio) integration.
+ * Main entry — M4 (world) + M2.9 (buildings) + M2.10 (resources) + v0.4 (multiplayer) integration.
+ *
+ * `bootGame(canvas, options?)`:
+ *   options.mode = 'offline' (default) | 'host' | 'join'
+ *   options.client       — RelayClient(已连接)
+ *   options.session      — Session(已 host/join 完成)
+ *
+ * 联机模式下:
+ *   - host 端广播 G_STATE 10Hz + G_WORLD 离散事件
+ *   - join 端发 G_INPUT + 应用 host 的 state/world
+ *   - 双方都可发送 G_CHAT
  */
 'use strict';
 
@@ -12,7 +22,7 @@ import { Camera } from './player/camera.js';
 import { Input } from './utils/input.js';
 import { HUD } from './hud/hud.js';
 import {
-  TILE_W_HALF, TILE_H_HALF,
+  TILE_W_HALF, TILE_H_HALF, TILE_SIZE,
   worldToScreen, depthKey
 } from './render/isometric.js';
 import { getTileSprite, drawDecoration, drawPlayer } from './render/tile-renderer.js';
@@ -22,8 +32,11 @@ import { spawnResources } from './resources/spawner.js';
 import { Inventory } from './resources/inventory.js';
 import { Gather } from './resources/gather.js';
 import { TOTAL_SLOTS } from './resources/inventory.js';
-// v0.4 — audio system
-import { AudioManager, attachAudio, mountAudioSettings } from './audio/index.js';
+import { BuildingManager } from './buildings/placer.js';
+import { BuildingMenu } from './buildings/building-menu.js';
+import { drawBuilding, drawPlacementPreview } from './buildings/building-renderer.js';
+import { getBuilding } from './buildings/building-config.js';
+import { Multiplayer } from './net/multiplayer.js';
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -44,7 +57,22 @@ function saveInventory(inv) {
   catch (_) { /* quota / private mode — ignore */ }
 }
 
-export function bootGame(canvas) {
+/**
+ * 主入口。
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {object} [opts]
+ * @param {'offline'|'host'|'join'} [opts.mode='offline']
+ * @param {object} [opts.client]    — 已连接的 RelayClient
+ * @param {object} [opts.session]   — 已 setHosted/setJoined 的 Session
+ * @param {string} [opts.playerName] — 玩家名(用于世界显示 + chat)
+ */
+export function bootGame(canvas, opts = {}) {
+  const mode = opts.mode || 'offline';
+  const client = opts.client || null;
+  const session = opts.session || null;
+  const playerName = opts.playerName || 'Player';
+
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
 
@@ -62,14 +90,6 @@ export function bootGame(canvas) {
     inventory.add('stone', 6);
     inventory.add('berries', 3);
   }
-
-  // v0.4 — audio system (constructed before gather so it can receive event notifications)
-  const audio = new AudioManager();
-  let audioStarted = false;
-
-  let lastLootBanner = null;
-  let lastLootUntil = 0;
-
   const gather = new Gather({
     entities: resources,
     inventory,
@@ -78,16 +98,21 @@ export function bootGame(canvas) {
         const lootStr = (payload.loot || []).map(l => `${l.itemId}×${l.count}`).join(' ');
         lastLootBanner = lootStr || '已采集';
         lastLootUntil = performance.now() + 2200;
-        audioInt && audioInt.notify('gather_complete');
-      } else if (name === 'start') {
-        audioInt && audioInt.notify('gather_start');
-      } else if (name === 'cancel') {
-        audioInt && audioInt.notify('gather_cancel');
+        // 联机:host 广播给其他 peers
+        if (mp && mp.mode === 'host' && payload.entity) {
+          mp.broadcastGather(payload.entity.id, payload.loot, payload.regrowAt || 0);
+        }
       }
     }
   });
+  let lastLootBanner = null;
+  let lastLootUntil = 0;
 
-  // 3. Actors.
+  // 3. Buildings.
+  const buildingMgr = new BuildingManager(world);
+  const buildingMenu = new BuildingMenu();
+
+  // 4. Actors.
   const input = new Input(canvas);
   const camera = new Camera({
     viewportWidth: canvas.width, viewportHeight: canvas.height
@@ -101,28 +126,83 @@ export function bootGame(canvas) {
     sanity: { cur: 100, max: 100 }
   };
 
-  // v0.4 — attach audio integration (sfx dispatcher + ambient controller + ui audio)
-  const audioInt = attachAudio({
-    audio, world,
-    getPlayer: () => player,
-    vitalsState
-  });
-  hud.setAudio(audioInt);
-
-  // mount settings widget into the canvas parent so the player can adjust volume
-  if (canvas.parentElement) {
-    try { mountAudioSettings(audio, canvas.parentElement); } catch (_) { /* no DOM */ }
+  // 5. Multiplayer.
+  let mp = null;
+  const chatLog = [];          // 最近 20 条
+  function pushChat(line) {
+    chatLog.push({ at: Date.now(), text: line });
+    if (chatLog.length > 20) chatLog.shift();
+    updateChatDom();
+  }
+  function updateChatDom() {
+    const el = document.getElementById('ww-chat-log');
+    if (!el) return;
+    el.innerHTML = chatLog.map(c => `<div>${escapeHtml(c.text)}</div>`).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+  if (client && session && (mode === 'host' || mode === 'join')) {
+    // session.self.name 用于广播时附带
+    session.self.name = playerName;
+    mp = new Multiplayer({
+      mode, client, session,
+      player, world, buildingMgr, resources, gather,
+      vitals: vitalsState,
+      onChat: (m) => {
+        const prefix = m.from ? `[${m.from}]` : '[系统]';
+        pushChat(`${prefix} ${m.text}`);
+      },
+      onKicked: (reason) => {
+        pushChat(`[系统] 你被踢出房间 (${reason || '未知'})`);
+      },
+      onPeerJoined: (p) => {
+        pushChat(`[系统] ${p.name} 加入了房间`);
+      },
+      onPeerLeft: (m) => {
+        pushChat(`[系统] 玩家离开了 (${m.reason || ''})`);
+      },
+    });
   }
 
-  // Lazy audio start on first user input (Web Audio autoplay policy)
-  function tryStartAudio() {
-    if (audioStarted) return;
-    if (audio.start()) {
-      audioStarted = true;
-      audio.resume();
+  // 6. Chat input 绑定(联机时)。
+  const chatInput = document.getElementById('ww-chat-input');
+  if (chatInput) {
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const text = chatInput.value.trim();
+        if (text) {
+          if (mp) {
+            mp.broadcastChat(text);
+            pushChat(`[${playerName}] ${text}`);
+          } else {
+            pushChat(`[${playerName}] ${text}`);
+          }
+          chatInput.value = '';
+        }
+        e.preventDefault();
+      } else if (e.key === 'Escape') {
+        chatInput.value = '';
+        chatInput.blur();
+      }
+    });
+  }
+
+  // 7. Building placement 状态。
+  let pendingBuilding = null;  // 选中的建筑 id,等待鼠标点击放置
+  function tryPlaceBuilding(tx, ty) {
+    if (!pendingBuilding) return false;
+    const r = buildingMgr.canPlace(pendingBuilding, tx, ty, player);
+    if (!r.ok) {
+      pushChat(`[系统] 无法放置:${r.reason}`);
+      return false;
     }
+    const b = buildingMgr.place(pendingBuilding, tx, ty, player);
+    if (mp && mp.mode === 'host') mp.broadcastPlace(b);
+    pendingBuilding = null;
+    buildingMenu.close();
+    return true;
   }
 
+  // 8. Frame loop.
   let lastT = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000);
@@ -131,30 +211,66 @@ export function bootGame(canvas) {
     // panel toggles
     hud.processPanelToggles();
 
-    // first-input audio start
-    if (!audioStarted && (input.consumeAnyPressed())) {
-      tryStartAudio();
-    }
-
     // panel clicks consume mouse before game routing
     let panelConsumed = false;
     if (input.consumeClick()) {
       panelConsumed = hud.handlePanelClick(input.mouseX, input.mouseY, canvas.width, canvas.height);
     }
 
-    // player movement only when no panel visible
-    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible) {
+    // building menu 更新
+    const menuSelected = buildingMenu.update(input, canvas.width, canvas.height);
+    if (menuSelected) {
+      const typeId = buildingMenu.consumeSelection();
+      if (typeId) {
+        pendingBuilding = typeId;
+        pushChat(`[系统] 已选择建筑:${getBuilding(typeId)?.name || typeId},移动鼠标 + 左键放置`);
+      }
+    }
+
+    // 移动 + 采集(本地)
+    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible && !buildingMenu.isOpen) {
       player.update(dt, input);
     }
     camera.follow(player);
     gather.update(player, dt);
 
-    // world click for gather — only when not consumed by a panel
-    if (!panelConsumed && input.consumeClick()) {
+    // 联机:tick 驱动 state/input 广播
+    if (mp) mp.tick(now, input);
+
+    // 鼠标左键:如果有待放置建筑,放;否则,采集
+    if (!panelConsumed && !buildingMenu.isOpen && input.consumeClick()) {
       const w = screenToWorld(input.mouseX, input.mouseY, canvas, player, camera);
-      gather.click(w.x, w.y);
+      const tx = Math.floor(w.x);
+      const ty = Math.floor(w.y);
+      if (pendingBuilding) {
+        tryPlaceBuilding(tx, ty);
+      } else {
+        gather.click(w.x, w.y);
+      }
     }
-    // right-click places the hotbar item into the crafting grid (if open)
+
+    // 右键:取消待放置 / 拆除
+    if (input.consumeRightClick()) {
+      if (pendingBuilding) {
+        pendingBuilding = null;
+        buildingMenu.close();
+        pushChat('[系统] 已取消建筑选择');
+      } else {
+        // 拆除:找光标下的 building
+        const w = screenToWorld(input.mouseX, input.mouseY, canvas, player, camera);
+        const tx = Math.floor(w.x);
+        const ty = Math.floor(w.y);
+        const b = buildingMgr.buildings.find(b => b.contains(tx, ty));
+        if (b) {
+          const id = b.entityId;
+          buildingMgr.remove(b);
+          if (mp && mp.mode === 'host') mp.broadcastRemove(id);
+          pushChat(`[系统] 拆除了 ${b.typeId}`);
+        }
+      }
+    }
+
+    // right-click 配合 building menu 取消
     if (hud.craftingPanel.visible && input.consumeRightClick()) {
       hud.craftingPanel.onClick(
         input.mouseX, input.mouseY, canvas.width, canvas.height,
@@ -167,7 +283,7 @@ export function bootGame(canvas) {
     vitalsState.hunger.cur = Math.max(0, vitalsState.hunger.cur - dt * 0.4);
     vitalsState.sanity.cur = Math.max(0, vitalsState.sanity.cur - dt * 0.2);
 
-    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather);
+    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState);
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
 
     // loot banner
@@ -183,8 +299,25 @@ export function bootGame(canvas) {
       lastLootBanner = null;
     }
 
-    // v0.4 — drive audio per-frame (biome tracking, sanity distortion, footsteps)
-    if (audioStarted) audioInt.update(dt * 1000);
+    // 放置预览(在 building menu 关闭后,显示一个半透明的 ghost)
+    if (pendingBuilding && !buildingMenu.isOpen) {
+      const w = screenToWorld(input.mouseX, input.mouseY, canvas, player, camera);
+      const tx = Math.floor(w.x);
+      const ty = Math.floor(w.y);
+      const s = worldToScreen(tx, ty);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const camScreen = worldToScreen(camera.x, camera.y);
+      const offsetX = cx - camScreen.x;
+      const offsetY = cy - camScreen.y;
+      const sx = s.x + offsetX;
+      const sy = s.y + offsetY;
+      const can = buildingMgr.canPlace(pendingBuilding, tx, ty, player).ok;
+      drawPlacementPreview(ctx, sx, sy, pendingBuilding, can);
+    }
+
+    // 建造 menu 渲染
+    buildingMenu.draw(ctx, canvas.width, canvas.height);
 
     // periodic save
     if ((now | 0) % 60 === 0) saveInventory(inventory);
@@ -192,10 +325,14 @@ export function bootGame(canvas) {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { world, player, camera, hud, inventory, gather, resources, audio, audioInt };
+  return { world, player, camera, hud, inventory, gather, resources, buildingMgr, mp, mode };
 }
 
-function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather) {
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState) {
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -247,19 +384,72 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
      || r.y < bounds.y0 - 1 || r.y > bounds.y1 + 1) continue;
     drawables.push({ kind: 'resource', ref: r, depth: depthKey(r.x, r.y) });
   }
+  for (const b of (buildingMgr?.buildings || [])) {
+    if (b.tx < bounds.x0 - 2 || b.tx > bounds.x1 + 2
+     || b.ty < bounds.y0 - 2 || b.ty > bounds.y1 + 2) continue;
+    drawables.push({ kind: 'building', ref: b, depth: depthKey(b.tx, b.ty) });
+  }
   drawables.push({ kind: 'player', depth: depthKey(player.x, player.y), ref: player });
+  // 远端玩家(联机):用各自的位置参与深度排序
+  if (mp && mp.session) {
+    for (const p of mp.session.peers.values()) {
+      if (!p.state) continue;
+      const px = p.state.x, py = p.state.y;
+      if (px < bounds.x0 - 1 || px > bounds.x1 + 1
+       || py < bounds.y0 - 1 || py > bounds.y1 + 1) continue;
+      drawables.push({ kind: 'remote', ref: p, depth: depthKey(px, py) });
+    }
+  }
   drawables.sort((a, b) => a.depth - b.depth);
   for (const it of drawables) {
-    const s = worldToScreen(it.ref.x, it.ref.y);
-    const sx = s.x + offsetX;
-    const sy = s.y + offsetY;
-    if (it.kind === 'decor') drawDecoration(ctx, sx, sy, it.ref);
-    else if (it.kind === 'resource') {
+    if (it.kind === 'decor') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      drawDecoration(ctx, s.x + offsetX, s.y + offsetY, it.ref);
+    } else if (it.kind === 'resource') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
       const progress = (gather.target === it.ref) ? gather.progressFraction() : 0;
-      drawResource(ctx, sx, sy, it.ref, progress);
+      drawResource(ctx, s.x + offsetX, s.y + offsetY, it.ref, progress);
+    } else if (it.kind === 'building') {
+      const s = worldToScreen(it.ref.tx, it.ref.ty);
+      drawBuilding(ctx, s.x + offsetX, s.y + offsetY, it.ref, { showHp: true });
+    } else if (it.kind === 'player') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      drawPlayer(ctx, s.x + offsetX, s.y + offsetY, it.ref.facing);
+      // 在本地玩家头上画名字 + HP(简单文字)
+      drawNameHp(ctx, s.x + offsetX, s.y + offsetY, mp?.session?.self?.name || '你', vitalsState, /*self*/true);
+    } else if (it.kind === 'remote') {
+      const s = worldToScreen(it.ref.state.x, it.ref.state.y);
+      const facing = it.ref.state.facing || 'down';
+      drawPlayer(ctx, s.x + offsetX, s.y + offsetY, facing);
+      drawNameHp(ctx, s.x + offsetX, s.y + offsetY, it.ref.name || '?', it.ref.state, /*self*/false);
     }
-    else drawPlayer(ctx, sx, sy, it.ref.facing);
   }
+}
+
+function drawNameHp(ctx, sx, sy, name, state, self) {
+  if (!state) return;
+  const label = self ? `${name} (你)` : name;
+  ctx.font = 'bold 10px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  // 背景框
+  const w = ctx.measureText(label).width + 8;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(sx - w/2, sy - 32, w, 14);
+  ctx.fillStyle = self ? '#d4a64a' : '#88c8ff';
+  ctx.fillText(label, sx, sy - 20);
+  // HP 迷你条
+  if (Number.isFinite(state.hp)) {
+    const barW = 30, barH = 2;
+    const bx = sx - barW/2, by = sy - 17;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(bx, by, barW, barH);
+    const pct = Math.max(0, Math.min(1, state.hp / 100));
+    ctx.fillStyle = pct > 0.5 ? '#5ad870' : pct > 0.25 ? '#d4c84a' : '#d45a4a';
+    ctx.fillRect(bx, by, barW * pct, barH);
+  }
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 }
 
 const CODE_TO_BIOME = ['forest', 'plains', 'mines', 'snow'];

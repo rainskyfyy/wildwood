@@ -2,10 +2,25 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>Wildwood M2.10c Demo — 资源系统 + 铲 + 重生 + 耐久</title>
+ <title>Wildwood · v0.4 联机 — 2-4 人合作 · 类饥荒 × 星露谷</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- M1.7 UI 基础布局(tokens 必须先于其他) -->
+  <link rel="stylesheet" href="./src/ui/layout/tokens.css">
+  <link rel="stylesheet" href="./src/ui/layout/grid.css">
+  <link rel="stylesheet" href="./src/ui/layout/anchors.css">
+  <!-- M1.8 UI 组件库(6 类 × 3 变体) -->
+  <link rel="stylesheet" href="./src/ui/components/components.css">
+  <!-- M2.13 4 屏样式 -->
+  <link rel="stylesheet" href="./src/ui/screens/inventory.css">
+  <link rel="stylesheet" href="./src/ui/screens/crafting.css">
+  <link rel="stylesheet" href="./src/ui/screens/map.css">
+  <link rel="stylesheet" href="./src/ui/screens/quest.css">
   <style>
-    :root { --bg: #0d0d18; --fg: #f0f0f0; --accent: #d4a64a; }
+    :root {
+      --bg: #0d0d18;
+      --fg: #f0f0f0;
+      --accent: #d4a64a;
+    }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0; height: 100%;
@@ -13,45 +28,244 @@
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
       overflow: hidden;
     }
-    .wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; height: 100%; }
-    h1 { font-size: 18px; font-weight: 600; margin: 0; color: var(--accent); letter-spacing: 0.5px; }
-    .stage {
-      position: relative; width: 960px; max-width: 100%;
-      aspect-ratio: 4 / 3;
-      box-shadow: 0 6px 30px rgba(0,0,0,0.5); border: 2px solid #2a2a3a; border-radius: 6px; overflow: hidden;
+    .wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 12px; height: 100%;
     }
-    canvas { display: block; width: 100%; height: 100%; background: #1a1a2a;
-             image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;
-             cursor: crosshair; }
-    .controls { font-size: 12px; color: #aaa; display: flex; gap: 16px; flex-wrap: wrap;
-                max-width: 960px; justify-content: center; }
-    .controls kbd { background: #2a2a3a; border: 1px solid #444; border-radius: 3px; padding: 1px 6px;
-                   font-family: ui-monospace, monospace; font-size: 11px; color: #fff; }
-    .badge { display: inline-block; padding: 1px 6px; background: #2a3a2a; color: #7ec47e;
-             border: 1px solid #4a6a4a; border-radius: 3px; font-size: 10px; margin-left: 6px; }
+    h1 {
+      font-size: 18px; font-weight: 600; margin: 0;
+      color: var(--accent); letter-spacing: 0.5px;
+    }
+    /* M1.7: 视口 1440×900 · 16:10 · 中央净空区留出 5 锚定区 */
+    .stage {
+      position: relative;
+      width: 1440px;
+      max-width: calc(100vw - 24px);
+      aspect-ratio: 16 / 10;            /* 1440:900 = 16:10 */
+      box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+      border: 2px solid #2a2a3a;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #1a1a2a;
+    }
+    canvas#game {
+      display: block; width: 100%; height: 100%;
+      background: #1a1a2a;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    .controls {
+      font-size: 12px; color: #aaa;
+      display: flex; gap: 16px; flex-wrap: wrap;
+      max-width: 1440px; justify-content: center;
+    }
+    .controls kbd {
+      background: #2a2a3a; border: 1px solid #444;
+      border-radius: 3px; padding: 1px 6px;
+      font-family: ui-monospace, monospace; font-size: 11px;
+      color: #fff;
+    }
+    /* v0.4 聊天:固定高度,可滚动 */
+    #ww-chat-log {
+      max-height: 96px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    /* M2.12 队伍槽 36×36 内部文字(基础类已有) */
+    .PartySlot-Name {
+      position: absolute; bottom: 2px; left: 2px; right: 2px;
+      font-family: var(--font-pixel);
+      font-size: var(--fs-10);
+      color: var(--fg);
+      text-shadow: 1px 1px 0 var(--night-black);
+      text-align: center;
+      line-height: 1;
+      letter-spacing: 0.5px;
+    }
+    .PartySlot-Id {
+      position: absolute; top: 1px; right: 1px;
+      font-family: var(--font-pixel);
+      font-size: var(--fs-10);
+      color: var(--fg-faint);
+      line-height: 1;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Wildwood · M2.10c 资源系统 + 铲 + 重生 + 耐久</h1>
+    <h1>Wildwood · v0.4 联机 (M4 + M2.9 + M2.13) — 2-4 人合作</h1>
     <div class="stage">
-      <canvas id="game" width="960" height="720"></canvas>
+      <canvas id="game" width="1440" height="900"></canvas>
+      <!-- M1.7 + M1.8 + M2.12: 5 锚定区填上实际组件实例 + 队伍槽 + 三围条/小地图/快捷栏/聊天 -->
+      <div class="UILayer">
+
+        <!-- 左上 · 4 队伍槽 + 3 三围条 -->
+        <div class="Anchor-TL">
+          <div class="GridRow GridGap-8">
+            <div class="PartySlot" data-party-color="party-1"></div>
+            <div class="PartySlot" data-party-color="party-2"></div>
+            <div class="PartySlot" data-party-color="party-3"></div>
+            <div class="PartySlot" data-party-color="party-4"></div>
+          </div>
+          <div class="VitalBar VitalBar-HP" data-value="100">
+            <div class="VitalBar-Fill" style="width: 100%"></div>
+            <div class="VitalBar-Value">100/100</div>
+          </div>
+          <div class="VitalBar VitalBar-Hunger" data-value="80">
+            <div class="VitalBar-Fill" style="width: 80%"></div>
+            <div class="VitalBar-Value">80/100</div>
+          </div>
+          <div class="VitalBar VitalBar-Sanity" data-value="100">
+            <div class="VitalBar-Fill" style="width: 100%"></div>
+            <div class="VitalBar-Value">100/100</div>
+          </div>
+        </div>
+
+        <!-- 右上 · 时间 + 季节 -->
+        <div class="Anchor-TR">
+          <div class="TimeDisplay">Day 12 · 14:32</div>
+          <div class="SeasonTag">AUTUMN</div>
+        </div>
+
+        <!-- 右下 · 小地图 200×200 -->
+        <div class="Anchor-BR">
+          <div class="Minimap">
+            <canvas class="MinimapCanvas" width="200" height="200"></canvas>
+            <div class="Minimap-PlayerDot"></div>
+            <div class="Minimap-PartyDot Minimap-PartyDot-Party-2" style="top: 30%; left: 40%"></div>
+            <div class="Minimap-PartyDot Minimap-PartyDot-Party-3" style="top: 65%; left: 70%"></div>
+            <div class="Minimap-POIDot" style="top: 20%; left: 80%"></div>
+            <div class="Minimap-Compass">
+              <span class="Minimap-Compass-N">N</span>
+              <span class="Minimap-Compass-S">S</span>
+              <span class="Minimap-Compass-E">E</span>
+              <span class="Minimap-Compass-W">W</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 左下 · 快捷栏 5 格 + 2 扩展(共 7) -->
+        <div class="Anchor-BL">
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">1</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Active">
+            <span class="HotbarSlot-Key">2</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">3</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">4</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Default">
+            <span class="HotbarSlot-Key">5</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Disabled" aria-disabled="true">
+            <span class="HotbarSlot-Key">6</span>
+          </div>
+          <div class="HotbarSlot HotbarSlot-Disabled" aria-disabled="true">
+            <span class="HotbarSlot-Key">7</span>
+          </div>
+        </div>
+
+        <!-- 底部 · 聊天 -->
+        <div class="Anchor-B">
+          <div class="ChatChannel-Tab">
+            <span class="Active">[全局]</span>
+            <span>[队伍]</span>
+            <span>[私聊]</span>
+          </div>
+          <div id="ww-chat-log"></div>
+          <input id="ww-chat-input" class="ChatInput" type="text" placeholder="按 Enter 发送消息(联机时广播)...">
+        </div>
+
+      </div>
+
+      <!-- M2.13 · 4 屏 subtab 导航条(覆盖在 UILayer 之上) -->
+      <div class="SubtabBar">
+        <div class="Subtab is-active" data-tab="inventory">
+          <span class="Subtab-Key">I</span>背包
+        </div>
+        <div class="Subtab" data-tab="crafting">
+          <span class="Subtab-Key">C</span>合成
+        </div>
+        <div class="Subtab" data-tab="map">
+          <span class="Subtab-Key">M</span>地图
+        </div>
+        <div class="Subtab" data-tab="quest">
+          <span class="Subtab-Key">Q</span>任务
+        </div>
+        <div class="Subtab-Divider"></div>
+        <span class="Subtab-Hint">I / C / M / Q 切换 · Esc 返回 · B 建造 · 拖拽物品 4 状态</span>
+      </div>
+
+      <!-- M2.13 · 4 屏容器(默认全部 hidden,JS 切换 display) -->
+      <div id="screen-inventory" class="Screen" style="display: none; top: 36px;"></div>
+      <div id="screen-crafting"  class="Screen" style="display: none; top: 36px;"></div>
+      <div id="screen-map"       class="Screen" style="display: none; top: 36px;"></div>
+      <div id="screen-quest"     class="Screen" style="display: none; top: 36px;"></div>
     </div>
     <div class="controls">
-      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
-      <span><kbd>1</kbd>~<kbd>6</kbd> 切快捷栏</span>
-      <span><kbd>左键</kbd> 采集资源</span>
-      <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>Esc</kbd> 关闭</span>
-      <span>斧/镐/铲耐久度:绿>50% 琥珀>20% 红≤20%</span>
-      <span>铲:挖土堆/树苗/胡萝卜 · 蘑菇可用铲或徒手<span class="badge">M2.10c</span></span>
-      <span>砍/挖完后 30-240s 后重生(随机化种子)<span class="badge">M2.10b</span></span>
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
+      <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
+      <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>M</kbd> 地图 · <kbd>Q</kbd> 任务 · <kbd>Esc</kbd> 关闭</span>
+      <span><kbd>B</kbd> 建造(5 楔菜单)· <kbd>1</kbd>~<kbd>5</kbd> 选建筑 · <kbd>RMB</kbd> 取消/拆除</span>
+      <span>v0.4 · 单人/联机菜单 · WebSocket relay · 2-4 人 · 30s 断线重连</span>
     </div>
   </div>
+
+  <!-- M2.12: 顶层 HUD 状态机(EventTarget 总线 + 5Hz tick + 4 队伍槽 mock) -->
+  <script src="./src/ui/hud.js"></script>
+  <!-- M2.13: 4 屏 subtab 路由 + 拖拽 4 状态机(订阅 hudBus) -->
+  <script src="./src/ui/screens/screens.js"></script>
+  <!-- v0.4 联机:主菜单(单人/创建房间/加入房间)→ bootGame 注入联机参数 -->
   <script type="module">
     import { bootGame } from './src/main.js';
+    import { NetMenu } from './src/net/menu.js';
+
+    // relay URL 通过查询参数 ?relay=ws://host:port 覆盖,否则默认 localhost:8787
+    const params = new URLSearchParams(location.search);
+    const relayUrl = params.get('relay') || 'ws://localhost:8787';
+    // 也支持 ?mode=offline 直接跳过菜单(调试用)
+    const skipMenu = params.get('mode') === 'offline' && !params.get('forceMenu');
+
     const canvas = document.getElementById('game');
-    const game = bootGame(canvas);
-    window.__wildwood = { canvas, game };
+
+    async function start(result) {
+      if (result.mode === 'offline' || result.mode === 'cancel') {
+        // 单人或取消:offline
+        bootGame(canvas, { mode: 'offline', playerName: result.name || 'Player' });
+      } else if (result.mode === 'host' || result.mode === 'join') {
+        bootGame(canvas, {
+          mode: result.mode,
+          client: result.client,
+          session: result.session,
+          playerName: result.name,
+        });
+      }
+      window.__wildwood = {
+        canvas,
+        bus: window.__hudBus,
+        ready: () => window.__hudReady === true,
+        netResult: result,
+      };
+    }
+
+    if (skipMenu) {
+      start({ mode: 'offline', name: 'Player' });
+    } else {
+      const menu = new NetMenu(document.body);
+      const result = await menu.show({ relayUrl });
+      if (result.mode === 'cancel') {
+        // 用户从主菜单取消:回退到单人模式而不是黑屏
+        start({ mode: 'offline', name: 'Player' });
+      } else {
+        start(result);
+      }
+    }
   </script>
 </body>
 </html>
