@@ -1,0 +1,27 @@
+# Normalize line endings to LF for cross-platform consistency
+# Godot script files must use LF
+*.gd        text eol=lf
+*.tscn      text eol=lf
+*.tres      text eol=lf
+*.gdshader  text eol=lf
+*.cfg       text eol=lf
+*.godot     text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.proto     text eol=lf
+
+# Binary assets - keep as-is
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.webp      binary
+*.ase       binary
+*.aseprite  binary
+*.wav       binary
+*.ogg       binary
+*.mp3       binary
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary

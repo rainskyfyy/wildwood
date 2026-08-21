@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Wildwood placeholder icon: a stylized campfire -->
+  <!-- Will be replaced by AI 画师 in M1.12 / M2.14 -->
+  <rect width="128" height="128" fill="#1a1410"/>
+  <!-- Ground -->
+  <rect x="0" y="96" width="128" height="32" fill="#3d2817"/>
+  <!-- Logs -->
+  <rect x="40" y="80" width="48" height="8" fill="#5c3a1e" transform="rotate(-15 64 84)"/>
+  <rect x="40" y="80" width="48" height="8" fill="#5c3a1e" transform="rotate(15 64 84)"/>
+  <!-- Flames (orange) -->
+  <polygon points="64,40 56,60 64,72 72,60" fill="#e89048"/>
+  <polygon points="64,30 52,56 64,68 76,56" fill="#f4b860" opacity="0.85"/>
+  <!-- Inner flame (yellow) -->
+  <polygon points="64,50 58,62 64,70 70,62" fill="#f4e4c1"/>
+  <!-- Embers -->
+  <circle cx="50" cy="80" r="2" fill="#e89048"/>
+  <circle cx="78" cy="80" r="2" fill="#e89048"/>
+  <circle cx="64" cy="86" r="2" fill="#e89048"/>
+</svg>
