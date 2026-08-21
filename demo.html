@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Wildwood M4 Demo — 核心游戏系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0d0d18;
+      --fg: #f0f0f0;
+      --accent: #d4a64a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg); color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
+      overflow: hidden;
+    }
+    .wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 12px; height: 100%;
+    }
+    h1 {
+      font-size: 18px; font-weight: 600; margin: 0;
+      color: var(--accent); letter-spacing: 0.5px;
+    }
+    .stage {
+      position: relative; width: 960px; max-width: 100%;
+      aspect-ratio: 4 / 3;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+      border: 2px solid #2a2a3a;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    canvas {
+      display: block; width: 100%; height: 100%;
+      background: #1a1a2a;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    .controls {
+      font-size: 12px; color: #aaa;
+      display: flex; gap: 16px; flex-wrap: wrap;
+      max-width: 960px; justify-content: center;
+    }
+    .controls kbd {
+      background: #2a2a3a; border: 1px solid #444;
+      border-radius: 3px; padding: 1px 6px;
+      font-family: ui-monospace, monospace; font-size: 11px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Wildwood · M4 核心游戏系统 MVP</h1>
+    <div class="stage">
+      <canvas id="game" width="960" height="720"></canvas>
+    </div>
+    <div class="controls">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
+      <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
+      <span>摄像机跟随 · 32×32 tile · 4 群系(森林/平原/矿区/雪原)</span>
+    </div>
+  </div>
+  <script type="module">
+    import { bootGame } from './src/main.js';
+    const canvas = document.getElementById('game');
+    bootGame(canvas);
+    // expose for debug
+    window.__wildwood = { canvas };
+  </script>
+</body>
+</html>
