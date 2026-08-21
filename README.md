@@ -367,11 +367,53 @@ cd core/abstract/network/go && go run ./cmd/e2eclient -url ws://127.0.0.1:8080/w
 
 ---
 
+## M1.11 房间创建/加入/退出基础流程
+
+M1.11 在 M1.5 协议 + M1.9 传输 + M1.10 会话之上,落地**业务层房间状态机**:建房 / 加入 / 离开 / 踢人 / 满员拒绝 / 状态广播。这是联机 MVP 拼图的最后一块 — M1.11 通过后即可解锁 M2.1-M2.x 业务流。
+
+### 关键约束(方案 §5.4 硬约束)
+
+- **4 人小队上限**(1 主机 + 3 队友):第 5 人加入返回 `ROOM_ERROR_FULL`(明确错误码)
+- **5 位短链 ID**:`r-NNNNN` 房间 id / `t-NNNNN` join_token(避免长链刷屏)
+- **3 套独立计数器**:`playerSeq` / `roomSeq` / `tokenSeq` 均为 `atomic.Uint32`,互不耦合
+- **状态广播双帧**:成员变化时同时发 `PlayerJoined/PlayerLeft` + `RoomStateChanged`(M1.11 验收 ③)
+
+### 协议层新增
+
+| 消息 | 方向 | 字段 | 用途 |
+|------|------|------|------|
+| `C2S_RoomKick` | C→S | `room_id` / `target_player_id` / `reason` | 房主踢人 |
+| `S2C_RoomKicked` | S→C | `room_id` / `kicked_by_id` / `reason` / `server_time_ms` | 被踢通知 |
+| `S2C_RoomStateChanged` | S→C | `room_id` / `current_players` / `max_players` / `trigger` | 槽位刷新广播 |
+
+`trigger` 取值:`"join"` / `"leave"` / `"kick"`(`"disconnect"` 留 M3.7)。
+
+### 验收
+
+| # | 标准 | 测试 | 结果 |
+|---|------|------|------|
+| ① | 第 5 人加入被 `ROOM_ERROR_FULL` 拒绝(明确错误码) | `TestM111_Acc01_FifthPlayerRejected` | ✅ |
+| ② | 房主踢人后房间槽释放,被踢者收 `RoomKicked` + `ROOM_ERROR_KICKED`,非 host/self-kick 拒绝 | `TestM111_Acc02_HostKickFreesSlot` | ✅ |
+| ③ | 房间状态变更对全队广播(join/leave 触发 `PlayerJoined/PlayerLeft` + `RoomStateChanged`) | `TestM111_Acc03_RoomStateBroadcasts` | ✅ |
+| 回归 1 | `playerSeq` / `roomSeq` 独立(修复 M1.5 时代 `nextPlayerID` 与 `nextRoomID` 共享 `roomSeq` 的 bug) | `TestM111_Regression_CounterIndependence` | ✅ |
+| 回归 2 | 满员拒绝不修改房间(5 号连续 3 次加入被拒,房内仍 4 人) | `TestM111_Regression_FullRejection_DoesNotMutateRoom` | ✅ |
+
+### 关键 Bug 修复(2026-08-20)
+
+- **Acc02 RWMutex 死锁**:`m111_room_flow_test.go:260` happy path 下读锁未释放,导致 `RegisterPlayer` 的 `Lock()` 永久阻塞 → p5.handshake 卡死。改为正确配对 `RUnlock`
+- **`handleRoomKick` 帧重复**:host 在 Broadcast 之外又收 1 份 `RoomStateChanged`,污染后续 p5.rejoin 断言。删除冗余 `conn.Send`
+
+### 字节预算
+
+`S2C_RoomStateChanged` = 17 bytes / `S2C_RoomKicked` = 28 bytes,均在 4KB 帧上限内,联机 4 玩家每 tick 可携带多个状态帧无压力。
+
+---
+
 ## 里程碑
 
 | 阶段     | 周次    | 目标                                       | 当前状态 |
 |----------|---------|--------------------------------------------|----------|
-| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅ / M1.10 ✅) |
+| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅ / M1.10 ✅ / M1.11 ✅) |
 | M2 核心循环 | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | 未开始   |
 | M3 联机    | W11-W16 | 4 人联机 MVP 完整版可发布                  | 未开始   |
 
@@ -380,6 +422,7 @@ M1 关键交付一览:
 - **M1.5 网络协议语义层**:Protobuf `.proto` 真相源 + Go/GDScript 双端 codec + 字节预算 2851B < 4KB(commit `e57cae1`)
 - **M1.9 传输层接入**:Go gorilla/websocket 房间服务 + GDScript `WildwoodTransport` + Dockerfile/distroless 部署;200 连接压测 RTT avg 34µs,远低于 50ms 目标(见下节)
 - **M1.10 客户端-服务端 WebSocket 连通**:`WildwoodSession`(客户端) + Go e2eclient + 4 个 M1.10 单元测试(30 次 heartbeat RTT avg 0ms / max 1ms + 30s 重连机制)
+- **M1.11 房间创建/加入/退出基础流程**:`C2S_RoomKick` / `S2C_RoomKicked` / `S2C_RoomStateChanged` 协议层新增 + Go 端 `handleRoomCreate/Join/Leave/Kick` 业务实现 + 5 个 M1.11 验收测试(3 条核心 + 2 条回归)全部通过
 
 任务依赖图与关键路径见[《项目任务拆分表》§2.1-2.2](https://hisense.feishu.cn/docx/JrCmdC2S9o4ID5xRM70cuSNsnS2)。
 
