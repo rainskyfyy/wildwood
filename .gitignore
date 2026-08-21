@@ -17,6 +17,12 @@ data_*/
 .directory
 *~
 
+# Python bytecode (M2.4+ tests use pytest)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
 # .NET / C# build outputs (if using C# in future)
 bin/
 obj/
@@ -57,16 +63,10 @@ coverage/
 # Lock files (Godot doesn't have package lock, but just in case)
 package-lock.json
 yarn.lock
-pnpm-lock.lock
+pnpm-lock.yaml
 
 # Secrets / local config
 .env
 .env.local
 *.secret
 *.key
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://hisense.feishu.cn/file/wildwood/biome/v1",
+  "version": "1.0.0",
+  "name": "wildwood_biome_map_default",
+  "description": "M2.7 默认 9 宫格 + 周期扩展映射。中心 (0,0)=forest,东(+2,0)=mines,西(-2,0)=snow,北/南(0,±2)=plains,角落取相邻主色,距离 ≥ 3 按象限回退。",
+  "chunk_grid": 32,
+  "map_radius_chunks": 1,
+  "loaded_chunks": 9,
+  "default_center": {"cx": 0, "cy": 0},
+  "layout": [
+    {"cx": 0,  "cy": 0,  "biome": "forest"},
+    {"cx": 1,  "cy": 0,  "biome": "forest"},
+    {"cx": -1, "cy": 0,  "biome": "forest"},
+    {"cx": 0,  "cy": 1,  "biome": "forest"},
+    {"cx": 0,  "cy": -1, "biome": "forest"},
+    {"cx": 1,  "cy": 1,  "biome": "forest"},
+    {"cx": 1,  "cy": -1, "biome": "forest"},
+    {"cx": -1, "cy": 1,  "biome": "forest"},
+    {"cx": -1, "cy": -1, "biome": "forest"}
+  ],
+  "extended_axes": {
+    "east_2":   "mines",
+    "west_2":   "snow",
+    "north_2":  "plains",
+    "south_2":  "plains"
+  }
+}

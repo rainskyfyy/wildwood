@@ -1,0 +1,38 @@
+{
+  "$schema": "https://hisense.feishu.cn/file/wildwood/biome/v1",
+  "version": "1.0.0",
+  "name": "wildwood_shared_elements",
+  "description": "M2.7 4 共享元素库(grass/rock/tree/mushroom)— 4 群系共用,仅替换主色与密度。具体像素由 M2.14 资产清单统一出(2026-08-20 拍板)。",
+  "count": 4,
+  "shared_by_all_biomes": true,
+  "elements": [
+    {
+      "id": "grass",
+      "display_name": "草地",
+      "grid_size": 32,
+      "skeleton_shape": "..##..##..##..##..##..##..##..##\n.####.####.####.####.####.####.##\n##..####..####..####..####..####.\n.##.##..##.##.##..##.##.##..##..",
+      "source_ref": "m2.14.element.grass"
+    },
+    {
+      "id": "rock",
+      "display_name": "岩石",
+      "grid_size": 32,
+      "skeleton_shape": "....####....\n...######...\n..########..\n..##.####.##\n.##########.",
+      "source_ref": "m2.14.element.rock"
+    },
+    {
+      "id": "tree",
+      "display_name": "树",
+      "grid_size": 32,
+      "skeleton_shape": "....######....\n...########...\n..##########..\n..##########..\n...########...\n....####......\n....####......\n....####......",
+      "source_ref": "m2.14.element.tree"
+    },
+    {
+      "id": "mushroom",
+      "display_name": "蘑菇",
+      "grid_size": 16,
+      "skeleton_shape": "....####......\n..##########..\n..##########..\n....####......\n....####......\n....####......\n....####......\n....####......",
+      "source_ref": "m2.14.element.mushroom"
+    }
+  ]
+}

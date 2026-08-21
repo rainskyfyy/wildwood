@@ -1,0 +1,26 @@
+{
+  "$schema": "https://hisense.feishu.cn/file/wildwood/biome/v1",
+  "version": "1.0.0",
+  "id": "plains",
+  "display_name": "平原",
+  "primary_color_hex": "#5a6b3a",
+  "primary_color_name": "forest_moss",
+  "shared_elements": ["grass", "rock", "tree", "mushroom"],
+  "density": {
+    "grass":    0.80,
+    "tree":     0.08,
+    "rock":     0.07,
+    "mushroom": 0.05
+  },
+  "signature_resources": [
+    "m2.14.resource.grass_tuft",
+    "m2.14.resource.reed"
+  ],
+  "signature_monsters": [
+    "m2.14.monster.cow",
+    "m2.14.monster.plant_tentacle"
+  ],
+  "description": "开阔草地与零星树。牛群聚集,食人花伪装于草丛。",
+  "ui_accent": "dry_grass",
+  "ambient": "wind_low"
+}
