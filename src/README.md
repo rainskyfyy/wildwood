@@ -209,3 +209,133 @@ GUI 验证(浏览器):`demo.html` 打开后:
   - `forest` 群系 art(M3.13 不再有 forest 群系 tile)— M2.7 遗留
   - 旧 `forest↔X` 过渡 PNG — M2.7 遗留
 - M5 不动 `src/hud/*` — HUD 由 UI 设计师 M1.8/M2.12 接管
+
+# M2.14 怪物动画系统
+
+> 5 怪物 × 4 方向 × 2 动作(idle/walk) 静态 PNG 接入;帧动画引擎 +
+> 状态机 AI + A* 寻路 + 碰撞解算;复用 M2.9 `WorldGrid.occupants`
+> 屏蔽建筑占用,与 M5 美术资产接入无缝叠加。
+
+## 模块布局
+
+```
+src/
+  animation/
+    animator.js          通用帧动画引擎(单帧 / sprite sheet / 状态机)
+  monster/
+    pathfinding.js       A* 寻路(4 方向 + 二叉堆,Manhattan 启发)
+    monster.js           实体:子 tile 位置 + IDLE/WANDER/CHASE 状态机
+    monster-manager.js   协调:spawn / update / resolve sprite / 重叠解算
+  data/
+    monsters.json        5 怪物属性(HP/速度/侦测/巡游/帧率/方向偏好)
+  render/
+    tile-renderer.js     追加 drawMonster(ctx, sx, sy, monster, sprite)
+  main.js                集成 monsterMgr.update / depth-sorted render
+  README.md              本节
+tests/
+  m2.14-smoke.mjs        Node 端 114/114 全过(animator / A* / 状态机 / 碰撞 / manager)
+```
+
+## 启动
+
+```bash
+# 不需要额外步骤 —— 复用 demo.html 与现有 M5 启动流程
+python3 -m http.server 8080
+# 浏览器打开 http://localhost:8080/demo.html
+# 玩家进入怪物侦测范围(detectRange)即触发 A* 追击
+```
+
+## 设计要点
+
+### 1. 帧动画引擎
+
+`Animator` 是与具体资源无关的纯逻辑(无 canvas 依赖,可在 Node 测):
+
+- **多帧 sprite sheet 模式**:`{ sheet, frameWidth, frameHeight, frameCount, fps, loop }`
+  - 内部维护 `time` 累加器和 `frameIndex`,`tick(dt)` 推进
+  - 循环 / 单次播放 + `finished` 标记
+- **单帧状态表模式**:`buildStateTableAnimator({ idle: { down: img, ... }, walk: { ... } })`
+  - M2.14 怪物资源是 5 怪 × 4 方向 × 2 动作 = 40 张独立 PNG,每张即一帧
+  - 状态切换 = 切换 sprite 引用;`tick` 仍推进但 frameIndex 无变化
+- `setState({ action, facing })` 重置时钟,unknown facing 自动回退 down
+
+### 2. 怪物 AI
+
+3 个状态(`MonsterState`):`IDLE` → `WANDER` → `CHASE` → `WANDER`(失去目标)
+
+- `IDLE`:站立,0.5-1.7s 后切 WANDER
+- `WANDER`:随机选 1 个 `wanderRadius` 内的 walkable tile,走过去
+- `CHASE`:`chebyshev` 距离 ≤ `detectRange` 触发,每 0.4s 重 A* 一次
+  - 玩家走出 `detectRange` → 回 WANDER
+  - 路径不存在(被建筑 / 不可走区域包围)→ 回 WANDER,不锁死
+
+### 3. A* 寻路
+
+`src/monster/pathfinding.js`:
+
+- 4 方向移动,`isWalkable(x, y)` 决定 tile 可走(自动屏蔽 `occupants` 建筑)
+- Manhattan 启发 + 二叉堆开集(自己写的 `MinHeap`,无外部依赖)
+- `gScore` / `cameFrom` / `closed` 都是 `Float32Array` / `Uint32Array`,O(1) 更新
+- `maxNodes=2000` 节点上限,避免巨型开放场景死循环
+- 性能:80×60 全开网格 < 10ms(实测 8.8ms,留 5× 裕量)
+
+### 4. 碰撞
+
+怪物与 player 走完全一致的 4 角 tile 检查:
+
+```js
+const left = floor(x - 0.3), right = floor(x + 0.3);
+const top  = floor(y - 0.3), bot   = floor(y + 0.3);
+return !world.isWalkable(left, top) || !world.isWalkable(right, top) || ...;
+```
+
+轴分离解算(先 X 后 Y)→ 自动沿墙滑行,与 M4 player 行为一致。
+
+怪物 ↔ 怪物:`MonsterManager._resolveOverlaps()` 每次 update 末做一次
+最小推出(2 × body_half + 0.05 epsilon),5 怪物一次过。
+
+### 5. 资源加载策略
+
+怪物 PNG 单张 7-10 MB,5 怪 × 4 方向 × 5 动作 = 100 张 ≈ 800 MB,**绝不预加载**。
+改走与 `image-loader` 一致的懒加载:
+
+- `MonsterManager._buildStateTable` 触发 `loadImage(path)` 注册到 image-loader 缓存
+- 渲染时 `resolveSprite(monster)` 走 `getOrFallback` 链:PNG 就绪 → 画 PNG,否则画程序化菱形 fallback
+- `monsters.json` 也用 `fetch` 异步加载,boot 立即跑、JSON 到了再 spawn
+
+`drawMonster` 增量:居中绘制 + walk 时 1px 垂直 bob + hp<maxHp 时 1px HP bar(红→绿)。
+
+## 验证
+
+```bash
+node tests/m2.14-smoke.mjs
+# → M2.14 smoke: 114/114 pass
+```
+
+覆盖:
+- monsters.json:5 怪 × 11 字段 + actions ⊇ {idle, walk}
+- Animator:多帧循环 / 单次停止 / `setState` 重置 / unknown facing 回退
+- A*:直线路径 / 单墙绕路 / 全占用无路径 / 80×60 < 50ms / 同点空路径
+- 状态机:IDLE→WANDER、CHASE 触发、A* 路径规划
+- 碰撞:占用 tile 阻挡 / 建筑占用阻挡
+- Manager:`_meta` 过滤 / 5 怪 spawn / 互不重叠 / 全部 IDLE / state table 路径
+
+GUI 验证(浏览器):`demo.html` 启动后:
+1. 几帧后画面出现 5 只程序化菱形(等 PNG 下载)→ 切换为真实怪物 PNG
+2. WASD 走向任意怪物 → 接近到 detectRange(5-8 tile)时怪物停止闲逛、朝玩家方向 walk
+3. 怪物自动 A* 绕开 M2.9 建筑(若已放置)
+4. HP bar 仅在玩家攻击后出现(本里程碑不实装攻击,故全程不显)
+5. 怪物重叠时自动弹开,无叠层
+
+## 与其它里程碑的边界
+
+- **M2.14a 资产**:`assets/art/monsters/{bat,treant,spider,merm,hound}_20frames/`,
+  5 怪 × 4 方向 × 5 动作(本里程碑只用 idle + walk)
+- **M2.9 建筑**:通过 `WorldGrid.occupants` 自动屏蔽,无需修改 placer
+- **M5 美术资产**:本里程碑只 `import` `loadImage` / `getOrFallback`,不动 tile-renderer 已有函数
+- **未实装**:
+  - 玩家 ↔ 怪物伤害(M2.15)
+  - 怪物死亡 / 掉落(M2.15)
+  - 飞行 / 穿墙(目前走通用陆地寻路,bat 注释里标了 passThroughWalls 预留字段)
+  - 群系专属刷怪点(目前 spawn 走 `preferredBiome` 偏好 + 随机 200 次)
+  - 联机同步(M3.12+ 接入)

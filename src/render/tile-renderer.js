@@ -249,3 +249,50 @@ export function drawPlayer(ctx, screenX, screenY, facing = 'down', color = '#d8a
   }[facing] || [0, 1.5];
   ctx.fillRect(screenX + dirOffset[0], screenY - 7 + dirOffset[1], 1, 1);
 }
+
+/**
+ * M2.14: Draw a monster at the given screen coords. `sprite` should
+ * already be resolved by the caller (via MonsterManager.resolveSprite)
+ * so this function stays focused on blit + the M2.14 debug HP bar.
+ *
+ * Visual strategy:
+ *   - Center the sprite on the tile (its `naturalWidth/Height` define
+ *     the size; scale by monster.size).
+ *   - Monsters that are mid-`walk` get a tiny vertical bob (1 px) so
+ *     you can tell them apart from idle.
+ *   - A 1-pixel HP bar appears above the sprite (red→green) so the
+ *     player can see at a glance how close the monster is to dying.
+ *     This is M2.14 debug only; M2.15 will move it to the HUD.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} screenX
+ * @param {number} screenY
+ * @param {import('../monster/monster.js').Monster} monster
+ * @param {HTMLImageElement|HTMLCanvasElement} sprite
+ */
+export function drawMonster(ctx, screenX, screenY, monster, sprite) {
+  // Vertical bob: 0 when idle, ±1 px at the walk-frame midpoint.
+  let bob = 0;
+  if (monster.action === 'walk' && monster.animator) {
+    // frameIndex 0..N-1, with N>=2 means the cycle peak is at the
+    // mid-frame. We just sin-wave it for a 1-pixel pop.
+    const f = monster.animator.frameIndex;
+    const n = Math.max(1, monster.animator.frameCount);
+    bob = Math.round(Math.sin((f / n) * Math.PI * 2) * 0.5);
+  }
+  const w = (sprite.naturalWidth || sprite.width) * monster.size;
+  const h = (sprite.naturalHeight || sprite.height) * monster.size;
+  ctx.drawImage(sprite, screenX - w / 2, screenY - h / 2 + bob, w, h);
+
+  // Debug HP bar — only when hp < maxHp so healthy monsters stay clean.
+  if (monster.hp < monster.maxHp) {
+    const ratio = Math.max(0, monster.hp / monster.maxHp);
+    const barW = 18, barH = 2;
+    const bx = screenX - barW / 2;
+    const by = screenY - h / 2 - 5;
+    ctx.fillStyle = '#400';
+    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillStyle = ratio > 0.5 ? '#4c4' : ratio > 0.25 ? '#da4' : '#d44';
+    ctx.fillRect(bx, by, barW * ratio, barH);
+  }
+}
