@@ -30,7 +30,7 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Build Godot WebGL (export preset: Web)
+      - name: "Build Godot WebGL (export preset: Web)"
         run: npm run build:web
 
       - name: Aseprite 32px grid check

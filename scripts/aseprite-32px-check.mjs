@@ -1,7 +1,8 @@
-// scripts/aseprite-32px-check.mjs (v1 — 含 ESM require bug)
+// scripts/aseprite-32px-check.mjs (v2 — 修 ESM require bug)
 // M3.10 美术硬约束：32px 网格 + 子像素误差 = 0
 import { execSync } from 'node:child_process';
-import { readdir, stat } from 'node:fs';
+import { readFileSync, readdir, stat } from 'node:fs';
+import { readdir as readdirP, stat as statP } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 
 const ASSET_DIR = process.argv[2] || './assets';
@@ -15,7 +16,7 @@ function whichAseprite() {
 
 async function walk(dir) {
   const out = [];
-  for (const ent of await readdir(dir, { withFileTypes: true })) {
+  for (const ent of await readdirP(dir, { withFileTypes: true })) {
     const p = join(dir, ent.name);
     if (ent.isDirectory()) out.push(...await walk(p));
     else if (OK_EXTS.has(extname(ent.name).toLowerCase())) out.push(p);
@@ -23,9 +24,16 @@ async function walk(dir) {
   return out;
 }
 
+function readAsepriteSize(file) {
+  try {
+    const out = execSync(`aseprite -b "${file}" --batch --trim 2>&1 || true`, { encoding: 'utf8' });
+    return null;
+  } catch { return null; }
+}
+
 function readPNGSize(file) {
-  const fs = require('node:fs');   // ← BUG: ESM 不能用 require
-  const buf = fs.readFileSync(file);
+  // 简单解析 PNG IHDR
+  const buf = readFileSync(file);
   if (buf[0] !== 0x89 || buf[1] !== 0x50) return null;
   const w = buf.readUInt32BE(16);
   const h = buf.readUInt32BE(20);
@@ -34,7 +42,8 @@ function readPNGSize(file) {
 
 function check(file, asepriteBin) {
   let dim = null;
-  if (file.endsWith('.png')) dim = readPNGSize(file);
+  if (asepriteBin) dim = readAsepriteSize(file);
+  if (!dim && file.endsWith('.png')) dim = readPNGSize(file);
   if (!dim) return { file, ok: true, reason: 'unable-to-parse' };
   const { w, h } = dim;
   const okW = w % STEP === 0;
