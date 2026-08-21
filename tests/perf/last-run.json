@@ -1,0 +1,186 @@
+{
+  "m3_11": {
+    "timestamp": "2026-08-21T18:06:52.973Z",
+    "nodeVersion": "v22.22.0",
+    "platform": "linux",
+    "arch": "x64"
+  },
+  "scenarios": [
+    {
+      "scenario": "world-gen-500x500",
+      "dims": "500x500",
+      "tiles": 250000,
+      "runs": 5,
+      "singleMs": {
+        "p50": 51.38,
+        "max": 66.92
+      },
+      "budgetMs": 2000,
+      "pass": true,
+      "decorCount": 10081,
+      "transitionCount": 94676,
+      "transitionTotal": 250000,
+      "decorAndTransitionsMs": 32.87,
+      "peakRssMB": 87,
+      "peakHeapMB": 8.2,
+      "deterministic": true,
+      "rows": [
+        {
+          "run": 1,
+          "singleMs": 66.92167900000001,
+          "x4Ms": 207.725192,
+          "rssDelta": 9068544,
+          "heapDelta": 2076304
+        },
+        {
+          "run": 2,
+          "singleMs": 51.37797499999999,
+          "x4Ms": 175.22658900000005,
+          "rssDelta": 10354688,
+          "heapDelta": 232512
+        },
+        {
+          "run": 3,
+          "singleMs": 66.84223999999995,
+          "x4Ms": 211.72607199999993,
+          "rssDelta": 3276800,
+          "heapDelta": 1478792
+        },
+        {
+          "run": 4,
+          "singleMs": 48.293051000000105,
+          "x4Ms": 172.14676300000008,
+          "rssDelta": 2359296,
+          "heapDelta": 1126128
+        },
+        {
+          "run": 5,
+          "singleMs": 51.05135800000005,
+          "x4Ms": 175.35436000000004,
+          "rssDelta": 2490368,
+          "heapDelta": 2386696
+        }
+      ]
+    },
+    {
+      "scenario": "render-fps-500-1000-200",
+      "actorCounts": {
+        "monsters": 500,
+        "resources": 1000,
+        "buildings": 200,
+        "total": 1700
+      },
+      "samples": 30,
+      "framesPerSample": 10,
+      "frameMs": {
+        "p50": 2.957,
+        "p95": 4.246,
+        "min": 2.841,
+        "max": 5.018
+      },
+      "fps": {
+        "p50": 338.2,
+        "p95": 235.5
+      },
+      "budgetFps": 30,
+      "pass": true,
+      "drawCallsPerFrame": 7000,
+      "totalDrawCalls": 2100000
+    },
+    {
+      "scenario": "anim-200x20",
+      "monsters": 200,
+      "framesPerAnim": 20,
+      "ticks": 600,
+      "tickBudgetMs": 16.67,
+      "tickMs": {
+        "mean": 0.007,
+        "p50": 0.002,
+        "p95": 0.019,
+        "p99": 0.04,
+        "max": 1.618
+      },
+      "cpuPct": {
+        "p50": 0.01,
+        "p95": 0.11,
+        "max": 9.7
+      },
+      "budgetPct": 50,
+      "pass": true,
+      "drawQueuePerTick": 200,
+      "totalDrawEnqueued": 120000,
+      "frameBufferMB": 15.63
+    },
+    {
+      "scenario": "collision-1000",
+      "entities": 1000,
+      "samples": 50,
+      "bruteMs": 7.955,
+      "bruteHits": 38,
+      "quadtreeMs": {
+        "mean": 1.439,
+        "min": 0.327,
+        "p50": 0.63,
+        "p95": 4.412,
+        "p99": 7.929,
+        "max": 7.929
+      },
+      "quadtreeHits": 38,
+      "hitsAgree": true,
+      "speedupVsBrute": 12.6,
+      "budgetMs": 16,
+      "pass": true
+    },
+    {
+      "scenario": "server-tick-1700-actors",
+      "ticks": 600,
+      "tickBudgetMs": 50,
+      "tickMs": {
+        "mean": 5.406,
+        "min": 4.843,
+        "p50": 5.178,
+        "p95": 6.356,
+        "p99": 11.507,
+        "max": 16.538
+      },
+      "fpsEquivalent": 193.1,
+      "drawCallsPerTick": 7000,
+      "totalCollisionPairs": 33011128,
+      "pass": true
+    },
+    {
+      "scenario": "stability-600-ticks",
+      "ticks": 600,
+      "wallMs": 139,
+      "tickMs": {
+        "p50": 0.205,
+        "p95": 0.307,
+        "p99": 0.682,
+        "max": 1.082
+      },
+      "bucketP50": [
+        0.22,
+        0.205,
+        0.209,
+        0.201,
+        0.191,
+        0.192
+      ],
+      "driftPct": -12.7,
+      "rssStartMB": 106.6,
+      "rssEndMB": 106.6,
+      "rssGrowthMB": 0,
+      "rssPeakMB": 106.6,
+      "heapStartMB": 7,
+      "heapEndMB": 17.3,
+      "heapGrowthMB": 10.33,
+      "pass": true
+    }
+  ],
+  "overall": {
+    "pass": true,
+    "totalMs": 5775.78,
+    "failCount": 0,
+    "passCount": 6
+  }
+}
