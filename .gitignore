@@ -64,10 +64,6 @@ pnpm-lock.yaml
 .env.local
 *.secret
 *.key
-
-# Python build artifacts (M1.4 / M2.9+ 引入 Python 测试后需要)
-__pycache__/
+core/abstract/__pycache__/
+**/__pycache__/
 *.pyc
-*.pyo
-*.pyd
-.pytest_cache/
