@@ -1011,147 +1011,6 @@ func (x *S2C_Error) GetContext() string {
 	return ""
 }
 
-// 房间加入时全量下发 — 图鉴数据库 + 当前解锁字典
-// 客户端用 database 渲染所有槽位(已解锁显示完整,未解锁灰显 + ??)
-// 用 unlocked 决定每个槽位状态
-// 字节预算:31 entries × ~120B + 解锁数 × 30B ≈ 4-8 KB(join 时一次)
-type S2C_CodexSync struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ServerTick   uint32         `protobuf:"varint,1,opt,name=server_tick,json=serverTick,proto3" json:"server_tick,omitempty"`
-	ServerTimeMs uint64         `protobuf:"varint,2,opt,name=server_time_ms,json=serverTimeMs,proto3" json:"server_time_ms,omitempty"`
-	Database     []*CodexEntry  `protobuf:"bytes,3,rep,name=database,proto3" json:"database,omitempty"` // 全量数据库
-	Unlocked     []*CodexUnlock `protobuf:"bytes,4,rep,name=unlocked,proto3" json:"unlocked,omitempty"` // 已解锁列表(可空,新房间)
-}
-
-func (x *S2C_CodexSync) Reset() {
-	*x = S2C_CodexSync{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_wildwood_v1_s2c_proto_msgTypes[14]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *S2C_CodexSync) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*S2C_CodexSync) ProtoMessage() {}
-
-func (x *S2C_CodexSync) ProtoReflect() protoreflect.Message {
-	mi := &file_wildwood_v1_s2c_proto_msgTypes[14]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use S2C_CodexSync.ProtoReflect.Descriptor instead.
-func (*S2C_CodexSync) Descriptor() ([]byte, []int) {
-	return file_wildwood_v1_s2c_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *S2C_CodexSync) GetServerTick() uint32 {
-	if x != nil {
-		return x.ServerTick
-	}
-	return 0
-}
-
-func (x *S2C_CodexSync) GetServerTimeMs() uint64 {
-	if x != nil {
-		return x.ServerTimeMs
-	}
-	return 0
-}
-
-func (x *S2C_CodexSync) GetDatabase() []*CodexEntry {
-	if x != nil {
-		return x.Database
-	}
-	return nil
-}
-
-func (x *S2C_CodexSync) GetUnlocked() []*CodexUnlock {
-	if x != nil {
-		return x.Unlocked
-	}
-	return nil
-}
-
-// 5Hz 增量广播 — 队伍中任一玩家解锁新条目时,服务端周期性广播完整 unlocked 表
-// 简化版(M2.11):每次发整张 unlocked 表(典型 4-50 项,字节 < 256B)
-// M3.x 接管后会改为 only-delta
-type S2C_CodexDelta struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ServerTick   uint32         `protobuf:"varint,1,opt,name=server_tick,json=serverTick,proto3" json:"server_tick,omitempty"`
-	ServerTimeMs uint64         `protobuf:"varint,2,opt,name=server_time_ms,json=serverTimeMs,proto3" json:"server_time_ms,omitempty"`
-	UnlockedFull []*CodexUnlock `protobuf:"bytes,3,rep,name=unlocked_full,json=unlockedFull,proto3" json:"unlocked_full,omitempty"` // 完整已解锁表
-}
-
-func (x *S2C_CodexDelta) Reset() {
-	*x = S2C_CodexDelta{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_wildwood_v1_s2c_proto_msgTypes[15]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *S2C_CodexDelta) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*S2C_CodexDelta) ProtoMessage() {}
-
-func (x *S2C_CodexDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_wildwood_v1_s2c_proto_msgTypes[15]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use S2C_CodexDelta.ProtoReflect.Descriptor instead.
-func (*S2C_CodexDelta) Descriptor() ([]byte, []int) {
-	return file_wildwood_v1_s2c_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *S2C_CodexDelta) GetServerTick() uint32 {
-	if x != nil {
-		return x.ServerTick
-	}
-	return 0
-}
-
-func (x *S2C_CodexDelta) GetServerTimeMs() uint64 {
-	if x != nil {
-		return x.ServerTimeMs
-	}
-	return 0
-}
-
-func (x *S2C_CodexDelta) GetUnlockedFull() []*CodexUnlock {
-	if x != nil {
-		return x.UnlockedFull
-	}
-	return nil
-}
-
 var File_wildwood_v1_s2c_proto protoreflect.FileDescriptor
 
 var file_wildwood_v1_s2c_proto_rawDesc = []byte{
@@ -1295,33 +1154,10 @@ var file_wildwood_v1_s2c_proto_rawDesc = []byte{
 	0x6f, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x18, 0x0a,
 	0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07,
-	0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x22, 0xc9, 0x01, 0x0a, 0x0d, 0x53, 0x32, 0x43, 0x5f,
-	0x43, 0x6f, 0x64, 0x65, 0x78, 0x53, 0x79, 0x6e, 0x63, 0x12, 0x1f, 0x0a, 0x0b, 0x73, 0x65, 0x72,
-	0x76, 0x65, 0x72, 0x5f, 0x74, 0x69, 0x63, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a,
-	0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x54, 0x69, 0x63, 0x6b, 0x12, 0x24, 0x0a, 0x0e, 0x73, 0x65,
-	0x72, 0x76, 0x65, 0x72, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x5f, 0x6d, 0x73, 0x18, 0x02, 0x20, 0x01,
-	0x28, 0x04, 0x52, 0x0c, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x54, 0x69, 0x6d, 0x65, 0x4d, 0x73,
-	0x12, 0x37, 0x0a, 0x08, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x18, 0x03, 0x20, 0x03,
-	0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x77, 0x69, 0x6c, 0x64, 0x77, 0x6f, 0x6f, 0x64, 0x2e, 0x6e, 0x65,
-	0x74, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x64, 0x65, 0x78, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52,
-	0x08, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x12, 0x38, 0x0a, 0x08, 0x75, 0x6e, 0x6c,
-	0x6f, 0x63, 0x6b, 0x65, 0x64, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x77, 0x69,
-	0x6c, 0x64, 0x77, 0x6f, 0x6f, 0x64, 0x2e, 0x6e, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f,
-	0x64, 0x65, 0x78, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x08, 0x75, 0x6e, 0x6c, 0x6f, 0x63,
-	0x6b, 0x65, 0x64, 0x22, 0x9a, 0x01, 0x0a, 0x0e, 0x53, 0x32, 0x43, 0x5f, 0x43, 0x6f, 0x64, 0x65,
-	0x78, 0x44, 0x65, 0x6c, 0x74, 0x61, 0x12, 0x1f, 0x0a, 0x0b, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72,
-	0x5f, 0x74, 0x69, 0x63, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a, 0x73, 0x65, 0x72,
-	0x76, 0x65, 0x72, 0x54, 0x69, 0x63, 0x6b, 0x12, 0x24, 0x0a, 0x0e, 0x73, 0x65, 0x72, 0x76, 0x65,
-	0x72, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x5f, 0x6d, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52,
-	0x0c, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x54, 0x69, 0x6d, 0x65, 0x4d, 0x73, 0x12, 0x41, 0x0a,
-	0x0d, 0x75, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x5f, 0x66, 0x75, 0x6c, 0x6c, 0x18, 0x03,
-	0x20, 0x03, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x77, 0x69, 0x6c, 0x64, 0x77, 0x6f, 0x6f, 0x64, 0x2e,
-	0x6e, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x64, 0x65, 0x78, 0x55, 0x6e, 0x6c, 0x6f,
-	0x63, 0x6b, 0x52, 0x0c, 0x75, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x65, 0x64, 0x46, 0x75, 0x6c, 0x6c,
-	0x42, 0x2d, 0x5a, 0x2b, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x77,
-	0x69, 0x6c, 0x64, 0x77, 0x6f, 0x6f, 0x64, 0x2f, 0x6e, 0x65, 0x74, 0x2f, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x2f, 0x76, 0x31, 0x3b, 0x77, 0x69, 0x6c, 0x64, 0x77, 0x6f, 0x6f, 0x64, 0x76, 0x31, 0x62,
-	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x63, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x42, 0x2d, 0x5a, 0x2b, 0x67, 0x69, 0x74, 0x68, 0x75,
+	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x77, 0x69, 0x6c, 0x64, 0x77, 0x6f, 0x6f, 0x64, 0x2f, 0x6e,
+	0x65, 0x74, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x76, 0x31, 0x3b, 0x77, 0x69, 0x6c, 0x64,
+	0x77, 0x6f, 0x6f, 0x64, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1336,7 +1172,7 @@ func file_wildwood_v1_s2c_proto_rawDescGZIP() []byte {
 	return file_wildwood_v1_s2c_proto_rawDescData
 }
 
-var file_wildwood_v1_s2c_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_wildwood_v1_s2c_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_wildwood_v1_s2c_proto_goTypes = []any{
 	(*S2C_HandshakeAck)(nil),     // 0: wildwood.net.v1.S2C_HandshakeAck
 	(*S2C_HeartbeatAck)(nil),     // 1: wildwood.net.v1.S2C_HeartbeatAck
@@ -1352,36 +1188,29 @@ var file_wildwood_v1_s2c_proto_goTypes = []any{
 	(*S2C_WorldDelta)(nil),       // 11: wildwood.net.v1.S2C_WorldDelta
 	(*S2C_ChatBroadcast)(nil),    // 12: wildwood.net.v1.S2C_ChatBroadcast
 	(*S2C_Error)(nil),            // 13: wildwood.net.v1.S2C_Error
-	(*S2C_CodexSync)(nil),        // 14: wildwood.net.v1.S2C_CodexSync
-	(*S2C_CodexDelta)(nil),       // 15: wildwood.net.v1.S2C_CodexDelta
-	(*PlayerState)(nil),          // 16: wildwood.net.v1.PlayerState
-	(*WorldSnapshot)(nil),        // 17: wildwood.net.v1.WorldSnapshot
-	(*EntityState)(nil),          // 18: wildwood.net.v1.EntityState
-	(*PlayerStatus)(nil),         // 19: wildwood.net.v1.PlayerStatus
-	(*WorldEvent)(nil),           // 20: wildwood.net.v1.WorldEvent
-	(ChatChannel)(0),             // 21: wildwood.net.v1.ChatChannel
-	(RoomErrorCode)(0),           // 22: wildwood.net.v1.RoomErrorCode
-	(*CodexEntry)(nil),           // 23: wildwood.net.v1.CodexEntry
-	(*CodexUnlock)(nil),          // 24: wildwood.net.v1.CodexUnlock
+	(*PlayerState)(nil),          // 14: wildwood.net.v1.PlayerState
+	(*WorldSnapshot)(nil),        // 15: wildwood.net.v1.WorldSnapshot
+	(*EntityState)(nil),          // 16: wildwood.net.v1.EntityState
+	(*PlayerStatus)(nil),         // 17: wildwood.net.v1.PlayerStatus
+	(*WorldEvent)(nil),           // 18: wildwood.net.v1.WorldEvent
+	(ChatChannel)(0),             // 19: wildwood.net.v1.ChatChannel
+	(RoomErrorCode)(0),           // 20: wildwood.net.v1.RoomErrorCode
 }
 var file_wildwood_v1_s2c_proto_depIdxs = []int32{
-	16, // 0: wildwood.net.v1.S2C_RoomJoined.members:type_name -> wildwood.net.v1.PlayerState
-	17, // 1: wildwood.net.v1.S2C_RoomJoined.initial_state:type_name -> wildwood.net.v1.WorldSnapshot
-	16, // 2: wildwood.net.v1.S2C_PlayerJoined.player:type_name -> wildwood.net.v1.PlayerState
+	14, // 0: wildwood.net.v1.S2C_RoomJoined.members:type_name -> wildwood.net.v1.PlayerState
+	15, // 1: wildwood.net.v1.S2C_RoomJoined.initial_state:type_name -> wildwood.net.v1.WorldSnapshot
+	14, // 2: wildwood.net.v1.S2C_PlayerJoined.player:type_name -> wildwood.net.v1.PlayerState
 	9,  // 3: wildwood.net.v1.S2C_RoomList.rooms:type_name -> wildwood.net.v1.S2C_RoomState
-	18, // 4: wildwood.net.v1.S2C_WorldDelta.entity_updates:type_name -> wildwood.net.v1.EntityState
-	19, // 5: wildwood.net.v1.S2C_WorldDelta.player_status:type_name -> wildwood.net.v1.PlayerStatus
-	20, // 6: wildwood.net.v1.S2C_WorldDelta.events:type_name -> wildwood.net.v1.WorldEvent
-	21, // 7: wildwood.net.v1.S2C_ChatBroadcast.channel:type_name -> wildwood.net.v1.ChatChannel
-	22, // 8: wildwood.net.v1.S2C_Error.code:type_name -> wildwood.net.v1.RoomErrorCode
-	23, // 9: wildwood.net.v1.S2C_CodexSync.database:type_name -> wildwood.net.v1.CodexEntry
-	24, // 10: wildwood.net.v1.S2C_CodexSync.unlocked:type_name -> wildwood.net.v1.CodexUnlock
-	24, // 11: wildwood.net.v1.S2C_CodexDelta.unlocked_full:type_name -> wildwood.net.v1.CodexUnlock
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	16, // 4: wildwood.net.v1.S2C_WorldDelta.entity_updates:type_name -> wildwood.net.v1.EntityState
+	17, // 5: wildwood.net.v1.S2C_WorldDelta.player_status:type_name -> wildwood.net.v1.PlayerStatus
+	18, // 6: wildwood.net.v1.S2C_WorldDelta.events:type_name -> wildwood.net.v1.WorldEvent
+	19, // 7: wildwood.net.v1.S2C_ChatBroadcast.channel:type_name -> wildwood.net.v1.ChatChannel
+	20, // 8: wildwood.net.v1.S2C_Error.code:type_name -> wildwood.net.v1.RoomErrorCode
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_wildwood_v1_s2c_proto_init() }
@@ -1559,30 +1388,6 @@ func file_wildwood_v1_s2c_proto_init() {
 				return nil
 			}
 		}
-		file_wildwood_v1_s2c_proto_msgTypes[14].Exporter = func(v any, i int) any {
-			switch v := v.(*S2C_CodexSync); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_wildwood_v1_s2c_proto_msgTypes[15].Exporter = func(v any, i int) any {
-			switch v := v.(*S2C_CodexDelta); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1590,7 +1395,7 @@ func file_wildwood_v1_s2c_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_wildwood_v1_s2c_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

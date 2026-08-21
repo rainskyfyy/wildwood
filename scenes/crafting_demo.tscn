@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://wildwood_m29_crafting_demo"]
+
+[ext_resource type="Script" path="res://scripts/crafting_demo.gd" id="1_crafting_demo"]
+
+[node name="CraftingDemo" type="Node"]
+script = ExtResource("1_crafting_demo")

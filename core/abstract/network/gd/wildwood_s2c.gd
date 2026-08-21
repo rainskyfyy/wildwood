@@ -633,117 +633,6 @@ class Error:
 
 
 # ============================================================
-# S2C_CodexSync (M2.11) — 全量图鉴同步
-# 对应 s2c.proto: message S2C_CodexSync
-#   server_tick=1, server_time_ms=2, database=3(repeated CodexEntry), unlocked=4(repeated CodexUnlock)
-# 客户端用途:join 时一次性收到 31 条目 + 当前房间已解锁列表
-# ============================================================
-class CodexSync:
-	var server_tick: int = 0
-	var server_time_ms: int = 0
-	var database: Array = []     # Array[CodexEntry]
-	var unlocked: Array = []     # Array[CodexUnlock]
-
-	static func encode(v: CodexSync) -> PackedByteArray:
-		var buf: PackedByteArray = PackedByteArray()
-		if v.server_tick != 0:
-			buf = WildwoodWire.write_tag(buf, 1, WildwoodWire.WT_VARINT)
-			buf = WildwoodWire.write_varint(buf, v.server_tick)
-		if v.server_time_ms != 0:
-			buf = WildwoodWire.write_tag(buf, 2, WildwoodWire.WT_VARINT)
-			buf = WildwoodWire.write_varint(buf, v.server_time_ms)
-		for e in v.database:
-			buf = WildwoodWire.write_tag(buf, 3, WildwoodWire.WT_LENGTH)
-			var eb: PackedByteArray = CommonTypes.CodexEntry.encode(e)
-			buf = WildwoodWire.write_varint(buf, eb.size())
-			buf.append_array(eb)
-		for u in v.unlocked:
-			buf = WildwoodWire.write_tag(buf, 4, WildwoodWire.WT_LENGTH)
-			var ub: PackedByteArray = CommonTypes.CodexUnlock.encode(u)
-			buf = WildwoodWire.write_varint(buf, ub.size())
-			buf.append_array(ub)
-		return buf
-
-	static func decode(buf: PackedByteArray, offset: int) -> Array:
-		var v: CodexSync = CodexSync.new()
-		var end: int = buf.size()
-		var pos: int = offset
-		while pos < end:
-			var t: Array = WildwoodWire.read_tag(buf, pos)
-			var fn: int = t[0]; pos = t[2]
-			match fn:
-				1:
-					var vi: Array = WildwoodWire.read_varint(buf, pos)
-					v.server_tick = vi[0]; pos = vi[1]
-				2:
-					var vi2: Array = WildwoodWire.read_varint(buf, pos)
-					v.server_time_ms = vi2[0]; pos = vi2[1]
-				3:
-					var b: Array = WildwoodWire.read_bytes(buf, pos)
-					var sub: Array = CommonTypes.CodexEntry.decode(b[0], 0)
-					v.database.append(sub[0]); pos = b[1]
-				4:
-					var b2: Array = WildwoodWire.read_bytes(buf, pos)
-					var sub2: Array = CommonTypes.CodexUnlock.decode(b2[0], 0)
-					v.unlocked.append(sub2[0]); pos = b2[1]
-				_:
-					push_warning("S2C_CodexSync: unknown field %d" % fn)
-					break
-		return [v, pos]
-
-
-# ============================================================
-# S2C_CodexDelta (M2.11) — 5Hz 增量解锁广播
-# 对应 s2c.proto: message S2C_CodexDelta
-#   server_tick=1, server_time_ms=2, unlocked_full=3(repeated CodexUnlock)
-# 简化版(M2.11): 每次发完整 unlocked 列表(典型 4-50 项 < 256B)
-# M3.1 协议统辖后,会改为只发 entry_id 增量
-# ============================================================
-class CodexDelta:
-	var server_tick: int = 0
-	var server_time_ms: int = 0
-	var unlocked_full: Array = []   # Array[CodexUnlock]
-
-	static func encode(v: CodexDelta) -> PackedByteArray:
-		var buf: PackedByteArray = PackedByteArray()
-		if v.server_tick != 0:
-			buf = WildwoodWire.write_tag(buf, 1, WildwoodWire.WT_VARINT)
-			buf = WildwoodWire.write_varint(buf, v.server_tick)
-		if v.server_time_ms != 0:
-			buf = WildwoodWire.write_tag(buf, 2, WildwoodWire.WT_VARINT)
-			buf = WildwoodWire.write_varint(buf, v.server_time_ms)
-		for u in v.unlocked_full:
-			buf = WildwoodWire.write_tag(buf, 3, WildwoodWire.WT_LENGTH)
-			var ub: PackedByteArray = CommonTypes.CodexUnlock.encode(u)
-			buf = WildwoodWire.write_varint(buf, ub.size())
-			buf.append_array(ub)
-		return buf
-
-	static func decode(buf: PackedByteArray, offset: int) -> Array:
-		var v: CodexDelta = CodexDelta.new()
-		var end: int = buf.size()
-		var pos: int = offset
-		while pos < end:
-			var t: Array = WildwoodWire.read_tag(buf, pos)
-			var fn: int = t[0]; pos = t[2]
-			match fn:
-				1:
-					var vi: Array = WildwoodWire.read_varint(buf, pos)
-					v.server_tick = vi[0]; pos = vi[1]
-				2:
-					var vi2: Array = WildwoodWire.read_varint(buf, pos)
-					v.server_time_ms = vi2[0]; pos = vi2[1]
-				3:
-					var b: Array = WildwoodWire.read_bytes(buf, pos)
-					var sub: Array = CommonTypes.CodexUnlock.decode(b[0], 0)
-					v.unlocked_full.append(sub[0]); pos = b[1]
-				_:
-					push_warning("S2C_CodexDelta: unknown field %d" % fn)
-					break
-		return [v, pos]
-
-
-# ============================================================
 # 模块末尾:外部依赖(const 必须在 func 之前)
 # ============================================================
 const WildwoodWire = preload("res://core/abstract/network/gd/wildwood_wire.gd")
@@ -767,8 +656,6 @@ const _TYPE_TO_ENCODE: Dictionary = {
 	"S2C_WorldDelta": WorldDelta.encode,
 	"S2C_ChatBroadcast": ChatBroadcast.encode,
 	"S2C_Error": Error.encode,
-	"S2C_CodexSync": CodexSync.encode,
-	"S2C_CodexDelta": CodexDelta.encode,
 }
 
 const _TYPE_TO_DECODE: Dictionary = {
@@ -784,8 +671,6 @@ const _TYPE_TO_DECODE: Dictionary = {
 	"S2C_WorldDelta": WorldDelta.decode,
 	"S2C_ChatBroadcast": ChatBroadcast.decode,
 	"S2C_Error": Error.decode,
-	"S2C_CodexSync": CodexSync.decode,
-	"S2C_CodexDelta": CodexDelta.decode,
 }
 
 

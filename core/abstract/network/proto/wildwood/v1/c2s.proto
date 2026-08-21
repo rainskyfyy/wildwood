@@ -96,16 +96,3 @@ message C2S_ChatMsg {
   string      text              = 3;  // ≤ 256 字符
   uint64      client_time_ms    = 4;
 }
-
-// ---------- 图鉴 (M2.11) ----------
-
-// 客户端主动拉取 — 重连或网络抖动时强制对齐
-message C2S_CodexQuery {
-  CodexQueryKind kind     = 1;
-  string         entry_id = 2;   // KIND_ENTRY 时填写
-}
-
-// 客户端图鉴 UI 开/关(预留:服务端可在玩家看图鉴时减少非必要广播)
-message C2S_CodexView {
-  bool is_open = 1;
-}
