@@ -409,12 +409,112 @@ M1.11 在 M1.5 协议 + M1.9 传输 + M1.10 会话之上,落地**业务层房间
 
 ---
 
+## M2.1 移动 + LMB 智能判别
+
+M2.1 落地 M2 核心循环的**第一块拼图**:**WASD/方向键移动 (60 FPS 平滑) + LMB 智能判别**(鼠标左键在射程内自动识别 移动 / 攻击 / 采集 三类目标)。这是所有 M2 玩家操作任务的前置,**关键路径**:延期 ≥ 3 天拖累 M2.2 / M2.3 / M2.4 + M2.10 战斗手感。
+
+### 架构:A/B 通用层 + Godot 薄包装
+
+```
+鼠标左键 LMB
+    │
+    ▼
+PlayerController._unhandled_input(event)
+    │  (INPUT_MAP action "lmb")
+    ▼
+World.handle_lmb_click(screen_pos, ctx)
+    │ ① 屏幕→世界坐标(M2.1 只用世界坐标,viewport 转换留 M2.4)
+    │ ② get_tree().get_nodes_in_group("world_target")
+    │   → candidates[]
+    ▼
+LmbDecide.decide(player_pos, candidates, click_pos, ctx)   # 1:1 Python/GDScript
+    │
+    │ 优先级:射程内 attack > 射程内 gather > 否则 MOVE
+    │
+    ▼
+Action { type: MOVE/ATTACK/GATHER, target_id?, target_pos? }
+    │
+    ▼
+World.execute_action(action)
+    ├─ MOVE:    player.set_target_pos(action.target_pos)
+    ├─ ATTACK:  攻击目标(本版本 placeholder print + 视觉反馈)
+    └─ GATHER:  采集目标(本版本 placeholder print + 视觉反馈)
+```
+
+### LMB 判别规则(纯逻辑,沙箱内 19 个 pytest 100% 覆盖)
+
+1. **射程内 attack 候选** → `Action(type=ATTACK, target_id=...)`
+2. **否则 射程内 gather 候选** → `Action(type=GATHER, target_id=...)`
+3. **否则** → `Action(type=MOVE, target_pos=...)`(让玩家向点击处移动,接近目标)
+4. 距离用欧氏距离,严格 `<= best_d` 边界判定(浮点 1.4999/1.5001 双用例验证)
+
+### 移动 + 朝向(Godot 60Hz 物理步)
+
+- 输入:`_physics_process(delta)` 每 16.67ms 跑一次(60 FPS)
+- 8 方向归一化:`Vector2.normalized()` 控速(防斜向 √2 加速)
+- 速度:4.0 米/秒 × 32 像素/米 = 128 像素/秒
+- 朝向:横向用 `flip_h`,纵向用 `last_vertical_sign`(上/下两套 sprite 帧)
+- 响应预算:单帧 ≤ 16.67ms,远低于 200ms 验收线
+
+### 验收(10 场景用例 100% 命中)
+
+| # | 场景 | 期望 Action | 验证位置 |
+|---|------|-------------|----------|
+| ACC-01 | 点击空地,无候选 | `MOVE(click_pos)` | `test_lmb_decide.py::TestAcc01` |
+| ACC-02 | 点击 attack 目标(射程内) | `ATTACK(target_id)` | `TestAcc02` |
+| ACC-03 | 点击 gather 目标(射程内) | `GATHER(target_id)` | `TestAcc03` |
+| ACC-04 | 射程外 attack + 射程内 gather | `GATHER` 优先 | `TestAcc04` |
+| ACC-05 | attack + gather 都射程内 | `ATTACK` 优先 | `TestAcc05` |
+| ACC-06 | 射程外 attack,无 gather | `MOVE`(靠近 attack) | `TestAcc06` |
+| ACC-07 | 多 gather,选最近的 | `GATHER(最近 ID)` | `TestAcc07` |
+| ACC-08 | 0 候选(空场景) | `MOVE(click_pos)` | `TestAcc08` |
+| ACC-09 | 负坐标(世界原点左上) | 正常判别 | `TestAcc09` |
+| ACC-10 | attack_range 边界(1.4999 / 1.5001) | 1.4999 内 / 1.5001 外 | `TestAcc10` |
+| ① | 移动 200ms 内响应 | `_physics_process` 16.67ms / 帧,**12× 余量** | `headless_smoke.py` |
+| ② | LMB 智能判别 10 场景 100% | 19/19 pytest + 15/15 headless smoke | `run_m21_tests.sh` |
+| ③ | 移动时 sprite 朝向正确 | flip_h 横向 + last_vertical_sign 纵向 | `player_controller.gd` |
+
+### 运行验收
+
+```bash
+# 1. Python 核心逻辑测试(19 个用例,沙箱内可跑)
+cd wildwood
+python3 -m pytest tests/unit/test_lmb_decide.py -v
+# 期望: 19 passed in <0.1s
+
+# 2. 端到端验收 6 步(全过则输出 ALL GREEN)
+bash tests/scripts/run_m21_tests.sh
+# 期望末尾: ALL GREEN
+
+# 3. Godot 客户端手动演示(需要 Godot 4.3 二进制)
+godot --path . scenes/m21_demo.tscn
+# 操作:WASD 移动 / 鼠标点击 attack / gather / 远 attack 目标
+# ESC 退出 / H 切换 HUD(显示位置/朝向/最近一次 action)
+```
+
+### 关键路径解锁
+
+- **M2.1 → M2.2** 资源采集(gather 已就位,只缺资源实例化)
+- **M2.1 → M2.3** 战斗基础(attack 已就位,只缺伤害管线)
+- **M2.1 → M2.4** 建造/交互(只用 `MOVE` + 候选扩展)
+- **M2.1 → M2.10** 战斗手感(60Hz 移动平滑 + ATTACK 触发器)
+
+### 已知边界(留 M2.2/3/4 处理)
+
+- ATTACK/GATHER 是 placeholder(M2.1 只验证判别,伤害 / 资源产出 M2.3/2.2 落地)
+- 屏幕↔世界坐标转换(`get_canvas_transform()`)留 M2.4
+- 移动用 `position +=` 直接写(M2.1 demo 无碰撞体;M2.5 引入 CharacterBody2D + collision shape)
+- 无 LMB 拖拽 / 蓄力 / 长按(M2.10 战斗手感再细化)
+
+---
+
 ## 里程碑
+
 
 | 阶段     | 周次    | 目标                                       | 当前状态 |
 |----------|---------|--------------------------------------------|----------|
-| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅ / M1.10 ✅ / M1.11 ✅) |
-| M2 核心循环 | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | 未开始   |
+| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **完成** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅ / M1.10 ✅ / M1.11 ✅) |
+| **M2 核心循环** | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | **进行中** (M2.1 ✅) |
 | M3 联机    | W11-W16 | 4 人联机 MVP 完整版可发布                  | 未开始   |
 
 M1 关键交付一览:
@@ -423,6 +523,13 @@ M1 关键交付一览:
 - **M1.9 传输层接入**:Go gorilla/websocket 房间服务 + GDScript `WildwoodTransport` + Dockerfile/distroless 部署;200 连接压测 RTT avg 34µs,远低于 50ms 目标(见下节)
 - **M1.10 客户端-服务端 WebSocket 连通**:`WildwoodSession`(客户端) + Go e2eclient + 4 个 M1.10 单元测试(30 次 heartbeat RTT avg 0ms / max 1ms + 30s 重连机制)
 - **M1.11 房间创建/加入/退出基础流程**:`C2S_RoomKick` / `S2C_RoomKicked` / `S2C_RoomStateChanged` 协议层新增 + Go 端 `handleRoomCreate/Join/Leave/Kick` 业务实现 + 5 个 M1.11 验收测试(3 条核心 + 2 条回归)全部通过
+
+M2.1 交付:
+- **LMB 智能判别核心**:`core/abstract/gameplay/lmb_decide.py` + `.gd` 1:1 语义,10 验收 + 5 边界 + 1 性能基准,19/19 pytest 全过;性能 p99 = 0.06ms
+- **PlayerController**(`scripts/player_controller.gd`):WASD/方向键 8 方向 + 60 FPS 物理 + 8 方向朝向(flip_h + last_vertical)
+- **World / WorldTarget**:M2.1 demo 场景 4 占位目标(1 attack 近 + 2 gather + 1 attack 远)
+- **M2.1 Demo**:`scenes/m21_demo.tscn` + `scripts/m21_demo.gd`,WASD 移动 + LMB 智能判别 + HUD 实时反馈
+- **验收脚本**:`tests/scripts/run_m21_tests.sh`,6 步一键跑(详情见下文)
 
 任务依赖图与关键路径见[《项目任务拆分表》§2.1-2.2](https://hisense.feishu.cn/docx/JrCmdC2S9o4ID5xRM70cuSNsnS2)。
 
