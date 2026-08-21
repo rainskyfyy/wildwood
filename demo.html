@@ -2,22 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>Wildwood Demo — M4 + M1.7/M1.8 + M2.11 图鉴</title>
+  <title>Wildwood M2.10 Demo — 资源系统</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- M1.7 UI 基础布局(tokens 必须先于其他) -->
-  <link rel="stylesheet" href="./src/ui/layout/tokens.css">
-  <link rel="stylesheet" href="./src/ui/layout/grid.css">
-  <link rel="stylesheet" href="./src/ui/layout/anchors.css">
-  <!-- M1.8 UI 组件库(6 类 × 3 变体) -->
-  <link rel="stylesheet" href="./src/ui/components/components.css">
-  <!-- M2.11 图鉴系统 -->
-  <link rel="stylesheet" href="./src/ui/codex/codex.css">
   <style>
-    :root {
-      --bg: #0d0d18;
-      --fg: #f0f0f0;
-      --accent: #d4a64a;
-    }
+    :root { --bg: #0d0d18; --fg: #f0f0f0; --accent: #d4a64a; }
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0; height: 100%;
@@ -25,256 +13,41 @@
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, "Microsoft YaHei", sans-serif;
       overflow: hidden;
     }
-    .wrap {
-      display: flex; flex-direction: column; align-items: center; gap: 8px;
-      padding: 12px; height: 100%;
-    }
-    h1 {
-      font-size: 18px; font-weight: 600; margin: 0;
-      color: var(--accent); letter-spacing: 0.5px;
-    }
-    /* M1.7: 视口 1440×900 · 16:10 · 中央净空区留出 5 锚定区 */
+    .wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; height: 100%; }
+    h1 { font-size: 18px; font-weight: 600; margin: 0; color: var(--accent); letter-spacing: 0.5px; }
     .stage {
-      position: relative;
-      width: 1440px;
-      max-width: calc(100vw - 24px);
-      aspect-ratio: 16 / 10;            /* 1440:900 = 16:10 */
-      box-shadow: 0 6px 30px rgba(0,0,0,0.5);
-      border: 2px solid #2a2a3a;
-      border-radius: 6px;
-      overflow: hidden;
-      background: #1a1a2a;
+      position: relative; width: 960px; max-width: 100%;
+      aspect-ratio: 4 / 3;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.5); border: 2px solid #2a2a3a; border-radius: 6px; overflow: hidden;
     }
-    canvas#game {
-      display: block; width: 100%; height: 100%;
-      background: #1a1a2a;
-      image-rendering: pixelated;
-      image-rendering: -moz-crisp-edges;
-      image-rendering: crisp-edges;
-    }
-    .controls {
-      font-size: 12px; color: #aaa;
-      display: flex; gap: 16px; flex-wrap: wrap;
-      max-width: 1440:1440px; justify-content: center;
-    }
-    .controls kbd {
-      background: #2a2a3a; border: 1px solid #444;
-      border-radius: 3px; padding: 1px 6px;
-      font-family: ui-monospace, monospace; font-size: 11px;
-      color: #fff;
-    }
-    /* M2.11: 顶栏快捷入口(中央顶部) */
-    .TopBar {
-      position: absolute;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: var(--sp-8);
-      padding: var(--sp-8);
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-2);
-      z-index: 11;
-    }
-    .TopBar-Btn {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--sp-8);
-      height: 32px;
-      padding: 0 var(--sp-16);
-      font-family: var(--font-pixel);
-      font-size: var(--fs-12);
-      color: var(--fg);
-      background: var(--night-elev);
-      border: 1px solid var(--border-bold);
-      border-radius: var(--r-2);
-      box-shadow: var(--shadow-2);
-      cursor: pointer;
-      letter-spacing: 1px;
-    }
-    .TopBar-Btn:hover { border-color: var(--accent); color: var(--accent); }
-    .TopBar-Btn.is-active { background: var(--accent); color: var(--night-black); border-color: var(--accent-3); }
+    canvas { display: block; width: 100%; height: 100%; background: #1a1a2a;
+             image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;
+             cursor: crosshair; }
+    .controls { font-size: 12px; color: #aaa; display: flex; gap: 16px; flex-wrap: wrap;
+                max-width: 960px; justify-content: center; }
+    .controls kbd { background: #2a2a3a; border: 1px solid #444; border-radius: 3px; padding: 1px 6px;
+                   font-family: ui-monospace, monospace; font-size: 11px; color: #fff; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Wildwood · M4 核心 + M1.7 布局 + M1.8 组件 + M2.11 图鉴</h1>
+    <h1>Wildwood · M2.10 资源系统</h1>
     <div class="stage">
-      <canvas id="game" width="1440" height="900"></canvas>
-      <!-- M1.7 + M1.8: 5 锚定区填上实际组件实例 -->
-      <div class="UILayer">
-
-        <!-- 左上 · 4 队伍槽 + 3 三围条 -->
-        <div class="Anchor-TL">
-          <div class="GridRow GridGap-8">
-            <div class="PartySlot"></div>
-            <div class="PartySlot"></div>
-            <div class="PartySlot"></div>
-            <div class="PartySlot"></div>
-          </div>
-          <div class="VitalBar VitalBar-HP" data-value="82">
-            <div class="VitalBar-Fill" style="width: 82%"></div>
-            <div class="VitalBar-Value">82/100</div>
-          </div>
-          <div class="VitalBar VitalBar-Hunger" data-value="45">
-            <div class="VitalBar-Fill" style="width: 45%"></div>
-            <div class="VitalBar-Value">45/100</div>
-          </div>
-          <div class="VitalBar VitalBar-Sanity" data-value="60">
-            <div class="VitalBar-Fill" style="width: 60%"></div>
-            <div class="VitalBar-Value">60/100</div>
-          </div>
-        </div>
-
-        <!-- 右上 · 时间 + 季节 -->
-        <div class="Anchor-TR">
-          <div class="TimeDisplay">Day 12 · 14:32</div>
-          <div class="SeasonTag">AUTUMN</div>
-        </div>
-
-        <!-- 右下 · 小地图 200×200 -->
-        <div class="Anchor-BR">
-          <div class="Minimap">
-            <canvas class="MinimapCanvas" width="200" height="200"></canvas>
-            <div class="Minimap-PlayerDot"></div>
-            <div class="Minimap-PartyDot Minimap-PartyDot-Party-2" style="top: 30%; left: 40%"></div>
-            <div class="Minimap-PartyDot Minimap-PartyDot-Party-3" style="top: 65%; left: 70%"></div>
-            <div class="Minimap-POIDot" style="top: 20%; left: 80%"></div>
-            <div class="Minimap-Compass">
-              <span class="Minimap-Compass-N">N</span>
-              <span class="Minimap-Compass-S">S</span>
-              <span class="Minimap-Compass-E">E</span>
-              <span class="Minimap-Compass-W">W</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 左下 · 快捷栏 5 格 + 2 扩展(共 7) -->
-        <div class="Anchor-BL">
-          <div class="HotbarSlot HotbarSlot-Default">
-            <span class="HotbarSlot-Key">1</span>
-          </div>
-          <div class="HotbarSlot HotbarSlot-Active">
-            <span class="HotbarSlot-Key">2</span>
-          </div>
-          <div class="HotbarSlot HotbarSlot-Default">
-            <span class="HotbarSlot-Key">3</span>
-          </div>
-          <div class="HotbarSlot HotbarSlot-Default">
-            <span class="HotbarSlot-Key">4</span>
-          </div>
-          <div class="HotbarSlot HotbarSlot-Default">
-            <span class="HotbarSlot-Key">5</span>
-          </div>
-          <div class="HotbarSlot HotbarSlot-Disabled" aria-disabled="true">
-            <span class="HotbarSlot-Key">6</span>
-          </div>
-          <div class="HotbarSlot HotbarSlot-Disabled" aria-disabled="true">
-            <span class="HotbarSlot-Key">7</span>
-          </div>
-        </div>
-
-        <!-- 底部 · 聊天 -->
-        <div class="Anchor-B">
-          <div class="ChatChannel-Tab">
-            <span class="Active">[全局]</span>
-            <span>[队伍]</span>
-            <span>[私聊]</span>
-          </div>
-          <div class="ChatLine">[系统] Day 12 · 落叶渐红,寒意将至</div>
-          <div class="ChatLine">[玩家A] 那边有棵树可以砍伐</div>
-          <div class="ChatLine">[玩家B] 我去收集石头</div>
-          <input class="ChatInput" type="text" placeholder="按 Enter 发送消息...">
-        </div>
-
-      </div>
-
-      <!-- M2.11: 顶栏(切换 sub-page 的入口) -->
-      <div class="TopBar">
-        <button class="TopBar-Btn" data-view="game">🎮 主 HUD</button>
-        <button class="TopBar-Btn is-active" data-view="codex">📖 图鉴</button>
-      </div>
-
-      <!-- M2.11: 图鉴子页(占满整个 stage) -->
-      <div class="CodexLayer" id="codex-layer"></div>
+      <canvas id="game" width="960" height="720"></canvas>
     </div>
     <div class="controls">
-      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
-      <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
-      <span><kbd>C</kbd> 切换图鉴</span>
-      <span><kbd>B</kbd> 建造 · <kbd>LMB</kbd> 放置 · <kbd>RMB</kbd> 取消/拆除</span>
-      <span>M4 核心 · M1.7 布局 · M1.8 组件 · M2.11 图鉴 · <strong style="color:#d4a64a">M2.9 建造</strong></span>
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
+      <span><kbd>1</kbd>~<kbd>6</kbd> 切快捷栏</span>
+      <span><kbd>左键</kbd> 采集资源</span>
+      <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>Esc</kbd> 关闭</span>
+      <span>32×32 tile · 4 群系 · 21 槽位(6 快捷 + 15 背包) · 同类堆叠上限 20</span>
     </div>
   </div>
   <script type="module">
     import { bootGame } from './src/main.js';
-    import { initCodex, exitCodex } from './src/ui/codex/codex.js';
-
     const canvas = document.getElementById('game');
-    bootGame(canvas);
-
-    // M1.8 演示:点击快捷栏切换 active
-    const slots = document.querySelectorAll('.HotbarSlot');
-    slots.forEach(slot => {
-      if (slot.getAttribute('aria-disabled') === 'true') return;
-      slot.addEventListener('click', () => {
-        slots.forEach(s => {
-          s.classList.remove('HotbarSlot-Active');
-          s.classList.add('HotbarSlot-Default');
-        });
-        slot.classList.remove('HotbarSlot-Default');
-        slot.classList.add('HotbarSlot-Active');
-      });
-    });
-
-    // M2.11: 图鉴 sub-page 切换
-    const codexLayer = document.getElementById('codex-layer');
-    const topBtns = document.querySelectorAll('.TopBar-Btn');
-    let codexInited = false;
-    let codexOpen = false;
-
-    function openCodex() {
-      if (!codexInited) {
-        initCodex(codexLayer);
-        codexInited = true;
-      }
-      codexLayer.style.display = 'block';
-      codexOpen = true;
-      // 高亮 TopBar
-      topBtns.forEach(b => b.classList.toggle('is-active', b.dataset.view === 'codex'));
-    }
-
-    function closeCodex() {
-      codexLayer.style.display = 'none';
-      codexOpen = false;
-      topBtns.forEach(b => b.classList.toggle('is-active', b.dataset.view === 'game'));
-    }
-
-    // 暴露给 codex 内部"返回游戏"按钮
-    window.__wildwoodExitCodex = closeCodex;
-
-    // TopBar 按钮
-    topBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const view = btn.dataset.view;
-        if (view === 'codex') openCodex();
-        else closeCodex();
-      });
-    });
-
-    // 键盘 C 切换
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'c' || e.key === 'C') {
-        if (codexOpen) closeCodex();
-        else openCodex();
-      }
-    });
-
-    // 默认打开图鉴(便于演示 M2.11 验收)
-    openCodex();
-
-    window.__wildwood = { canvas, slots, openCodex, closeCodex };
+    const game = bootGame(canvas);
+    window.__wildwood = { canvas, game };
   </script>
 </body>
 </html>

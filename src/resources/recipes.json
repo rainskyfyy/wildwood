@@ -1,0 +1,28 @@
+{
+  "_meta": { "version": "1.0.0", "schema": "wildwood-recipes-v1" },
+  "torch": {
+    "id": "torch", "name": "火把", "station": "hand", "grid": "2x2",
+    "pattern": [["log", ""], ["", "twine"]],
+    "output": { "itemId": "torch", "count": 1 }
+  },
+  "rope": {
+    "id": "rope", "name": "绳索", "station": "hand", "grid": "2x2",
+    "pattern": [["twine", "twine"], ["twine", "twine"]],
+    "output": { "itemId": "twine", "count": 4 }
+  },
+  "campfire": {
+    "id": "campfire", "name": "篝火", "station": "hand", "grid": "2x2",
+    "pattern": [["log", "log"], ["twine", "stone"]],
+    "output": { "itemId": "campfire", "count": 1 }
+  },
+  "axe": {
+    "id": "axe", "name": "斧头", "station": "science", "grid": "3x3",
+    "pattern": [["", "iron_ore", ""], ["log", "log", ""], ["", "log", ""]],
+    "output": { "itemId": "axe", "count": 1 }
+  },
+  "pickaxe": {
+    "id": "pickaxe", "name": "镐", "station": "science", "grid": "3x3",
+    "pattern": [["", "iron_ore", "iron_ore"], ["", "log", ""], ["", "log", ""]],
+    "output": { "itemId": "pickaxe", "count": 1 }
+  }
+}

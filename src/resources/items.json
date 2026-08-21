@@ -1,0 +1,14 @@
+{
+  "_meta": { "version": "1.0.0", "schema": "wildwood-items-v1" },
+  "log":      { "id": "log",      "name": "木头",   "icon": "log",      "color": "#8a5a2a", "category": "material", "stackMax": 20 },
+  "twine":    { "id": "twine",    "name": "草绳",   "icon": "twine",    "color": "#5a8a3a", "category": "material", "stackMax": 20 },
+  "stone":    { "id": "stone",    "name": "石头",   "icon": "stone",    "color": "#7a7070", "category": "material", "stackMax": 20 },
+  "flint":    { "id": "flint",    "name": "燧石",   "icon": "flint",    "color": "#3a3a3a", "category": "material", "stackMax": 20 },
+  "iron_ore": { "id": "iron_ore", "name": "铁矿",   "icon": "iron_ore", "color": "#a85a3a", "category": "material", "stackMax": 20 },
+  "ice":      { "id": "ice",      "name": "冰",     "icon": "ice",      "color": "#a8d4e8", "category": "material", "stackMax": 20 },
+  "berries":  { "id": "berries",  "name": "浆果",   "icon": "berries",  "color": "#8a2a4a", "category": "food",     "stackMax": 20, "foodValue": 1 },
+  "torch":    { "id": "torch",    "name": "火把",   "icon": "torch",    "color": "#ffb84a", "category": "tool",     "stackMax": 20 },
+  "axe":      { "id": "axe",      "name": "斧头",   "icon": "axe",      "color": "#8a5a2a", "category": "tool",     "stackMax": 1 },
+  "pickaxe":  { "id": "pickaxe",  "name": "镐",     "icon": "pickaxe",  "color": "#8a5a2a", "category": "tool",     "stackMax": 1 },
+  "campfire": { "id": "campfire", "name": "篝火",   "icon": "campfire", "color": "#d4622a", "category": "placeable","stackMax": 1 }
+}

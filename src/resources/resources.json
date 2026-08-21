@@ -1,0 +1,231 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "schema": "wildwood-resources-v1",
+    "note": "可采集资源实体定义。"
+  },
+  "tree": {
+    "id": "tree",
+    "name": "树",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "forest",
+      "snow"
+    ],
+    "density": 0.05,
+    "harvestTime": 1.5,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "tree",
+    "color": "#3a5a2a",
+    "trunkColor": "#3a2a1a",
+    "size": 0.85,
+    "drops": [
+      {
+        "itemId": "log",
+        "count": 3,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 0.25
+      }
+    ]
+  },
+  "dead_tree": {
+    "id": "dead_tree",
+    "name": "枯树",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "mines"
+    ],
+    "density": 0.015,
+    "harvestTime": 1.0,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "dead_tree",
+    "color": "#5a3a2a",
+    "trunkColor": "#3a2a1a",
+    "size": 0.7,
+    "drops": [
+      {
+        "itemId": "log",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 0.5
+      }
+    ]
+  },
+  "rock": {
+    "id": "rock",
+    "name": "石头",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "forest",
+      "snow",
+      "mines"
+    ],
+    "density": 0.04,
+    "harvestTime": 2.0,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "rock",
+    "color": "#7a7070",
+    "size": 0.75,
+    "drops": [
+      {
+        "itemId": "stone",
+        "count": 3,
+        "chance": 1.0
+      },
+      {
+        "itemId": "flint",
+        "count": 1,
+        "chance": 0.2
+      }
+    ]
+  },
+  "boulder": {
+    "id": "boulder",
+    "name": "大石头",
+    "category": "harvest",
+    "biomes": [
+      "mines"
+    ],
+    "density": 0.012,
+    "harvestTime": 3.5,
+    "hp": 3,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "boulder",
+    "color": "#4a3a3a",
+    "size": 1.05,
+    "drops": [
+      {
+        "itemId": "stone",
+        "count": 6,
+        "chance": 1.0
+      },
+      {
+        "itemId": "flint",
+        "count": 2,
+        "chance": 0.4
+      },
+      {
+        "itemId": "iron_ore",
+        "count": 1,
+        "chance": 0.15
+      }
+    ]
+  },
+  "grass_tuft_harvest": {
+    "id": "grass_tuft_harvest",
+    "name": "草丛",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "forest"
+    ],
+    "density": 0.06,
+    "harvestTime": 0.5,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": false,
+    "icon": "grass_tuft",
+    "color": "#5a8a3a",
+    "size": 0.5,
+    "drops": [
+      {
+        "itemId": "twine",
+        "count": 2,
+        "chance": 1.0
+      }
+    ]
+  },
+  "berry_bush": {
+    "id": "berry_bush",
+    "name": "浆果丛",
+    "category": "harvest",
+    "biomes": [
+      "forest",
+      "snow"
+    ],
+    "density": 0.022,
+    "harvestTime": 0.8,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": false,
+    "icon": "berry_bush",
+    "color": "#8a2a4a",
+    "size": 0.65,
+    "drops": [
+      {
+        "itemId": "berries",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 0.5
+      }
+    ]
+  },
+  "iron_ore": {
+    "id": "iron_ore",
+    "name": "铁矿",
+    "category": "harvest",
+    "biomes": [
+      "mines"
+    ],
+    "density": 0.018,
+    "harvestTime": 2.5,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "iron_ore",
+    "color": "#a85a3a",
+    "size": 0.7,
+    "drops": [
+      {
+        "itemId": "iron_ore",
+        "count": 2,
+        "chance": 1.0
+      }
+    ]
+  },
+  "ice_shard": {
+    "id": "ice_shard",
+    "name": "冰锥",
+    "category": "harvest",
+    "biomes": [
+      "snow"
+    ],
+    "density": 0.02,
+    "harvestTime": 1.0,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "ice_shard",
+    "color": "#a8d4e8",
+    "size": 0.6,
+    "drops": [
+      {
+        "itemId": "ice",
+        "count": 2,
+        "chance": 1.0
+      }
+    ]
+  }
+}
