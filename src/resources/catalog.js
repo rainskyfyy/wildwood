@@ -6,6 +6,10 @@
  *   isTool(itemId)        true for category=tool
  *   getToolType(itemId)   returns 'axe' / 'pickaxe' / 'shovel' / 'light' / null
  *   getMaxDurability(id)  null for non-tool, else the max durability
+ *
+ * v1.0.2 — shovel wired to diggable resources (dirt_mound, sapling, carrot,
+ *   mushroom). New 'dig' resource category is metadata-only (no behavior
+ *   difference from 'harvest' today, but lets future systems filter on it).
  */
 'use strict';
 
@@ -67,16 +71,29 @@ export function getMaxDurability(itemId) {
 /**
  * Which tool types can harvest which resource kinds.
  * null = bare hands (any resource can be gathered without a tool).
+ *
+ * Shovel is required for dig-category resources (dirt_mound / sapling /
+ * carrot) and accelerates mushroom collection. berry_bush / grass_tuft /
+ * ice_shard / flower_patch are bare-handed.
  */
 const _TOOL_COMPAT = {
-  tree:           ['axe'],
-  dead_tree:      ['axe'],
-  rock:           ['pickaxe'],
-  boulder:        ['pickaxe'],
-  iron_ore:       ['pickaxe'],
-  berry_bush:     [null],   // bare hands
-  grass_tuft_harvest: [null],
-  ice_shard:      [null]    // bare hands (or pickaxe, but bare works)
+  // axe
+  tree:                ['axe'],
+  dead_tree:           ['axe'],
+  // pickaxe
+  rock:                ['pickaxe'],
+  boulder:             ['pickaxe'],
+  iron_ore:            ['pickaxe'],
+  // shovel
+  dirt_mound:          ['shovel'],
+  sapling:             ['shovel'],
+  carrot:              ['shovel'],
+  mushroom:            ['shovel', null],   // shovel or bare hands
+  // bare hands
+  berry_bush:          [null],
+  grass_tuft_harvest:  [null],
+  ice_shard:           [null],             // bare hands (or pickaxe, but bare works)
+  flower_patch:        [null]
 };
 
 /**
@@ -89,11 +106,30 @@ const _TOOL_COMPAT = {
 export function checkTool(resourceId, toolId) {
   const allowed = _TOOL_COMPAT[resourceId];
   if (allowed === undefined) return 'compatible';  // unknown resource id, fail open
+  // If a tool is equipped: prefer 'compatible' if its type is in the allowed
+  // list. If it's a tool but not allowed, return 'wrong_tool' UNLESS bare
+  // hands are also allowed (then the player can still gather bare-handed,
+  // but the tool is wrong and the gather step should not damage it).
+  if (toolId != null) {
+    if (!isTool(toolId)) return 'wrong_tool';
+    const t = getToolType(toolId);
+    if (allowed.includes(t)) return 'compatible';
+    if (allowed.includes(null)) return 'no_tool_required';
+    return 'wrong_tool';
+  }
+  // No tool equipped.
   if (allowed.includes(null)) return 'no_tool_required';
-  if (toolId == null) return 'tool_required';
-  if (!isTool(toolId)) return 'wrong_tool';
-  const t = getToolType(toolId);
-  return allowed.includes(t) ? 'compatible' : 'wrong_tool';
+  return 'tool_required';
+}
+
+/**
+ * Tool types that can speed up / interact with a given resource. null entry
+ * indicates bare-handed compatibility. Returns [] for unknown ids.
+ */
+export function allowedTools(resourceId) {
+  const allowed = _TOOL_COMPAT[resourceId];
+  if (allowed === undefined) return [];
+  return allowed.slice();
 }
 
 export function validateCatalog() {

@@ -7,15 +7,24 @@ framework, ES modules only.
 
 | File | Purpose |
 |---|---|
-| `catalog.js` | Loads + queries the three JSON tables; **validates** that recipes reference real items, that tools have `maxDurability`, and that regrow times are non-negative. Exposes `isTool`, `getToolType`, `getMaxDurability`, `checkTool`. |
-| `resources.json` | 8 harvestable resources (tree, dead_tree, rock, boulder, grass_tuft, berry_bush, iron_ore, ice_shard). Each has `regrowTime` (seconds) and `drops[]`. |
-| `items.json` | 12 items: 6 materials, 1 food, 4 tools (axe, pickaxe, shovel, torch), 1 placeable (campfire). Tools carry `maxDurability` and `toolType`. |
+| `catalog.js` | Loads + queries the three JSON tables; **validates** that recipes reference real items, that tools have `maxDurability`, and that regrow times are non-negative. Exposes `isTool`, `getToolType`, `getMaxDurability`, `checkTool`, `allowedTools`. |
+| `resources.json` | 13 harvestable / diggable resources: 8 harvest-category (tree, dead_tree, rock, boulder, grass_tuft, berry_bush, iron_ore, ice_shard, flower_patch) and 5 dig-category (dirt_mound, sapling, carrot, mushroom). Each has `regrowTime` (seconds), `category`, and `drops[]`. |
+| `items.json` | 16 items: 8 materials, 3 food (berries, carrot, mushroom), 4 tools (axe, pickaxe, shovel, torch), 1 placeable (campfire). Tools carry `maxDurability` and `toolType`. |
 | `recipes.json` | 6 recipes: 3 hand-held (torch, rope, campfire) at 2×2 and 3 science-machine (axe, pickaxe, shovel) at 3×3. |
 | `inventory.js` | 6 hotbar + 15 backpack = 21 slots. `add` / `remove` / `move` / `swap` / `compact` / `serialize` / `loadSnapshot`. Tools get their own slot, never merge. `damageTool(slot, by)` decrements durability; at 0 the slot is cleared and `onBreak` fires. |
 | `resource-entity.js` | One harvestable world object. `harvest(inv, now)` returns `{granted, regrowAt}`; `update(now)` ticks the regrow timer; `getVisualState()` returns `'full' \| 'regrowing' \| 'depleted'`. |
 | `gather.js` | Idle / gathering / just_done state machine. `click(x,y)` picks the closest non-depleted entity in range. `update(player, dt, now)` advances progress; on completion emits `complete` with the loot, the regrow timestamp, and `toolUsed` / `toolStatus`. Damages the equipped tool if compatible. |
 | `regrow.js` | `RegrowManager` — ticks every entity's regrow timer each frame, calls `onRegrow(entity)` for any that just respawned. |
 | `crafting.js` | Recipe matching and consumption. `matchRecipe(grid, station, recipes)` finds a recipe; `craft(grid, station, inv, recipes)` consumes and outputs. |
+
+## Resource categories
+
+- **`harvest`** — gathered by hand or appropriate tool. tree/dead_tree need
+  axe; rock/boulder/iron_ore need pickaxe; berry_bush/grass_tuft/ice_shard/
+  flower_patch are bare-handed.
+- **`dig`** — intended for shovel use. dirt_mound/sapling/carrot require
+  shovel; mushroom accepts shovel **or** bare hands. Wrong tool on a dig
+  resource falls back to bare-handed gather (no tool damage).
 
 ## Regeneration model
 
@@ -40,16 +49,21 @@ for one-off quest nodes or final-tier rocks.
 
 ### Times by resource
 
-| Resource | regrowTime (s) |
-|---|---|
-| tree | 60 |
-| dead_tree | 90 |
-| rock | 120 |
-| boulder | 240 |
-| grass_tuft | 30 |
-| berry_bush | 45 |
-| iron_ore | 180 |
-| ice_shard | 75 |
+| Resource | regrowTime (s) | Category | Tool |
+|---|---|---|---|
+| grass_tuft | 30 | harvest | bare hands |
+| sapling | 35 | dig | shovel |
+| flower_patch | 40 | harvest | bare hands |
+| berry_bush | 45 | harvest | bare hands |
+| tree | 60 | harvest | axe |
+| dirt_mound | 60 | dig | shovel |
+| ice_shard | 75 | harvest | bare hands |
+| dead_tree | 90 | harvest | axe |
+| carrot | 90 | dig | shovel |
+| mushroom | 110 | dig | shovel or bare hands |
+| rock | 120 | harvest | pickaxe |
+| iron_ore | 180 | harvest | pickaxe |
+| boulder | 240 | harvest | pickaxe |
 
 ## Tool durability model
 
@@ -72,11 +86,13 @@ A tool is any item with `category: "tool"` and a `maxDurability > 0` in
 
 ### Compatibility table
 
-| Resource | Required tool | Bare hands? |
+| Resource | Allowed tools | Bare hands? |
 |---|---|---|
 | tree, dead_tree | `axe` | no |
 | rock, boulder, iron_ore | `pickaxe` | no |
-| berry_bush, grass_tuft, ice_shard | none | yes |
+| dirt_mound, sapling, carrot | `shovel` | no |
+| mushroom | `shovel` | **yes** (mushroom is diggable but also bare-handed) |
+| berry_bush, grass_tuft, ice_shard, flower_patch | (none) | **yes** |
 | (any other) | any compatible or none | yes |
 
 `checkTool(resourceId, toolId)` returns:
@@ -92,9 +108,10 @@ A tool is any item with `category: "tool"` and a `maxDurability > 0` in
 The renderer (`src/render/resource-renderer.js`) distinguishes three
 states for each entity:
 
-- `'full'` — normal sprite
-- `'regrowing'` — small stump + sapling that grows with
-  `regrowFraction()`; green regrow progress bar above
+- `'full'` — normal sprite (tree / rock / dirt_mound / carrot / etc.)
+- `'regrowing'` — small stump + sapling (for tree/dead_tree) or a
+  generic "disturbed patch" with a growing green sprout (for dig /
+  harvest resources); green regrow progress bar above
 - `'depleted'` — very dim (30% alpha) — for permanent depletion only
 
 The hotbar and backpack panel show a per-tool durability bar at the
@@ -151,7 +168,8 @@ gather.update(player, dt, now);
 
 ```bash
 node tests/m210-node-smoke.mjs             # 58/58 — M2.10 base
-node tests/m210b-regrow-durability.mjs     # 65/65 — M2.10b new
+node tests/m210b-regrow-durability.mjs     # 67/67 — M2.10b regrow + durability
+node tests/m210c-shovel-resources.mjs      # 76/76 — M2.10c shovel + new resources
 node tests/m4-node-smoke.mjs               # 20/20 — M4 world regression
 ```
 

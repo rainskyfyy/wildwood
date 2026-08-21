@@ -235,15 +235,21 @@ ok('update with virtual clock (no Date.now) works', (() => {
 console.log('gather + tool integration');
 const gw = generateWorld({ width: 30, height: 30, seed: 99 });
 const gent = spawnResources(gw, { seed: 99 });
-// Force a tree near (0,0) for deterministic test — find any tree
-const tree = gent.find(e => e.id === 'tree' && e.distTo(0, 0) < 30);
+// Find the closest tree to (0,0) — robust against RNG-sequence shifts
+// caused by catalog changes (e.g. adding new resource types shifts the
+// spawner rng sequence per tile, changing which tree is "first").
+const trees = gent.filter(e => e.id === 'tree');
+trees.sort((a, b) => a.distTo(0, 0) - b.distTo(0, 0));
+const tree = trees[0];
+ok('at least one tree spawned', trees.length > 0);
+ok('closest tree is within gather range (5)', tree && tree.distTo(0, 0) <= 5);
 const invG = new Inventory();
 invG.add('axe', 1);
 invG.selectHotbar(0);
 
 let lastEvent = null;
 const gather = new Gather({
-  entities: gent.filter(e => e === tree),
+  entities: [tree],
   inventory: invG,
   range: 5,
   selectedItemProvider: () => {
@@ -272,7 +278,7 @@ const invW = new Inventory();
 invW.add('pickaxe', 1);
 invW.selectHotbar(0);
 let wrongEvent = null;
-const tree2 = gent.find(e => e.id === 'tree' && e !== tree && e.distTo(0, 0) < 30);
+const tree2 = trees[1];
 if (tree2) {
   const gatherW = new Gather({
     entities: [tree2],

@@ -6,6 +6,10 @@
  *   'full'       — normal
  *   'regrowing'  — small stump / sapling with a regrow progress bar
  *   'depleted'   — permanent depletion, very dim
+ *
+ * v1.0.2 — dig-category resources (dirt_mound, sapling, carrot, mushroom,
+ *   flower_patch) added with their own icons and a generic "depleted patch"
+ *   regrow visual.
  */
 'use strict';
 
@@ -85,7 +89,75 @@ const KIND_ICON = {
                          c.moveTo(0, -10*s); c.lineTo(2*s, -2*s);
                          c.lineTo(0, 0); c.lineTo(-2*s, -2*s);
                          c.closePath(); c.fill();
-                       }
+                       },
+  // v1.0.2 — dig-category resources
+  dirt_mound: (c, s) => { c.fillStyle = '#7a5a3a';
+                          c.beginPath();
+                          c.ellipse(0, 2*s, 8*s, 5*s, 0, 0, Math.PI*2);
+                          c.fill();
+                          c.fillStyle = '#9a7a4a';
+                          c.beginPath();
+                          c.ellipse(-2*s, 0, 4*s, 2*s, 0, 0, Math.PI*2);
+                          c.fill();
+                          c.fillStyle = '#5a3a2a';
+                          c.beginPath();
+                          c.arc(3*s, 1*s, 1*s, 0, Math.PI*2);
+                          c.arc(-4*s, 2*s, 1*s, 0, Math.PI*2);
+                          c.fill();
+                        },
+  sapling: (c, s) => { c.fillStyle = '#3a2a1a';
+                        c.fillRect(-1*s, 0, 2*s, 5*s);
+                        c.fillStyle = '#5a8a3a';
+                        c.beginPath();
+                        c.arc(0, -2*s, 4*s, 0, Math.PI*2);
+                        c.fill();
+                        c.fillStyle = '#7ab04a';
+                        c.beginPath();
+                        c.arc(-2*s, -4*s, 2*s, 0, Math.PI*2);
+                        c.fill();
+                        c.beginPath();
+                        c.arc(2*s, -1*s, 2*s, 0, Math.PI*2);
+                        c.fill();
+                      },
+  carrot:   (c, s) => { c.fillStyle = '#3a5a2a';
+                        c.beginPath();
+                        c.moveTo(-3*s, -5*s); c.lineTo(0, -7*s); c.lineTo(3*s, -5*s);
+                        c.lineTo(2*s, -2*s); c.lineTo(-2*s, -2*s);
+                        c.closePath(); c.fill();
+                        c.fillStyle = '#d4802a';
+                        c.beginPath();
+                        c.moveTo(0, -2*s); c.lineTo(2*s, 2*s); c.lineTo(0, 5*s);
+                        c.lineTo(-2*s, 2*s); c.closePath(); c.fill();
+                        c.fillStyle = '#a85a1a';
+                        c.fillRect(-1*s, 1*s, 2*s, 3*s);
+                      },
+  mushroom: (c, s) => { c.fillStyle = '#f4e0c4';
+                        c.fillRect(-1*s, 0, 2*s, 5*s);
+                        c.fillStyle = '#b8704a';
+                        c.beginPath();
+                        c.ellipse(0, -1*s, 7*s, 4*s, 0, 0, Math.PI);
+                        c.fill();
+                        c.fillStyle = '#d4906a';
+                        c.beginPath();
+                        c.ellipse(-2*s, -2*s, 2*s, 1*s, 0, 0, Math.PI*2);
+                        c.fill();
+                        c.beginPath();
+                        c.arc(2*s, -1*s, 1*s, 0, Math.PI*2);
+                        c.fill();
+                      },
+  flower_patch: (c, s) => { c.fillStyle = '#5a8a3a';
+                            c.fillRect(-6*s, 0, 12*s, 3*s);
+                            // 3 flowers
+                            const drawFlower = (fx, fy, color) => {
+                              c.fillStyle = color;
+                              c.beginPath(); c.arc(fx, fy, 2*s, 0, Math.PI*2); c.fill();
+                              c.fillStyle = '#f4d44a';
+                              c.beginPath(); c.arc(fx, fy, 1*s, 0, Math.PI*2); c.fill();
+                            };
+                            drawFlower(-4*s, -1*s, '#d4628a');
+                            drawFlower(0,   -2*s, '#e8a04a');
+                            drawFlower(4*s, -1*s, '#b4628a');
+                          }
 };
 
 /**
@@ -116,6 +188,22 @@ function drawSapling(ctx, s, t) {
   ctx.fill();
 }
 
+/**
+ * Generic "patch" regrow visual for dig-category resources. A small
+ * disturbed earth / sprout that grows with t.
+ */
+function drawDigPatch(ctx, s, t, color = '#7a5a3a') {
+  const k = 0.4 + 0.6 * t;
+  ctx.fillStyle = '#5a3a2a';
+  ctx.beginPath();
+  ctx.ellipse(0, 2*s, 4*s, 2*s, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(0, -1*s*k, 2*s*k, 0, Math.PI*2);
+  ctx.fill();
+}
+
 export function drawResource(ctx, sx, sy, entity, progress = 0, now = Date.now()) {
   const s = (entity.size || 0.7) * 0.55;
   ctx.save();
@@ -124,9 +212,15 @@ export function drawResource(ctx, sx, sy, entity, progress = 0, now = Date.now()
   const visual = entity.getVisualState ? entity.getVisualState() : (entity.depleted ? 'depleted' : 'full');
   if (visual === 'regrowing') {
     const frac = entity.regrowFraction ? entity.regrowFraction(now) : 0;
-    // Stump + sapling overlay: stump constant, sapling grows with frac.
-    drawStump(ctx, s * 0.5);
-    drawSapling(ctx, s * 0.5, frac);
+    if (entity.icon === 'tree' || entity.icon === 'dead_tree') {
+      // Stump + sapling overlay: stump constant, sapling grows with frac.
+      drawStump(ctx, s * 0.5);
+      drawSapling(ctx, s * 0.5, frac);
+    } else {
+      // Generic dig/regrow patch (dirt, sprouts growing back)
+      const patchColor = entity.color || '#7a5a3a';
+      drawDigPatch(ctx, s * 0.5, frac, patchColor);
+    }
     // Regrow progress bar above
     const w = 24, h = 3;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
