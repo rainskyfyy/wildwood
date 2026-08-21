@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "comment": "M2.9 building catalog. 5 entries per spec. Sizes in tiles (w x h). cost is item id -> qty (referenced in src/resources/items.json). hp is destructible threshold.",
+  "buildOrder": ["campfire", "science_machine", "chest", "wall", "floor"],
+  "buildings": {
+    "campfire": {
+      "id": "campfire",
+      "name": "营火",
+      "icon": "🔥",
+      "size": [1, 1],
+      "hp": 30,
+      "cost": { "wood": 5, "grass": 3 },
+      "color": "#d87038",
+      "outline": "#3a1a0a",
+      "accent": "#f0b860",
+      "description": "燃烧的火堆,提供温暖和光亮,可在烹饪界面烤制食物",
+      "tags": ["light", "heat", "craft_station"]
+    },
+    "science_machine": {
+      "id": "science_machine",
+      "name": "科学机器",
+      "icon": "🔬",
+      "size": [2, 1],
+      "hp": 80,
+      "cost": { "wood": 10, "gold": 4, "stone": 4 },
+      "color": "#5a8aa8",
+      "outline": "#1a2a3a",
+      "accent": "#7ad8f0",
+      "description": "解锁科技制作配方(放置后允许在 2 tile 范围内使用对应配方)",
+      "tags": ["craft_station"]
+    },
+    "chest": {
+      "id": "chest",
+      "name": "储物箱",
+      "icon": "📦",
+      "size": [1, 1],
+      "hp": 50,
+      "cost": { "wood": 8 },
+      "color": "#8a5a3a",
+      "outline": "#2a1a0a",
+      "accent": "#d4a64a",
+      "description": "储存物品的容器,12 格容量(预留接口,M2.10+ 接入物品栏)",
+      "tags": ["storage"]
+    },
+    "wall": {
+      "id": "wall",
+      "name": "石墙",
+      "icon": "🧱",
+      "size": [1, 1],
+      "hp": 100,
+      "cost": { "stone": 4 },
+      "color": "#7a6a5a",
+      "outline": "#2a1a0a",
+      "accent": "#a89a8a",
+      "description": "防御性建筑,阻挡敌人和部分危险(不可行走)",
+      "tags": ["wall", "defense"]
+    },
+    "floor": {
+      "id": "floor",
+      "name": "木地板",
+      "icon": "🟫",
+      "size": [1, 1],
+      "hp": 30,
+      "cost": { "wood": 2 },
+      "color": "#a8753a",
+      "outline": "#3a2010",
+      "accent": "#c89a5a",
+      "description": "铺地,可让建筑放置在非可建造地形上(对自身可叠加)",
+      "tags": ["foundation"]
+    }
+  }
+}

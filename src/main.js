@@ -1,25 +1,28 @@
 /**
- * Main entry — wires the M5 modules into a game loop.
+ * Main entry — wires the M5 modules + M2.9 building system into a
+ * game loop.
  *
  * Boots in this order:
  *   1. World generation (Perlin → 4 biomes → decorations → transitions).
- *   2. Player + camera + HUD construction.
+ *   2. Player + camera + HUD + BuildingManager + BuildingMenu construction.
  *   3. requestAnimationFrame loop: input → update → render.
  *
- * M5 changes vs M4:
- *   - Async pre-load of all tile + decoration + transition PNGs at boot;
- *     first frame shows a "Loading..." splash until ready, then swaps in
- *     real M3.13 art automatically.
- *   - Per-tile variant via getTileSpriteAt(biomeId, x, y) — same world
- *     coord always picks the same PNG (deterministic).
- *   - Transition rendering: prefers M3.13 transition PNG (e.g.
- *     desert2snow_step1.png) when available; falls back to procedural
- *     color blend for pairs not covered by art (marsh pairs).
+ * M2.9 changes vs M5:
+ *   - BuildingManager + BuildingMenu added.
+ *   - B key toggles the build menu; 1-5 / mouse + click to select.
+ *   - Mouse position maps to a world tile; placement preview follows.
+ *   - Left click places the selected building if can-place; right click
+ *     cancels selection / removes a building under cursor.
+ *   - Buildings render in depth-sorted pass between decor and player.
+ *   - WorldGrid.occupants now participates in isWalkable — player
+ *     cannot walk through placed buildings.
  *
  * Renders in two passes:
- *   pass 1 — world tiles (culled to camera bounds), then decorations
- *            and player (depth-sorted), all under the camera transform.
- *   pass 2 — HUD overlay in screen coords (no transform).
+ *   pass 1 — world tiles (culled to camera bounds), then depth-sorted
+ *            decorations + buildings + player, all under the camera
+ *            transform.
+ *   pass 2 — HUD overlay + building menu + placement preview in
+ *            screen coords (no transform).
  */
 
 'use strict';
@@ -36,12 +39,18 @@ import { Input } from './utils/input.js';
 import { HUD } from './hud/hud.js';
 import {
   TILE_W_HALF, TILE_H_HALF, TILE_SIZE,
-  worldToScreen, depthKey
+  worldToScreen, screenToTile, depthKey
 } from './render/isometric.js';
 import {
   getTileSpriteAt, drawDecoration, drawPlayer
 } from './render/tile-renderer.js';
 import { preloadImages, isReady, getOrFallback } from './render/image-loader.js';
+// M2.9: building system
+import { BuildingManager } from './buildings/placer.js';
+import { BuildingMenu } from './buildings/building-menu.js';
+import {
+  drawBuilding, drawPlacementPreview
+} from './buildings/building-renderer.js';
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -57,7 +66,7 @@ export function bootGame(canvas) {
   const transitions = computeTransitions(world, 2);
 
   // 2. Actors.
-  const input  = new Input();
+  const input  = new Input(canvas);
   const camera = new Camera({
     viewportWidth: canvas.width,
     viewportHeight: canvas.height
@@ -72,14 +81,117 @@ export function bootGame(canvas) {
     sanity: { cur: 100, max: 100 }
   };
 
-  // 4. M5: pre-load all M3.13 art (tiles + decorations + transitions).
-  // Trigger loads immediately so the first frame is the only "Loading..."
-  // the user sees.
+  // 4. M2.9: building manager + menu. The selected building id is
+  //    set when the user confirms a wedge in the menu; cleared after
+  //    a successful placement OR explicit right-click.
+  const buildingMgr = new BuildingManager(world);
+  const buildMenu = new BuildingMenu();
+  let pendingBuilding = null;   // building type id awaiting placement, or null
+
+  // 5. M5: pre-load all M3.13 art (tiles + decorations + transitions).
   const artPaths = collectAllArtPaths();
   let imagesReady = false;
   preloadImages(artPaths).then(() => { imagesReady = true; });
 
-  // Last frame timestamp for dt.
+  // ---- helpers (closure over local state) ----
+
+  /**
+   * Map a canvas-space (mouseX, mouseY) to a world tile coord. Returns
+   * null if outside the world.
+   */
+  function mouseToTile(mx, my) {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const camScreen = worldToScreen(camera.x, camera.y);
+    const wsx = mx - (cx - camScreen.x);
+    const wsy = my - (cy - camScreen.y);
+    const t = screenToTile(wsx, wsy);
+    const tx = Math.floor(t.x);
+    const ty = Math.floor(t.y);
+    if (tx < 0 || ty < 0 || tx >= world.width || ty >= world.height) return null;
+    return { x: tx, y: ty };
+  }
+
+  /**
+   * Compute the screen coords of a world tile (top-left tile center),
+   * given the current camera + canvas.
+   */
+  function tileToScreenXY(tx, ty) {
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const camScreen = worldToScreen(camera.x, camera.y);
+    const s = worldToScreen(tx, ty);
+    return { x: s.x + (cx - camScreen.x), y: s.y + (cy - camScreen.y) };
+  }
+
+  /**
+   * M2.9: handle B key (toggle menu), menu input, placement, and
+   * right-click cancel / destroy.
+   *
+   * Priority order each frame:
+   *   1. If the menu is open, give it input first.
+   *   2. Otherwise, B opens it.
+   *   3. With a pending building, left click places; right click cancels.
+   *   4. Without a pending building, right click removes a building
+   *      under the cursor.
+   */
+  function updateBuildingInput() {
+    if (buildMenu.isOpen) {
+      buildMenu.update(input, canvas.width, canvas.height);
+      const sel = buildMenu.consumeSelection();
+      if (sel) {
+        pendingBuilding = sel;
+      }
+      return;
+    }
+    if (input.consumePressed('b')) {
+      buildMenu.open();
+      return;
+    }
+    if (pendingBuilding) {
+      if (input.consumeLeftClick()) {
+        const tile = mouseToTile(input.mouseX, input.mouseY);
+        if (tile) {
+          const check = buildingMgr.canPlace(pendingBuilding, tile.x, tile.y, player, 2);
+          if (check.ok) {
+            buildingMgr.place(pendingBuilding, tile.x, tile.y, player);
+            // Stay in placement mode for the same building (QoL: spam-build).
+          }
+        }
+      }
+      if (input.consumeRightClick()) {
+        pendingBuilding = null;
+      }
+      return;
+    }
+    if (input.consumeRightClick()) {
+      const tile = mouseToTile(input.mouseX, input.mouseY);
+      if (tile) {
+        for (const b of buildingMgr.buildings) {
+          if (b.contains(tile.x, tile.y)) {
+            buildingMgr.remove(b);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Render the placement preview (if a building is selected) on top
+   * of the world, before the HUD.
+   */
+  function renderBuildingOverlay() {
+    if (!pendingBuilding) return;
+    const tile = mouseToTile(input.mouseX, input.mouseY);
+    if (!tile) return;
+    const sxy = tileToScreenXY(tile.x, tile.y);
+    const check = buildingMgr.canPlace(pendingBuilding, tile.x, tile.y, player, 2);
+    drawPlacementPreview(ctx, sxy.x, sxy.y, pendingBuilding, check.ok);
+  }
+
+  // ---- main loop ----
+
   let lastT = performance.now();
 
   function frame(now) {
@@ -90,6 +202,7 @@ export function bootGame(canvas) {
     player.update(dt, input);
     camera.follow(player);
     hud.update();
+    updateBuildingInput();
     input.endFrame();
 
     // Slow vitals drain — demonstrates HUD updates.
@@ -98,17 +211,21 @@ export function bootGame(canvas) {
 
     // Render.
     if (imagesReady) {
-      render(ctx, canvas, world, decor, transitions, player, camera);
+      render(ctx, canvas, world, decor, transitions, player, camera, buildingMgr);
+      renderBuildingOverlay();
     } else {
       renderLoading(ctx, canvas, artPaths);
     }
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
+    if (buildMenu.isOpen) {
+      buildMenu.draw(ctx, canvas.width, canvas.height);
+    }
 
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
-  return { world, player, camera, hud };
+  return { world, player, camera, hud, buildingMgr, buildMenu };
 }
 
 /**
@@ -142,14 +259,11 @@ function collectAllArtPaths() {
  * responsive even on a slow first paint.
  */
 function renderLoading(ctx, canvas, paths) {
-  // Clear.
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // Count how many are ready.
   let ready = 0;
   for (const p of paths) if (isReady(p)) ready++;
   const pct = paths.length > 0 ? (ready / paths.length) : 0;
-  // Bar.
   const barW = canvas.width * 0.5;
   const barH = 8;
   const bx = (canvas.width - barW) / 2;
@@ -158,7 +272,6 @@ function renderLoading(ctx, canvas, paths) {
   ctx.fillRect(bx, by, barW, barH);
   ctx.fillStyle = '#d4a64a';
   ctx.fillRect(bx, by, barW * pct, barH);
-  // Label.
   ctx.fillStyle = '#f0f0f0';
   ctx.font = '12px ui-monospace, monospace';
   ctx.textAlign = 'center';
@@ -168,7 +281,7 @@ function renderLoading(ctx, canvas, paths) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function render(ctx, canvas, world, decor, transitions, player, camera) {
+function render(ctx, canvas, world, decor, transitions, player, camera, mgr) {
   // Clear with a deep blue night-sky tone.
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -176,7 +289,6 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
   const bounds = camera.viewBounds();
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
-  // Center of camera in screen space.
   const camScreen = worldToScreen(camera.x, camera.y);
   const offsetX = cx - camScreen.x;
   const offsetY = cy - camScreen.y;
@@ -189,16 +301,13 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
       if (!id) continue;
       const ei = world.idx(x, y);
 
-      // Compute screen pos.
       const s = worldToScreen(x, y);
       const sx = s.x + offsetX;
       const sy = s.y + offsetY;
 
-      // M5: per-tile variant sprite (real M3.13 PNG).
       const sprite = getTileSpriteAt(id, x, y);
       ctx.drawImage(sprite, sx - TILE_W_HALF, sy - TILE_H_HALF);
 
-      // M5: transition — try real PNG first, else procedural blend.
       if (transitions.neighbor[ei] >= 0) {
         const otherCode = transitions.neighbor[ei];
         const otherId = CODE_TO_BIOME[otherCode];
@@ -210,7 +319,6 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
           const img = getOrFallback(art.path, () => buildTransitionFallback(me, other, blend));
           ctx.drawImage(img, sx - TILE_W_HALF, sy - TILE_H_HALF);
         } else {
-          // Procedural color blend.
           const blended = blendColors(me.primary, other.primary, blend);
           ctx.fillStyle = blended;
           ctx.globalAlpha = 0.55;
@@ -235,12 +343,19 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
     }
   }
 
-  // Pass 2: depth-sorted list of decor + player.
+  // Pass 2: depth-sorted list of decor + buildings + player.
   const drawables = [];
   for (const d of decor) {
     if (d.x < bounds.x0 - 1 || d.x > bounds.x1 + 1
      || d.y < bounds.y0 - 1 || d.y > bounds.y1 + 1) continue;
     drawables.push({ kind: 'decor', ref: d, depth: depthKey(d.x, d.y) });
+  }
+  for (const b of mgr.buildings) {
+    if (b.tx + b.w < bounds.x0 - 1 || b.tx > bounds.x1 + 1
+     || b.ty + b.h < bounds.y0 - 1 || b.ty > bounds.y1 + 1) continue;
+    // Depth by center of footprint so a 2x1 sorts by visual center.
+    const c = b.center();
+    drawables.push({ kind: 'building', ref: b, depth: depthKey(c.x, c.y) });
   }
   drawables.push({
     kind: 'player', depth: depthKey(player.x, player.y),
@@ -248,12 +363,22 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
   });
   drawables.sort((a, b) => a.depth - b.depth);
   for (const it of drawables) {
-    const s = worldToScreen(it.ref.x, it.ref.y);
-    const sx = s.x + offsetX;
-    const sy = s.y + offsetY;
     if (it.kind === 'decor') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      const sx = s.x + offsetX;
+      const sy = s.y + offsetY;
       drawDecoration(ctx, sx, sy, it.ref);
+    } else if (it.kind === 'building') {
+      const b = it.ref;
+      // Anchor: top-left tile of the building footprint.
+      const bs = worldToScreen(b.tx, b.ty);
+      const bsx = bs.x + offsetX;
+      const bsy = bs.y + offsetY;
+      drawBuilding(ctx, bsx, bsy, b, { showHp: true });
     } else {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      const sx = s.x + offsetX;
+      const sy = s.y + offsetY;
       drawPlayer(ctx, sx, sy, it.ref.facing);
     }
   }
@@ -262,8 +387,6 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
 // M5: matches BIOMES key order — desert=0, marsh=1, snow=2, volcano=3.
 const CODE_TO_BIOME = Object.keys(BIOMES);
 
-// Fallback canvas (one per unique blend) used when a transition PNG
-// path is registered but the file is missing. Cached for the run.
 const transitionFallbackCache = new Map();
 function buildTransitionFallback(me, other, blend) {
   const key = `${me.id}->${other.id}@${blend.toFixed(2)}`;
@@ -272,7 +395,6 @@ function buildTransitionFallback(me, other, blend) {
   cv.width = TILE_SIZE;
   cv.height = TILE_SIZE;
   const c = cv.getContext('2d');
-  // Fill a diamond with the blended color.
   const cx = TILE_SIZE / 2;
   const cy = TILE_SIZE / 2;
   c.fillStyle = blendColors(me.primary, other.primary, blend);

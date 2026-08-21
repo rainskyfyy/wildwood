@@ -6,6 +6,7 @@
  *   tiles: Uint8Array,        // biome id per tile (encoded as integer 0..3)
  *   elevation: Float32Array,  // raw elevation per tile [0, 1]
  *   moisture:  Float32Array,  // raw moisture per tile [0, 1]
+ *   occupants: Uint8Array,    // 0 = empty, >0 = building entity id (M2.9)
  *   seed
  * }
  *
@@ -13,6 +14,10 @@
  *
  * M5: BIOME_TO_CODE order is ['desert', 'marsh', 'snow', 'volcano'] to
  * match the M3.13 art directories. CODE_TO_BIOME mirrors it.
+ *
+ * M2.9: Added `occupants` Uint8Array so the building system can mark
+ * tiles as taken. `isWalkable` is updated to also reject occupied
+ * tiles, so the player cannot walk through placed buildings.
  */
 
 'use strict';
@@ -35,6 +40,10 @@ export class WorldGrid {
     this.tiles = new Uint8Array(width * height);
     this.elevation = new Float32Array(width * height);
     this.moisture = new Float32Array(width * height);
+    // M2.9: 0 = empty tile, >0 = 1-based building entity id stored in
+    // BuildingManager.buildings[entityId - 1]. Uint8 caps entities at
+    // 255; more than enough for a 4-player co-op session.
+    this.occupants = new Uint8Array(width * height);
   }
 
   idx(x, y) { return y * this.width + x; }
@@ -47,7 +56,28 @@ export class WorldGrid {
   isWalkable(x, y) {
     const id = this.getTile(x, y);
     if (id == null) return false;
-    return getBiome(id).walkable;
+    if (!getBiome(id).walkable) return false;
+    // M2.9: occupied tiles (by buildings) are not walkable.
+    if (this.occupants[this.idx(x, y)] !== 0) return false;
+    return true;
+  }
+
+  // M2.9: occupancy API. All return true on success, false on out-of-bounds.
+  isOccupied(x, y) {
+    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
+    return this.occupants[this.idx(x, y)] !== 0;
+  }
+
+  occupy(x, y, entityId) {
+    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
+    this.occupants[this.idx(x, y)] = entityId;
+    return true;
+  }
+
+  free(x, y) {
+    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
+    this.occupants[this.idx(x, y)] = 0;
+    return true;
   }
 }
 
