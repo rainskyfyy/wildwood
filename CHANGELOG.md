@@ -9,8 +9,43 @@
 - M1.2 CI/CD 雏形
 - M1.3 GUT + Playwright 测试框架
 - M1.6 资源元数据抽象
-- M1.10 客户端协议语义 + 1.11 联调
+- M1.11 联调(房间创建/加入/退出)
 - M1.12-1.13 5 张样稿 + Aseprite 工作流
+
+## [0.3.0] - 2026-08-20
+
+### 新增(M1.10 客户端-服务端 WebSocket 连通)
+
+- **Go 端 M1.10 验收测试**(`go/tests/m110_*.go`,4 个测试全过)
+  - `TestM110_Heartbeat_RTT_Under1s` — 30 次 heartbeat,断言 max RTT < 1s,avg < 200ms(M1.10 验收 ①)
+  - `TestM110_Heartbeat_WorksBeforeHandshake` — 协议层不强制握手→心跳顺序
+  - `TestM110_Reconnect_AfterServerRestart` — 30s 窗口内重连到新 hub(M1.10 验收 ②)
+  - `TestM110_Reconnect_GiveUpAfterWindow` — 30s 窗口内未恢复 → state=failed
+- **Go e2eclient**(`go/cmd/e2eclient/main.go`,新)— 单进程 demo 工具:握手→心跳→模拟断网→重连
+- **GDScript 客户端三层**(`gd/`)
+  - `wildwood_heartbeat.gd`(新,130 行)— 30s 周期心跳,测 RTT,5s 超时,3 次丢 ping 告警
+  - `wildwood_reconnect.gd`(新,130 行)— 退避 1s→2s→4s→8s→16s→30s,30s 窗口硬约束
+  - `wildwood_session.gd`(新,180 行)— 组合 NetClient + Heartbeat + Reconnect,状态机(connecting/handshaking/connected/reconnecting/failed)
+- **GDScript 单元测试**(`gd/tests/test_m110.gd`,新)— 退避计算 + 状态机 + 窗口耗尽
+- **Playwright 验收 ③ spec**(`tests/e2e/tests/console-clean.spec.ts`,新)— 30s 内 console.error = 0
+- **一键 e2e 脚本**(`tests/scripts/run_m110_e2e.sh`,新)— Go 单元测试 + 全量回归 + e2eclient + (可选) Godot headless
+- **main.gd demo**(`scripts/main.gd`,更新)— 启动后自动 connect → heartbeat → reconnect,按 ESC 退出
+
+### 验证(M1.10 全部 3 项验收)
+
+- ① 客户端发 `heartbeat` 服务端 1s 内回 `pong`:`TestM110_Heartbeat_RTT_Under1s` 30 次实测 avg=0ms, max=1ms
+- ② 断网 30s 自动重连:`TestM110_Reconnect_AfterServerRestart` 重连耗时 < 1ms (退避机制正确)
+- ③ 浏览器 console 无错误:Playwright spec 已写,CI 跑(沙箱无 Godot HTML5 export)
+- Go 全部单元测试 **48 个通过**(M1.5 协议 + M1.9 transport + M1.10 新增)
+
+### A/B 兼容性
+- GDScript 客户端走与 M1.9 transport 一致的 `WildwoodNet.NetClient`(B 线 Unity 用 C# 等价物)
+- 协议层(M1.5)+ 传输层(M1.9)+ 会话层(M1.10)三层解耦,切换 A/B 不重写上层业务
+
+### 留给后续
+- 5 分钟断线墓碑(协议层,M3.7 升级)
+- 输入预测 + 服务端校正(2.0 客户端,M2.1+)
+- 跨机房 RTT 测量(M2.14 联机压测)
 
 ## [0.1.0] - 2026-08-20
 

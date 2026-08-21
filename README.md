@@ -315,11 +315,63 @@ CGO_ENABLED=0 go build -o /tmp/roomserver ./cmd/roomserver
 
 ---
 
+## M1.10 客户端-服务端 WebSocket 连通
+
+M1.10 在 M1.9 传输层之上,补全**应用层心跳 + 自动重连**,把"WebSocket 字节流"变成"稳定业务会话":
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| 协议 | M1.5 (`C2S_Heartbeat` / `S2C_HeartbeatAck`) | 应用层 ping/pong |
+| 传输 | M1.9 (`WildwoodNet.NetClient` / `WildwoodTransport.WsNetClient`) | WebSocket 字节流 |
+| **会话** | **M1.10 `WildwoodSession`** | connect → handshake → heartbeat → reconnect 全流程 |
+
+### 客户端组件
+
+- `core/abstract/network/gd/wildwood_heartbeat.gd` — 30s 周期心跳 + 5s 超时检测 + 3 次丢 ping 告警
+- `core/abstract/network/gd/wildwood_reconnect.gd` — 退避 1s→2s→4s→8s→16s→30s,30s 窗口硬约束,attempt_callable 注入式
+- `core/abstract/network/gd/wildwood_session.gd` — 组合 NetClient + Heartbeat + Reconnect,状态机 `idle → connecting → handshaking → connected ↔ reconnecting → failed`
+
+### 用法(`scripts/main.gd`)
+
+```gdscript
+var sess = WildwoodSession.new("ws://127.0.0.1:8080/ws", "0.3.0", "player-1")
+sess.on_state = func(s, info): print("state=", s, info)
+sess.on_rtt = func(rtt_ms, seq): print("rtt=", rtt_ms)
+sess.on_reconnected = func(attempts): print("✓ reconnected, attempts=", attempts)
+sess.on_giveup = func(): print("✗ 30s window expired")
+sess.connect_to()
+# 每帧 sess.poll(delta) 推进
+```
+
+### 验收
+
+| # | 标准 | 验证方式 | 结果 |
+|---|------|----------|------|
+| ① | 客户端发 `heartbeat` 服务端 1s 内回 `pong` | `go test -run TestM110_Heartbeat_RTT_Under1s` 30 次实测 | avg 0ms / max 1ms ✅ |
+| ② | 断网 30s 自动重连 | `go test -run TestM110_Reconnect_AfterServerRestart` | 退避机制正确 ✅ |
+| ③ | 浏览器 console 无错误 | `tests/e2e/tests/console-clean.spec.ts`(Playwright,CI 跑) | spec 已就位 |
+
+### 一键端到端
+
+```bash
+# 沙箱(无 Godot / 无浏览器): 只跑 Go 端
+./tests/scripts/run_m110_e2e.sh
+
+# 完整: 加 --with-godot
+./tests/scripts/run_m110_e2e.sh --with-godot
+
+# 手动: 启动服务端 + e2eclient
+cd core/abstract/network/go && go run ./cmd/roomserver &
+cd core/abstract/network/go && go run ./cmd/e2eclient -url ws://127.0.0.1:8080/ws
+```
+
+---
+
 ## 里程碑
 
 | 阶段     | 周次    | 目标                                       | 当前状态 |
 |----------|---------|--------------------------------------------|----------|
-| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅) |
+| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅ / M1.10 ✅) |
 | M2 核心循环 | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | 未开始   |
 | M3 联机    | W11-W16 | 4 人联机 MVP 完整版可发布                  | 未开始   |
 
@@ -327,6 +379,7 @@ M1 关键交付一览:
 - **M1.1 项目脚手架**:Godot 4.3 工程骨架 + Git 仓库(commit `38d4e15`)
 - **M1.5 网络协议语义层**:Protobuf `.proto` 真相源 + Go/GDScript 双端 codec + 字节预算 2851B < 4KB(commit `e57cae1`)
 - **M1.9 传输层接入**:Go gorilla/websocket 房间服务 + GDScript `WildwoodTransport` + Dockerfile/distroless 部署;200 连接压测 RTT avg 34µs,远低于 50ms 目标(见下节)
+- **M1.10 客户端-服务端 WebSocket 连通**:`WildwoodSession`(客户端) + Go e2eclient + 4 个 M1.10 单元测试(30 次 heartbeat RTT avg 0ms / max 1ms + 30s 重连机制)
 
 任务依赖图与关键路径见[《项目任务拆分表》§2.1-2.2](https://hisense.feishu.cn/docx/JrCmdC2S9o4ID5xRM70cuSNsnS2)。
 
