@@ -1,0 +1,467 @@
+/* Wildwood UI · v0.5.4 交易界面 · 暗黑哥特风
+ * 依赖: src/ui/components/components.css(Dialog / Button / Panel)
+ *      src/ui/layout/tokens.css(--sp-* / --accent / --night-*)
+ *
+ * 核心组件:
+ *   .TradeDialog        模态对话框(基于 .Dialog 扩展)
+ *   .TradeColumn        左右双栏(玩家 / 猪人)
+ *   .TradeSlot          物品槽(可拖拽)
+ *   .TradeOfferSlot     报价槽(我出 / 换回)
+ *   .TradePriceTag      物品价格标签
+ *   .TradeConfirmBar    底部确认栏
+ *   .TradeBubble        猪人交易时的实时反应气泡
+ *
+ * 间距全部从 tokens 取,8/16/24/32 倍数,无 0.5 奇数
+ * 状态: 4 状态机(默认/悬停/拖动/锁定) + 校验状态(合法/非法/锁定)
+ */
+
+/* ===================== 交易对话框 ===================== */
+.TradeDialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  background: var(--bg-panel-solid, #1a1a2a);
+  border: 2px solid var(--border-bold, #3a3a52);
+  box-shadow: 4px 4px 0 var(--night-black, #0d0d18);
+  z-index: 102;  /* 高于普通 Dialog(101) */
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-pixel, monospace);
+}
+.TradeDialog-Header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-elev, #20203a);
+  border-bottom: 1px solid var(--border-bold, #3a3a52);
+  font-size: var(--fs-14, 14px);
+  color: var(--accent, #d4a64a);
+  letter-spacing: 1px;
+}
+.TradeDialog-Title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8, 8px);
+}
+.TradeDialog-Title-Icon {
+  width: 16px;
+  height: 16px;
+  background: var(--accent, #d4a64a);
+  /* 简单的"猪"图标占位:1px 黑色硬阴影 + 1px 描边 */
+  border: 1px solid var(--night-black, #0d0d18);
+  box-shadow: inset 0 0 0 2px var(--night-elev, #20203a);
+}
+.TradeDialog-PigName {
+  color: var(--fg, #f0f0f0);
+  font-size: var(--fs-12, 12px);
+  margin-left: var(--sp-8, 8px);
+  letter-spacing: 0.5px;
+}
+.TradeDialog-Affinity {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8, 8px);
+  margin-right: var(--sp-16, 16px);
+}
+
+/* ===================== 双栏布局 ===================== */
+.TradeBody {
+  display: grid;
+  grid-template-columns: 1fr 64px 1fr;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.TradeColumn {
+  display: flex;
+  flex-direction: column;
+  background: var(--night-deep, #14141e);
+  border-right: 1px solid var(--border, #2a2a3a);
+  min-height: 0;
+}
+.TradeColumn-Right {
+  border-right: none;
+  border-left: 1px solid var(--border, #2a2a3a);
+}
+.TradeColumn-Header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-elev, #20203a);
+  border-bottom: 1px solid var(--border, #2a2a3a);
+  font-size: var(--fs-12, 12px);
+  color: var(--fg-muted, #a0a0b0);
+  letter-spacing: 1px;
+}
+.TradeColumn-Title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8, 8px);
+  color: var(--fg, #f0f0f0);
+}
+.TradeColumn-Count {
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+}
+.TradeColumn-Body {
+  flex: 1;
+  padding: var(--sp-16, 16px);
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(4, 64px);
+  gap: var(--sp-8, 8px);
+  align-content: start;
+  min-height: 0;
+}
+.TradeColumn-Body.is-empty::before {
+  content: "空";
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--fg-faint, #707088);
+  font-size: var(--fs-12, 12px);
+  padding: var(--sp-16, 16px) 0;
+}
+
+/* ===================== 中央交换区 ===================== */
+.TradeCenter {
+  background: var(--bg-panel-solid, #1a1a2a);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-8, 8px);
+  border-right: 1px solid var(--border, #2a2a3a);
+}
+.TradeArrow {
+  width: 48px;
+  height: 32px;
+  position: relative;
+  color: var(--accent, #d4a64a);
+  font-size: var(--fs-18, 18px);
+  line-height: 32px;
+  text-align: center;
+  font-family: var(--font-pixel, monospace);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  /* 双向箭头 ↔ */
+}
+.TradeArrow::before { content: "↔"; }
+.TradeBalance {
+  margin-top: var(--sp-8, 8px);
+  padding: var(--sp-8, 8px);
+  font-size: var(--fs-10, 10px);
+  letter-spacing: 0.5px;
+  text-align: center;
+  font-family: var(--font-pixel, monospace);
+  background: var(--night-elev, #20203a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  width: 100%;
+}
+.TradeBalance-Label { color: var(--fg-faint, #707088); }
+.TradeBalance-Value { color: var(--accent, #d4a64a); font-size: var(--fs-12, 12px); display: block; margin-top: 2px; }
+.TradeBalance-Value.is-pos { color: #6a8a4a; }  /* 玩家赚 */
+.TradeBalance-Value.is-neg { color: var(--warn-hp, #c43a3a); }  /* 玩家亏 */
+.TradeBalance-Value.is-zero { color: var(--fg-muted, #a0a0b0); }
+.TradeStatus {
+  margin-top: var(--sp-8, 8px);
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+  text-align: center;
+  font-family: var(--font-pixel, monospace);
+  line-height: 1.4;
+  min-height: 24px;
+}
+.TradeStatus.is-ok { color: #6a8a4a; }
+.TradeStatus.is-bad { color: var(--warn-hp, #c43a3a); }
+
+/* ===================== 物品槽(可拖拽) ===================== */
+.TradeSlot {
+  width: 64px;
+  height: 80px;  /* 比 ItemSlot 略高,留出价格标签位置 */
+  background: var(--night-elev, #20203a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  border-radius: var(--r-0, 0);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  transition: border-color 80ms linear, box-shadow 80ms linear, transform 80ms linear;
+  image-rendering: pixelated;
+}
+.TradeSlot:hover { border-color: var(--fg-muted, #a0a0b0); }
+.TradeSlot:active { cursor: grabbing; }
+.TradeSlot.is-empty {
+  background: rgba(26, 26, 42, 0.4);
+  border-style: dashed;
+  border-color: var(--border, #2a2a3a);
+  cursor: not-allowed;
+}
+.TradeSlot[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+.TradeSlot-Art {
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-18, 18px);
+  color: var(--accent, #d4a64a);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  letter-spacing: 1px;
+  line-height: 1;
+  margin-top: 4px;
+}
+.TradeSlot-Name {
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  color: var(--fg, #f0f0f0);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  text-align: center;
+  line-height: 1;
+  margin-top: 4px;
+  max-width: 60px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.TradeSlot-Stack {
+  position: absolute;
+  top: 1px; right: 2px;
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  color: var(--accent, #d4a64a);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  line-height: 1;
+}
+
+/* ===================== 价格标签 ===================== */
+.TradePriceTag {
+  position: absolute;
+  bottom: 1px; left: 2px; right: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  line-height: 1;
+  color: var(--fg-muted, #a0a0b0);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+}
+.TradePrice-Icon {
+  color: #d4a64a;  /* 金色货币图标 */
+}
+.TradePrice-Value {
+  color: var(--fg, #f0f0f0);
+}
+.TradePrice-Trend {
+  font-size: 8px;
+  line-height: 1;
+}
+.TradePrice-Trend.is-up { color: #6a8a4a; }   /* 涨(玩家买入贵) */
+.TradePrice-Trend.is-down { color: var(--warn-hp, #c43a3a); }  /* 跌(玩家买入便宜) */
+.TradePrice-Trend.is-flat { color: var(--fg-faint, #707088); }
+
+/* 拖拽反馈 - 沿用 M2.13 命名 */
+.TradeSlot.DragSource {
+  opacity: 0.4;
+  border-color: var(--fg-muted, #a0a0b0);
+}
+.TradeSlot.DragOver {
+  border-color: var(--accent, #d4a64a);
+  box-shadow: 0 0 0 2px var(--accent, #d4a64a), 4px 4px 0 var(--night-black, #0d0d18);
+  background: rgba(212, 166, 74, 0.15);
+}
+.TradeSlot.DragInvalid {
+  border-color: var(--warn-hp, #c43a3a);
+  box-shadow: 0 0 0 2px var(--warn-hp, #c43a3a);
+  background: rgba(196, 58, 58, 0.15);
+}
+.TradeSlot.DragRejectShake {
+  animation: trade-reject-shake 200ms linear;
+}
+@keyframes trade-reject-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-2px); }
+  80%      { transform: translateX(2px); }
+}
+
+/* ===================== 报价槽(我出 / 换回) ===================== */
+.TradeOfferPanel {
+  background: var(--bg-panel-solid, #1a1a2a);
+  border-top: 1px solid var(--border, #2a2a3a);
+  display: grid;
+  grid-template-columns: 1fr 64px 1fr;
+  align-items: center;
+  padding: var(--sp-16, 16px);
+  gap: 0;
+  min-height: 96px;
+}
+.TradeOfferSlot {
+  display: grid;
+  grid-template-columns: repeat(3, 56px);
+  gap: var(--sp-8, 8px);
+  min-height: 56px;
+  padding: var(--sp-8, 8px);
+  background: var(--night-deep, #14141e);
+  border: 1px solid var(--border, #2a2a3a);
+}
+.TradeOfferSlot.is-drop-active {
+  border-color: var(--accent, #d4a64a);
+  background: rgba(212, 166, 74, 0.08);
+}
+.TradeOfferArrow {
+  text-align: center;
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-18, 18px);
+  color: var(--accent, #d4a64a);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+}
+.TradeOfferArrow::before { content: "→"; }
+.TradeOfferTitle {
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+  letter-spacing: 1px;
+  margin-bottom: var(--sp-8, 8px);
+  text-align: center;
+  font-family: var(--font-pixel, monospace);
+}
+.TradeOfferWrap {
+  display: flex;
+  flex-direction: column;
+}
+.TradeOfferEmpty {
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+  text-align: center;
+  padding: var(--sp-8, 8px) 0;
+  width: 100%;
+  align-self: center;
+  font-style: italic;
+  font-family: var(--font-ui, monospace);
+}
+
+/* 报价槽里的 mini item 缩略 */
+.TradeOfferItem {
+  width: 56px;
+  height: 56px;
+  background: var(--night-elev, #20203a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 80ms linear;
+}
+.TradeOfferItem:hover { border-color: var(--warn-hp, #c43a3a); }  /* hover 表示可移除 */
+.TradeOfferItem-Art {
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-14, 14px);
+  color: var(--accent, #d4a64a);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  line-height: 1;
+}
+.TradeOfferItem-Stack {
+  position: absolute;
+  top: 0; right: 1px;
+  font-family: var(--font-pixel, monospace);
+  font-size: 8px;
+  color: var(--accent, #d4a64a);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  line-height: 1;
+}
+.TradeOfferItem-Price {
+  font-family: var(--font-pixel, monospace);
+  font-size: 8px;
+  color: var(--fg-muted, #a0a0b0);
+  margin-top: 2px;
+}
+
+/* ===================== 确认栏 ===================== */
+.TradeConfirmBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-deep, #14141e);
+  border-top: 1px solid var(--border-bold, #3a3a52);
+  font-family: var(--font-pixel, monospace);
+}
+.TradeConfirmBar-Left {
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+  letter-spacing: 0.5px;
+}
+.TradeConfirmBar-Right {
+  display: flex;
+  gap: var(--sp-8, 8px);
+}
+
+/* ===================== 锁定/校验状态 ===================== */
+.TradeSlot.is-locked {
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+.TradeSlot.is-locked::after {
+  content: "锁";
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 13, 24, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-12, 12px);
+  color: var(--warn-hp, #c43a3a);
+}
+
+/* ===================== 交易中的气泡反应 ===================== */
+.TradeBubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-elev, #20203a);
+  border: 1px solid var(--accent, #d4a64a);
+  box-shadow: 2px 2px 0 var(--night-black, #0d0d18);
+  color: var(--fg, #f0f0f0);
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  z-index: 200;
+  animation: trade-bubble-in 160ms linear;
+  pointer-events: none;
+}
+.TradeBubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid var(--accent, #d4a64a);
+}
+.TradeBubble.is-positive { border-color: #6a8a4a; }
+.TradeBubble.is-positive::after { border-top-color: #6a8a4a; }
+.TradeBubble.is-negative { border-color: var(--warn-hp, #c43a3a); }
+.TradeBubble.is-negative::after { border-top-color: var(--warn-hp, #c43a3a); }
+@keyframes trade-bubble-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(0); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+}

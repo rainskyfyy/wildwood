@@ -1,0 +1,405 @@
+/* Wildwood UI · v0.5.4 NPC 系统 · 暗黑哥特风
+ * 依赖: src/ui/components/components.css(Dialog / Button / VitalBar)
+ *      src/ui/layout/tokens.css(--sp-* / --accent / --night-*)
+ *      src/ui/trading/trading.css(共享 AffinityHeart)
+ *
+ * 核心组件:
+ *   .NPCBubble            浮动对话气泡(3 秒自动消失,带箭头指向)
+ *   .AffinityDisplay      好感度条(0-3 心)
+ *   .AffinityHeart        单个心(空/实/动画 +1)
+ *   .FollowerHUD          随从状态栏(头像 + 血条 + 好感度)
+ *   .TradingCenterDialog  村落交易中心(多 Tab 物品列表)
+ *   .PigAvatar            猪人角色头像
+ *
+ * 8/16 像素对齐: 全部从 tokens 取
+ * 风格: 暗黑哥特 + 像素字体,心用 ♥/♡ 字符
+ */
+
+/* ===================== 对话气泡 ===================== */
+.NPCBubble {
+  position: fixed;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: none;
+  animation: npc-bubble-in 180ms linear;
+  max-width: 240px;
+}
+.NPCBubble-Text {
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-elev, #20203a);
+  border: 2px solid var(--accent, #d4a64a);
+  box-shadow: 3px 3px 0 var(--night-black, #0d0d18);
+  color: var(--fg, #f0f0f0);
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-12, 12px);
+  line-height: 1.4;
+  letter-spacing: 0.5px;
+  word-break: break-all;
+}
+.NPCBubble-Name {
+  margin-top: var(--sp-8, 8px);
+  padding: 2px var(--sp-8, 8px);
+  background: var(--night-deep, #14141e);
+  border: 1px solid var(--border-bold, #3a3a52);
+  color: var(--accent, #d4a64a);
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  letter-spacing: 1px;
+}
+/* 气泡箭头(指向猪人位置) */
+.NPCBubble-Tail {
+  position: absolute;
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--accent, #d4a64a);
+}
+.NPCBubble-Tail.is-bottom {  /* 气泡在猪人上方,箭头朝下 */
+  top: 100%;
+  border-top: none;
+  border-bottom: 8px solid var(--accent, #d4a64a);
+}
+.NPCBubble-Tail.is-left { left: 16px; }
+.NPCBubble-Tail.is-center { left: 50%; transform: translateX(-50%); }
+.NPCBubble-Tail.is-right { right: 16px; }
+/* 气泡类型变体 */
+.NPCBubble.is-positive .NPCBubble-Text { border-color: #6a8a4a; }
+.NPCBubble.is-positive .NPCBubble-Tail { border-top-color: #6a8a4a; }
+.NPCBubble.is-positive .NPCBubble-Tail.is-bottom { border-bottom-color: #6a8a4a; }
+.NPCBubble.is-negative .NPCBubble-Text { border-color: var(--warn-hp, #c43a3a); }
+.NPCBubble.is-negative .NPCBubble-Tail { border-top-color: var(--warn-hp, #c43a3a); }
+.NPCBubble.is-negative .NPCBubble-Tail.is-bottom { border-bottom-color: var(--warn-hp, #c43a3a); }
+.NPCBubble.is-neutral .NPCBubble-Text { border-color: var(--fg-muted, #a0a0b0); }
+.NPCBubble.is-neutral .NPCBubble-Tail { border-top-color: var(--fg-muted, #a0a0b0); }
+.NPCBubble.is-neutral .NPCBubble-Tail.is-bottom { border-bottom-color: var(--fg-muted, #a0a0b0); }
+.NPCBubble.is-fading {
+  animation: npc-bubble-out 200ms linear forwards;
+}
+@keyframes npc-bubble-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes npc-bubble-out {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+/* ===================== 好感度条 ===================== */
+.AffinityDisplay {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8, 8px);
+  font-family: var(--font-pixel, monospace);
+}
+.AffinityHeart {
+  display: inline-block;
+  font-size: var(--fs-18, 18px);
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  text-align: center;
+  user-select: none;
+  transition: transform 120ms linear;
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+}
+.AffinityHeart.is-filled {
+  color: #d4a64a;  /* 琥珀/金 = 心 */
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18), 0 0 4px rgba(212, 166, 74, 0.5);
+}
+.AffinityHeart.is-empty {
+  color: var(--fg-faint, #707088);
+  opacity: 0.6;
+}
+/* +1 动画:从下方弹出,放大,落到原位 */
+.AffinityHeart.is-pulsing {
+  animation: affinity-pulse 480ms ease-out;
+}
+@keyframes affinity-pulse {
+  0%   { transform: scale(0.4) translateY(8px); opacity: 0; }
+  40%  { transform: scale(1.3) translateY(0); opacity: 1; color: #ffd97a; }
+  70%  { transform: scale(0.95) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; color: #d4a64a; }
+}
+/* +1 数字飘字 */
+.AffinityPlusOne {
+  position: absolute;
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-14, 14px);
+  color: #d4a64a;
+  text-shadow: 2px 2px 0 var(--night-black, #0d0d18);
+  pointer-events: none;
+  animation: affinity-plus-one 800ms ease-out forwards;
+  z-index: 50;
+}
+@keyframes affinity-plus-one {
+  0%   { opacity: 0; transform: translateY(0); }
+  20%  { opacity: 1; transform: translateY(-4px); }
+  100% { opacity: 0; transform: translateY(-24px); }
+}
+.AffinityRecruitFlag {
+  display: inline-block;
+  padding: 2px var(--sp-8, 8px);
+  background: var(--accent, #d4a64a);
+  color: var(--night-black, #0d0d18);
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  letter-spacing: 1px;
+  margin-left: var(--sp-8, 8px);
+  animation: affinity-recruit-blink 1.2s steps(2) infinite;
+}
+@keyframes affinity-recruit-blink {
+  50% { opacity: 0.5; }
+}
+
+/* ===================== 猪人头像(像素画风格 SVG) ===================== */
+.PigAvatar {
+  display: inline-block;
+  position: relative;
+  width: 48px;
+  height: 48px;
+  background: var(--night-elev, #20203a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  image-rendering: pixelated;
+  font-family: var(--font-pixel, monospace);
+  font-size: 28px;
+  line-height: 48px;
+  text-align: center;
+  color: #d8a4a4;  /* 猪粉色 */
+  text-shadow: 2px 2px 0 var(--night-black, #0d0d18);
+  flex-shrink: 0;
+}
+.PigAvatar.is-recruitable {
+  border-color: var(--accent, #d4a64a);
+  box-shadow: 0 0 0 1px var(--accent, #d4a64a);
+}
+.PigAvatar-Name {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-pixel, monospace);
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-muted, #a0a0b0);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+/* ===================== 随从 HUD(玩家右下角显示当前随从) ===================== */
+.FollowerHUD {
+  position: absolute;
+  bottom: 88px;  /* 高于快捷栏 */
+  right: 16px;
+  width: 200px;
+  background: var(--bg-panel-solid, #1a1a2a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  box-shadow: 3px 3px 0 var(--night-black, #0d0d18);
+  padding: var(--sp-8, 8px);
+  display: flex;
+  gap: var(--sp-8, 8px);
+  align-items: flex-start;
+  z-index: 50;
+  font-family: var(--font-pixel, monospace);
+}
+.FollowerHUD-Avatar { flex-shrink: 0; }
+.FollowerHUD-Body { flex: 1; min-width: 0; }
+.FollowerHUD-Name {
+  font-size: var(--fs-12, 12px);
+  color: var(--fg, #f0f0f0);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.FollowerHUD-HP {
+  width: 100%;
+  height: 8px;
+  background: var(--bar-track, #2a2a3a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.FollowerHUD-HP-Fill {
+  height: 100%;
+  background: var(--warn-hp, #c43a3a);
+  transition: width 200ms linear;
+}
+.FollowerHUD-HP-Text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--fg, #f0f0f0);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  line-height: 1;
+}
+.FollowerHUD-Affinity { font-size: 12px; }
+.FollowerHUD-Action {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.FollowerHUD-Action .Button { min-width: 0; height: 24px; font-size: 10px; padding: 0 8px; }
+
+/* ===================== 村落交易中心(多 Tab 物品列表) ===================== */
+.TradingCenterDialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 960px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  background: var(--bg-panel-solid, #1a1a2a);
+  border: 2px solid var(--border-bold, #3a3a52);
+  box-shadow: 4px 4px 0 var(--night-black, #0d0d18);
+  z-index: 102;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-pixel, monospace);
+}
+.TradingCenter-Header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-elev, #20203a);
+  border-bottom: 1px solid var(--border-bold, #3a3a52);
+  font-size: var(--fs-14, 14px);
+  color: var(--accent, #d4a64a);
+  letter-spacing: 1px;
+}
+.TradingCenter-Tabs {
+  display: flex;
+  background: var(--night-deep, #14141e);
+  border-bottom: 1px solid var(--border, #2a2a3a);
+  padding: 0 var(--sp-8, 8px);
+}
+.TradingCenter-Tab {
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  font-size: var(--fs-12, 12px);
+  color: var(--fg-muted, #a0a0b0);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 80ms linear, border-color 80ms linear;
+  user-select: none;
+  font-family: var(--font-pixel, monospace);
+  letter-spacing: 1px;
+}
+.TradingCenter-Tab:hover { color: var(--fg, #f0f0f0); }
+.TradingCenter-Tab.is-active {
+  color: var(--accent, #d4a64a);
+  border-bottom-color: var(--accent, #d4a64a);
+}
+.TradingCenter-Tab-Count {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  background: var(--night-elev, #20203a);
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+  border: 1px solid var(--border-bold, #3a3a52);
+}
+.TradingCenter-Body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-16, 16px);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-8, 8px);
+  align-content: start;
+}
+.TradingCenterItem {
+  background: var(--night-elev, #20203a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  padding: var(--sp-8, 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color 80ms linear, box-shadow 80ms linear;
+  user-select: none;
+  position: relative;
+}
+.TradingCenterItem:hover {
+  border-color: var(--accent, #d4a64a);
+  box-shadow: 0 0 0 1px var(--accent, #d4a64a);
+}
+.TradingCenterItem-Art {
+  font-size: var(--fs-18, 18px);
+  color: var(--accent, #d4a64a);
+  text-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+  line-height: 1;
+}
+.TradingCenterItem-Name {
+  font-size: var(--fs-10, 10px);
+  color: var(--fg, #f0f0f0);
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.TradingCenterItem-Price {
+  font-size: var(--fs-10, 10px);
+  color: #d4a64a;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.TradingCenterItem-Available {
+  font-size: 8px;
+  color: var(--fg-faint, #707088);
+  letter-spacing: 0.5px;
+}
+.TradingCenterItem-Action {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+.TradingCenterItem-Action .Button {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  font-size: 9px;
+  padding: 0 4px;
+}
+.TradingCenterItem-NotAffordable {
+  filter: grayscale(0.5);
+  opacity: 0.6;
+}
+.TradingCenterItem-NotAffordable .Button-Primary {
+  background: var(--night-elev, #20203a);
+  color: var(--fg-faint, #707088);
+  border-color: var(--border-bold, #3a3a52);
+  cursor: not-allowed;
+}
+.TradingCenter-Footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-8, 8px) var(--sp-16, 16px);
+  background: var(--night-deep, #14141e);
+  border-top: 1px solid var(--border-bold, #3a3a52);
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-faint, #707088);
+  letter-spacing: 0.5px;
+}
+.TradingCenter-Footer-Coins {
+  color: var(--accent, #d4a64a);
+  font-size: var(--fs-12, 12px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ===================== 猪人小贴士(欢迎进入村落) ===================== */
+.NPCGreeting {
+  position: absolute;
+  z-index: 90;
+  pointer-events: none;
+}
