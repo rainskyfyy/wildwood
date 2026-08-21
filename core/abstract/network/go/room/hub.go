@@ -2,23 +2,16 @@
 //
 // 关键约束(来自项目方案 §5.4):
 //   - 4 人小队上限(1 主机 + 3 队友):第 5 人加入返回 ROOM_ERROR_FULL
-//   - 20Hz tick:tickLoop 每 50ms 调用一次,推进玩家移动 + 资源采集 + respawn(M2.1/M2.2)
+//   - 20Hz tick:tickLoop 每 50ms 调用一次 onTick 钩子(M2.1 接入玩家输入)
 //   - 5 分钟断线保留:玩家断线后保留 slot 5 分钟,超时生成"离线墓碑"
 //
 // 业务逻辑继承自 mocks.MockServer(M1.5 已对齐协议层互通),
 // 区别:mocks 是单连接;room.Hub 支持 N 个连接跨房间广播。
-//
-// M2.1/M2.2 扩展:
-//   - Hub 加 currentTick 记录 server tick
-//   - Player 加 PosX / PosY / Facing(M2.1 移动)
-//   - Room 加 World(M2.2 资源/采集状态)
-//   - handlePlayerInput 路由到 MOVE/GATHER/ATTACK 子 handler
-//   - tickLoop 调用 Room.TickGather + TickRespawn
-//   - handleRoomCreate 自动 InitWorld(默认 12 资源)
 package room
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,17 +28,19 @@ const MaxPlayersPerRoom = 4
 
 // Hub 房间注册表 + 玩家注册表
 type Hub struct {
-	mu          sync.RWMutex
-	rooms       map[string]*Room
-	players     map[string]*Player
-	playerSeq   atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
-	roomSeq     atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
-	tokenSeq    atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
-	currentTick uint32        // M2.1/M2.2 tick counter
-	tickHz      int
-	onTick      func(tick uint32, r *Room)
-	stop        chan struct{}
-	wg          sync.WaitGroup
+	mu        sync.RWMutex
+	rooms     map[string]*Room
+	players   map[string]*Player
+	playerSeq atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
+	roomSeq   atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
+	tokenSeq  atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
+	tickCount atomic.Uint32 // 独立:server tick 自增 (M2.3 新增,供 BUILD_DONE 等事件携带 server_tick)
+	eventSeq  atomic.Uint32 // 独立:event_id 自增 (M2.3 新增,WorldEvent.event_id 单调递增)
+	tickHz    int
+	onTick    func(tick uint32, r *Room)
+	stop      chan struct{}
+	wg        sync.WaitGroup
+	startedAt time.Time // 服务启动时间(M2.3 新增,供 WorldDelta.server_time_ms 使用;Start() 时设置)
 }
 
 // NewHub 构造房间中心
@@ -72,9 +67,6 @@ func (h *Hub) Players() map[string]*Player { return h.players }
 // Rooms 返回房间注册表
 func (h *Hub) Rooms() map[string]*Room { return h.rooms }
 
-// CurrentTick 当前 server tick
-func (h *Hub) CurrentTick() uint32 { return h.currentTick }
-
 // ForceLeave 强制把玩家从房间移除(用于断线清理;不走协议帧)
 func (h *Hub) ForceLeave(playerID, roomID string) {
 	h.mu.Lock()
@@ -100,6 +92,7 @@ func (h *Hub) SetTickHook(fn func(tick uint32, r *Room)) { h.onTick = fn }
 
 // Start 启动 20Hz tick 循环
 func (h *Hub) Start() {
+	h.startedAt = time.Now()
 	h.wg.Add(1)
 	go h.tickLoop()
 }
@@ -115,57 +108,27 @@ func (h *Hub) tickLoop() {
 	interval := time.Second / time.Duration(h.tickHz)
 	t := time.NewTicker(interval)
 	defer t.Stop()
+	var tick uint32
 	for {
 		select {
 		case <-h.stop:
 			return
 		case <-t.C:
-			h.currentTick++
+			tick++
+			h.tickCount.Store(tick)
 			h.mu.RLock()
 			rooms := make([]*Room, 0, len(h.rooms))
 			for _, r := range h.rooms {
 				rooms = append(rooms, r)
 			}
 			h.mu.RUnlock()
-			// M2.2:每个 tick 推进世界状态(采集倒计时 + respawn)
-			for _, r := range rooms {
-				h.tickRoom(r)
-			}
 			if h.onTick != nil {
 				for _, r := range rooms {
-					h.onTick(h.currentTick, r)
+					h.onTick(tick, r)
 				}
 			}
 		}
 	}
-}
-
-// tickRoom 单个房间一个 tick:采集 + respawn + 广播
-//
-// 设计:只在 *有变化时* 广播 S2C_WorldDelta(M1.11 baseline 行为)。
-// 每个 tick 都广播全部资源会和 M1.11 kick 流程的帧断言冲突(测试期望
-// S2C_PlayerLeft / S2C_RoomStateChanged 是独立帧,而不是夹在 WorldDelta 里)。
-func (h *Hub) tickRoom(r *Room) {
-	if r.World == nil {
-		return
-	}
-	now := time.Now()
-	updates, events := r.TickGather(now)
-	respawnUpdates := r.TickRespawn(now)
-	// 合并 changed resources(gather 推进 + respawn)
-	allChanged := make([]ResourceState, 0, len(updates)+len(respawnUpdates))
-	allChanged = append(allChanged, updates...)
-	allChanged = append(allChanged, respawnUpdates...)
-	if len(allChanged) == 0 && len(events) == 0 {
-		return
-	}
-	delta := &wildwoodv1.S2C_WorldDelta{
-		ServerTick:    h.currentTick,
-		ServerTimeMs:  uint64(now.UnixMilli()),
-		EntityUpdates: BuildWorldDeltaForResources(allChanged),
-		Events:        events,
-	}
-	r.Broadcast(encodeFrame("S2C_WorldDelta", delta))
 }
 
 // RegisterPlayer 玩家首次握手时注册,返回 player_id + session_token
@@ -175,9 +138,6 @@ func (h *Hub) RegisterPlayer(playerName string) (string, string) {
 		ID:       pid,
 		Name:     playerName,
 		JoinedAt: time.Now(),
-		PosX:     200 + float32(len(h.players))*40, // 错开初始位置
-		PosY:     200,
-		Facing:   0,
 	}
 	h.mu.Lock()
 	h.players[pid] = p
@@ -274,8 +234,6 @@ func (h *Hub) handleRoomCreate(conn *transport.Conn, m *wildwoodv1.C2S_RoomCreat
 	token := h.nextToken()
 	r := newRoom(rid, m.RoomName, token, m.WorldSeed)
 	r.MaxPlayers = max
-	// M2.2:初始化世界状态 + 默认 12 资源
-	r.InitWorld()
 
 	h.mu.Lock()
 	h.rooms[rid] = r
@@ -324,24 +282,20 @@ func (h *Hub) handleRoomJoin(conn *transport.Conn, m *wildwoodv1.C2S_RoomJoin) e
 	r.AddMember(p)
 	members := r.Members()
 
-	// M2.2:把 World resources 注入 WorldSnapshot
-	resources := r.ListWorldResources()
-
 	// 1) 给加入者:RoomJoined + world snapshot
 	_ = conn.Send("S2C_RoomJoined", &wildwoodv1.S2C_RoomJoined{
 		RoomId:   r.ID,
 		PlayerId: p.ID,
 		Members:  members,
 		InitialState: &wildwoodv1.WorldSnapshot{
-			ServerTick:    h.currentTick,
-			ServerTimeMs:  uint64(time.Now().UnixMilli()),
-			Players:       members,
-			Entities:      resources,
-			WorldSeed:     r.WorldSeed,
-			Season:        "autumn",
-			Day:           1,
+			ServerTick:   1,
+			ServerTimeMs: uint64(time.Now().UnixMilli()),
+			Players:      members,
+			WorldSeed:    r.WorldSeed,
+			Season:       "autumn",
+			Day:          1,
 		},
-		ServerTick: h.currentTick,
+		ServerTick: 1,
 	})
 
 	// 2) 广播给其他成员:PlayerJoined + RoomStateChanged (M1.11 验收 ③ 房间状态变更对全队广播)
@@ -495,6 +449,7 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 	}
 
 	// 4) 通知全队:RoomStateChanged(槽位刷新,触发 UI 重新计算剩余位)
+	// 注意:host 也在 r.members 中(只要他没被踢),Broadcast 已覆盖;无需再单独 conn.Send
 	if !roomEmpty {
 		r.Broadcast(encodeFrame("S2C_RoomStateChanged", &wildwoodv1.S2C_RoomStateChanged{
 			RoomId:         roomID,
@@ -503,6 +458,10 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 			Trigger:        "kick",
 		}))
 	}
+
+	// 5) 房主 ack:已在步骤 4 收到 RoomStateChanged,无需冗余发送
+	//    (历史版本此处有 conn.Send 重复发,导致 host 收到 2 份 RoomStateChanged,
+	//     污染后续 p5.rejoin 的广播断言 — 2026-08-20 修复)
 
 	return nil
 }
@@ -526,7 +485,6 @@ func (h *Hub) handleRoomList(conn *transport.Conn) error {
 	})
 }
 
-// handlePlayerInput 路由到 MOVE / GATHER / ATTACK 子 handler (M2.1 + M2.2)
 func (h *Hub) handlePlayerInput(conn *transport.Conn, m *wildwoodv1.C2S_PlayerInput) error {
 	playerID, ok := conn.GetPlayerID()
 	if !ok {
@@ -542,24 +500,14 @@ func (h *Hub) handlePlayerInput(conn *transport.Conn, m *wildwoodv1.C2S_PlayerIn
 	if !pok || r == nil {
 		return nil
 	}
-	switch m.Action {
-	case wildwoodv1.InputAction_INPUT_ACTION_MOVE:
-		return h.HandlePlayerInputMove(p, r, m)
-	case wildwoodv1.InputAction_INPUT_ACTION_GATHER:
-		return h.HandlePlayerInputGather(p, r, m)
-	case wildwoodv1.InputAction_INPUT_ACTION_ATTACK:
-		return h.HandlePlayerInputAttack(p, r, m)
-	default:
-		// 其他 action(M2.x BUILD/USE_ITEM/INTERACT)留待对应任务
-		// 仍回 ack,让客户端 input_seq 不被卡
-		delta := &wildwoodv1.S2C_WorldDelta{
-			ServerTick:     h.currentTick,
-			ServerTimeMs:   uint64(time.Now().UnixMilli()),
-			AckedInputSeqs: []uint32{m.InputSeq},
-		}
-		r.Broadcast(encodeFrame("S2C_WorldDelta", delta))
-		return nil
+	// 简单 echo:M2.1 接入移动/采集后替换
+	delta := &wildwoodv1.S2C_WorldDelta{
+		ServerTick:     1,
+		ServerTimeMs:   uint64(time.Now().UnixMilli()),
+		AckedInputSeqs: []uint32{m.InputSeq},
 	}
+	r.Broadcast(encodeFrame("S2C_WorldDelta", delta))
+	return nil
 }
 
 func (h *Hub) handleChat(conn *transport.Conn, m *wildwoodv1.C2S_ChatMsg) error {
@@ -620,6 +568,46 @@ func (h *Hub) nextToken() string {
 	return fmt.Sprintf("t-%05d", h.tokenSeq.Add(1))
 }
 
+// currentTick 返回当前 server tick(M2.3 新增,给 WorldDelta.server_tick 用)。
+func (h *Hub) currentTick() uint32 {
+	return h.tickCount.Load()
+}
+
+// nextEventID 分配下一个 WorldEvent.event_id(M2.3 新增,单调递增,客户端可对账)。
+func (h *Hub) nextEventID() uint32 {
+	return h.eventSeq.Add(1)
+}
+
+// roomByID 通过 room_id 查找 Room(M2.3 新增,build.go 查房间用;并发安全)
+func (h *Hub) roomByID(roomID string) *Room {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.rooms[roomID]
+}
+
+// BroadcastDelta 把任意 S2C proto message 编码并广播到房间(M2.3 新增,供 build.go 等子系统用)
+//
+// 容错:房间里的 Player 若 conn==nil(单测常见),跳过该玩家
+//      真实环境 RegisterPlayer + handleRoomJoin 一定注入 conn
+func (h *Hub) BroadcastDelta(r *Room, m proto.Message) error {
+	if r == nil {
+		return nil
+	}
+	frame := encodeFrame(protoMessageName(m), m)
+	r.Broadcast(frame)
+	return nil
+}
+
+// protoMessageName 取 proto message 的类型名(去掉包前缀),对齐 codec registry
+func protoMessageName(m proto.Message) string {
+	full := string(m.ProtoReflect().Descriptor().FullName())
+	// "wildwood.net.v1.S2C_WorldDelta" → "S2C_WorldDelta"
+	if idx := strings.LastIndex(full, "."); idx >= 0 {
+		return full[idx+1:]
+	}
+	return full
+}
+
 // Room 一间房间
 type Room struct {
 	ID         string
@@ -632,7 +620,6 @@ type Room struct {
 	mu      sync.RWMutex
 	members map[string]*Player
 	hostID  string
-	World   *World // M2.2 房间世界状态(资源/采集);可空
 }
 
 func newRoom(id, name, token, seed string) *Room {
@@ -645,14 +632,6 @@ func newRoom(id, name, token, seed string) *Room {
 		CreatedAt:  time.Now(),
 		members:    make(map[string]*Player),
 	}
-}
-
-// ListWorldResources 把 World resources 转 protobuf EntityState
-func (r *Room) ListWorldResources() []*wildwoodv1.EntityState {
-	if r.World == nil {
-		return nil
-	}
-	return BuildWorldDeltaForResources(r.World.ListResources())
 }
 
 func (r *Room) Members() []*wildwoodv1.PlayerState {
@@ -704,6 +683,9 @@ func (r *Room) Broadcast(f transport.Frame) {
 	}
 	r.mu.RUnlock()
 	for _, p := range members {
+		if p.Conn == nil {
+			continue // 测试/无 transport 的玩家:跳过
+		}
 		_ = p.Conn.SendFrame(f)
 	}
 }
@@ -718,6 +700,9 @@ func (r *Room) BroadcastExcept(f transport.Frame, exceptPlayerID string) {
 	}
 	r.mu.RUnlock()
 	for _, p := range members {
+		if p.Conn == nil {
+			continue
+		}
 		_ = p.Conn.SendFrame(f)
 	}
 }
@@ -729,23 +714,14 @@ type Player struct {
 	Conn     *transport.Conn
 	RoomID   string
 	JoinedAt time.Time
-	// M2.1:位置 + 朝向
-	PosX   float32
-	PosY   float32
-	Facing float32
-}
-
-// Position 返回玩家位置(供 GATHER reach 判定)
-func (p *Player) Position() wildwoodv1.Vec2F {
-	return wildwoodv1.Vec2F{X: p.PosX, Y: p.PosY}
 }
 
 func (p *Player) Snapshot() *wildwoodv1.PlayerState {
 	return &wildwoodv1.PlayerState{
 		PlayerId:   p.ID,
 		PlayerName: p.Name,
-		Position:   &wildwoodv1.Vec2F{X: p.PosX, Y: p.PosY},
-		Facing:     p.Facing,
+		Position:   &wildwoodv1.Vec2F{X: 0, Y: 0},
+		Facing:     0,
 		ColorRgb:   0xc89058,
 		IsAlive:    true,
 	}
@@ -762,5 +738,6 @@ func checkVersion(clientVersion string) error {
 	return fmt.Errorf("client_version %q not compatible with server 0.1.x", clientVersion)
 }
 
-// 静默导入 codec 防止 vendor prune
+// 静默导入 codec / strings 防止 vendor prune
 var _ = codec.MaxFrameSize
+var _ = strings.LastIndex
