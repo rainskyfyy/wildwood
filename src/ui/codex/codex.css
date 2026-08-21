@@ -1,0 +1,322 @@
+/* Wildwood UI · 图鉴系统 (M2.11)
+ * 依赖: src/ui/layout/tokens.css + src/ui/components/components.css (M1.8 Dialog 复用)
+ *
+ * 双 Tab (生物 / 物品) + 64px 插画 + 6 属性 + 行为/克制 + 5Hz 解锁广播
+ * 暗黑哥特风,与 M1.7/M1.8 共用 night_black 锚点
+ *
+ * 5Hz 状态同步抽象:本子任务先建本地 mock,挂在 window.__wildwoodCodexBus
+ *   M2.12 提交后,把 LocalStateBus 替换为 M2.12 的 EventTarget 抽象即可
+ *   接口契约保持不变 (subscribe / publish / startMockBroadcast)
+ */
+
+/* ===================== 顶层容器(子页) ===================== */
+.Codex {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  padding: var(--sp-24);
+  background: var(--night-deep);
+  z-index: 20;            /* 盖在 UILayer 之上,Canvas 之下 */
+  overflow: hidden;
+}
+.Codex.is-hidden { display: none; }
+
+/* ===================== 标题栏 ===================== */
+.Codex-Header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-18);
+  color: var(--accent);
+  letter-spacing: 1px;
+  padding-bottom: var(--sp-8);
+  border-bottom: 1px solid var(--border);
+}
+.Codex-Back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 80px;
+  height: 32px;
+  padding: 0 var(--sp-16);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-2);
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.Codex-Back:hover { border-color: var(--accent); }
+
+/* 5Hz 心跳指示器(右侧) */
+.Codex-Tick {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+}
+.Codex-Tick-Dot {
+  width: 8px;
+  height: 8px;
+  background: var(--fg-faint);
+  border: 1px solid var(--night-black);
+}
+.Codex-Tick-Dot.is-on { background: var(--accent); }
+
+/* ===================== Tab 切换 ===================== */
+.Codex-Tabs {
+  display: flex;
+  gap: var(--sp-16);
+  border-bottom: 1px solid var(--border);
+}
+.Codex-Tab {
+  padding: var(--sp-8) var(--sp-16);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-14);
+  color: var(--fg-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: color 80ms linear, border-color 80ms linear;
+}
+.Codex-Tab:hover { color: var(--fg); }
+.Codex-Tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.Codex-Tab-Count {
+  display: inline-block;
+  margin-left: var(--sp-8);
+  font-size: var(--fs-10);
+  color: var(--fg-faint);
+}
+
+/* ===================== 列表容器 ===================== */
+.Codex-List {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-8);
+  overflow-y: auto;
+  padding: var(--sp-8) 0;
+}
+.Codex-List::-webkit-scrollbar { width: 8px; }
+.Codex-List::-webkit-scrollbar-track { background: var(--night-elev); }
+.Codex-List::-webkit-scrollbar-thumb { background: var(--border-bold); }
+
+/* ===================== 列表项(卡片) ===================== */
+.Codex-Item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  transition: border-color 80ms linear, transform 80ms linear;
+  image-rendering: pixelated;
+  min-height: 140px;
+}
+.Codex-Item:hover { border-color: var(--accent); }
+.Codex-Item:active { transform: translate(1px, 1px); box-shadow: var(--shadow-2); }
+
+/* 64px 插画 */
+.Codex-Item-Art {
+  width: 64px;
+  height: 64px;
+  background: var(--night-deep);
+  border: 1px solid var(--border);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  display: block;
+  margin: 0 auto;
+}
+/* 未解锁:灰显 + `??` 占位 */
+.Codex-Item.is-locked .Codex-Item-Art {
+  filter: grayscale(1) brightness(0.4);
+}
+.Codex-Item.is-locked .Codex-Item-Name,
+.Codex-Item.is-locked .Codex-Item-Stats {
+  filter: blur(2px);
+  opacity: 0.4;
+  user-select: none;
+}
+.Codex-Item.is-locked .Codex-Item-Name::after {
+  content: "??";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-24);
+  color: var(--fg-faint);
+  filter: none;
+  opacity: 1;
+}
+.Codex-Item-Name {
+  position: relative;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  text-align: center;
+  letter-spacing: 1px;
+  line-height: 1.2;
+  min-height: 28px;
+}
+.Codex-Item-Stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 4px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+.Codex-Item-Stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+}
+.Codex-Item-Stat-Key { color: var(--fg-faint); }
+.Codex-Item-Stat-Val { color: var(--fg); }
+.Codex-Item-Stat.is-warn .Codex-Item-Stat-Val { color: var(--warn-hp); }
+
+/* 解锁瞬间的脉冲高亮(5Hz 广播命中) */
+.Codex-Item.is-just-unlocked {
+  border-color: var(--accent);
+  animation: codex-pulse 1.2s steps(2) 1;
+}
+@keyframes codex-pulse {
+  0%   { box-shadow: 0 0 0 2px var(--accent), var(--shadow-2); }
+  100% { box-shadow: var(--shadow-2); }
+}
+
+/* ===================== 详情卡(复用 M1.8 Dialog) ===================== */
+/* M1.8 Dialog 已定义 .Dialog / .Dialog-Header / -Body / -Footer / -Close / -Title / -Overlay
+   本子任务只覆盖: 64px 插画区 + 6 属性表 + 行为/克制 二级区 */
+.Codex-Detail-Art {
+  display: flex;
+  gap: var(--sp-16);
+  margin-bottom: var(--sp-16);
+}
+.Codex-Detail-Art img,
+.Codex-Detail-Art .Codex-Detail-Art-Box {
+  width: 64px;
+  height: 64px;
+  background: var(--night-deep);
+  border: 1px solid var(--border);
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+.Codex-Detail-Sci {
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.Codex-Detail-Stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-8) var(--sp-16);
+  margin-bottom: var(--sp-16);
+  padding: var(--sp-8);
+  background: var(--night-deep);
+  border: 1px solid var(--border);
+}
+.Codex-Detail-Stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+}
+.Codex-Detail-Stat-Key { color: var(--fg-muted); }
+.Codex-Detail-Stat-Val { color: var(--fg); }
+.Codex-Detail-Stat.is-warn .Codex-Detail-Stat-Val { color: var(--warn-hp); }
+.Codex-Detail-Stat.is-amber .Codex-Detail-Stat-Val { color: var(--accent); }
+
+.Codex-Detail-Section {
+  margin-bottom: var(--sp-16);
+}
+.Codex-Detail-Section-Title {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--accent);
+  margin-bottom: var(--sp-8);
+  letter-spacing: 1px;
+}
+.Codex-Detail-Section-Body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+/* ===================== 解锁广播 toast ===================== */
+.Codex-Toast {
+  position: fixed;
+  top: var(--sp-24);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--sp-8) var(--sp-16);
+  background: var(--night-elev);
+  border: 1px solid var(--accent);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--accent);
+  letter-spacing: 1px;
+  z-index: 200;
+  animation: codex-toast-in 1.5s steps(2) 1;
+}
+@keyframes codex-toast-in {
+  0%   { opacity: 0; transform: translate(-50%, -8px); }
+  20%  { opacity: 1; transform: translate(-50%, 0); }
+  80%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+/* ===================== Demo 控制面板(本地 mock 触发器) ===================== */
+.Codex-Demo-Controls {
+  position: absolute;
+  bottom: var(--sp-8);
+  right: var(--sp-8);
+  display: flex;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-muted);
+  z-index: 21;
+}
+.Codex-Demo-Btn {
+  height: 24px;
+  padding: 0 var(--sp-8);
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-2);
+  color: var(--fg);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.Codex-Demo-Btn:hover { border-color: var(--accent); color: var(--accent); }
