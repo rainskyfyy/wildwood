@@ -51,10 +51,12 @@ TASKS = {
     "7676544297604238278": {"name": "M2.13 4屏交互",   "version": "v0.3", "deliverable": "4 屏交互"},
     # v0.4
     "7676546340041559002": {"name": "M3.11 压力测试",  "version": "v0.4", "deliverable": "压力测试"},
+    "7676561368459250978": {"name": "v0.4 联机系统",  "version": "v0.4", "deliverable": "联机同步"},
+    "7676561368429906908": {"name": "v0.4 音效系统",  "version": "v0.4", "deliverable": "音效接入"},
 }
 
 V03_TOTAL_DELIVERABLES = 6  # 6 个 v0.3 task
-V04_TOTAL_DELIVERABLES = 3  # HTML 列 3 个 v0.4 deliverable (1 个 task 已派发, 2 个未派发)
+V04_TOTAL_DELIVERABLES = 3  # HTML 列 3 个 v0.4 deliverable (全部已派发)
 
 # -------------------- aily-cli 桥接 --------------------
 def get_task_status(task_id):
@@ -209,26 +211,26 @@ def render_v03_deliverables(summary):
 def render_v04_deliverables(summary):
     """Render the 3 v0.4 deliverable <li> items.
 
-    Only 压力测试 has a real task ID; the other 2 (联机同步/音效接入) have
-    no aily task yet, so they show as pending.
+    All 3 have real aily tasks now (压力测试/联机同步/音效接入).
     """
     order = [
         ("7676546340041559002", "压力测试",   "500×500 地图、500 实体 FPS、碰撞检测", "高级开发工程师"),
-        ("v04-slot-multiplayer", "联机同步",  "客户端-服务器状态同步",                "未派发"),
-        ("v04-slot-audio",      "音效接入",  "BGM + SFX 音效系统",                   "未派发"),
+        ("7676561368459250978", "联机同步",   "P2P/WebRTC 联机、状态同步、断线重连", "高级开发工程师"),
+        ("7676561368429906908", "音效接入",   "BGM + SFX 音效系统、Web Audio API",    "高级开发工程师"),
     ]
     out = []
     for tid, label, body, owner in order:
         if tid in TASKS:
             st = TASKS[tid]["_status"]
         else:
-            st = None  # 未派发
+            st = None
         if st == "done":
             svg, owner_disp = SVG_DONE, owner
         elif st == "in_progress":
             svg, owner_disp = SVG_ACTIVE, owner
         else:
-            svg, owner_disp = SVG_PENDING, "未派发"
+            svg = SVG_PENDING
+            owner_disp = owner if tid in TASKS else "未派发"
         out.append(f'''        <li class="deliverable">
           <span class="icon">{svg}</span>
           <span class="text"><strong>{label}</strong>:{body}<span class="assignee">负责人 · {owner_disp}</span></span>
