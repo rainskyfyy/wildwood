@@ -1,13 +1,7 @@
+# perf-ci 运行时输出 (lhci-data-collect.mjs / first-paint-collect.mjs / split-pck.mjs)
+.perf-ci-reports/
+
+# Node
 node_modules/
-.DS_Store
 *.log
-.svelte-kit/
-build/
-dist/
-.godot/
-*.pyc
-__pycache__/
-.idea/
-.vscode/
-.web-test-results/
-.bundle/
+.DS_Store

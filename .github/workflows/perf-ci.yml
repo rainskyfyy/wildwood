@@ -58,6 +58,18 @@ jobs:
           node scripts/split-pck.mjs scripts/split-pck/test_input/resource-list.json --dry-run
           echo "✓ split-pck dry-run passed"
 
+      # ----- Lighthouse + first-paint 采集 (M3.10 缺失的 2 项验收) -----
+      # 沙箱 / dry-run 只跑 self-test;真实 URL 由后续 PR 跑通 build + staging 之后填 PERF_CI_URL 即可
+      - name: Lighthouse data collect (self-test)
+        run: |
+          node scripts/lhci-data-collect.mjs --self-test
+          echo "✓ lhci-data-collect self-test passed (4 项 assertion + manifest.json 就位)"
+
+      - name: First-paint data collect (self-test)
+        run: |
+          node scripts/first-paint-collect.mjs --self-test
+          echo "✓ first-paint-collect self-test passed (4 项指标 schema + manifest.json 就位)"
+
       - name: Upload scripts
         if: always()
         uses: actions/upload-artifact@v4
