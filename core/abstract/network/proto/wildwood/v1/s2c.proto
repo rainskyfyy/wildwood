@@ -66,22 +66,6 @@ message S2C_PlayerLeft {
   string reason    = 3;            // "leave" / "kicked" / "timeout" / "crash"
 }
 
-// 被踢通知(给被踢客户端;其他人只看到 PlayerLeft)
-message S2C_RoomKicked {
-  string room_id          = 1;
-  string kicked_by_id     = 2;     // 谁踢的(房主 id)
-  string reason           = 3;     // 房主留言或 "kicked_by_host"
-  uint64 server_time_ms   = 4;
-}
-
-// 房间状态变化(成员数变化时由服务端主动广播,玩家 UI 刷新槽位)
-message S2C_RoomStateChanged {
-  string room_id         = 1;
-  uint32 current_players = 2;
-  uint32 max_players     = 3;
-  string trigger         = 4;      // "join" / "leave" / "kick" / "disconnect"
-}
-
 message S2C_RoomState {
   string room_id         = 1;
   uint32 current_players = 2;

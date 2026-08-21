@@ -51,17 +51,6 @@ message C2S_RoomLeave {
   string room_id = 1;
 }
 
-// 房主踢人(M1.11 验收 ②)
-//   - 仅 host 可调用,非 host 返回 ROOM_ERROR_INVALID_INPUT
-//   - 服务端校验:目标在同房间 + 调用者是 host
-//   - 成功后:被踢者收到 S2C_RoomKicked(reason="kicked_by_host"),
-//     全队收到 S2C_PlayerLeft(reason="kicked"),槽位立即释放
-message C2S_RoomKick {
-  string room_id          = 1;
-  string target_player_id = 2;     // 要踢出的玩家 id
-  string reason           = 3;     // 房主留言(≤ 64 字符),被踢客户端可显示
-}
-
 // 房间列表查询(大厅 UI,M2.x 接入)
 message C2S_RoomList {
   uint32 page     = 1;             // 0-based

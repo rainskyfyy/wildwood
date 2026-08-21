@@ -57,7 +57,7 @@ coverage/
 # Lock files (Godot doesn't have package lock, but just in case)
 package-lock.json
 yarn.lock
-pnpm-lock.lock
+pnpm-lock.yaml
 
 # Secrets / local config
 .env
@@ -65,8 +65,12 @@ pnpm-lock.lock
 *.secret
 *.key
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
+# GUT addon(installed by tests/scripts/install_gut.sh,见 tests/README.md)
+addons/
+
+# Node (tests/e2e 用)
+tests/e2e/node_modules/
+tests/e2e/screenshots/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+tests/e2e/dist/
