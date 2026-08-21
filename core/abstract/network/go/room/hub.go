@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"strings"
 	"time"
 
 	wildwoodv1 "github.com/wildwood/net/wildwood/v1"
@@ -50,6 +51,9 @@ type Hub struct {
 	stop        chan struct{}
 	wg          sync.WaitGroup
 	startedAt   time.Time // 服务启动时间(M2.3 新增,供 WorldDelta.server_time_ms 使用;Start() 时设置)
+
+	// M2.5 死亡与复活子系统
+	ds *DeathSubSystem
 }
 
 // NewHub 构造房间中心
@@ -62,6 +66,13 @@ func NewHub(tickHz int) *Hub {
 		players: make(map[string]*Player),
 		tickHz:  tickHz,
 		stop:    make(chan struct{}),
+	}
+}
+
+// initHubDeath 惰性初始化死亡子系统(供 hub_test / M2.5 测试在 Start 之前调)
+func (h *Hub) initHubDeath() {
+	if h.ds == nil {
+		h.ds = NewDeathSubSystem(h)
 	}
 }
 
@@ -104,6 +115,7 @@ func (h *Hub) SetTickHook(fn func(tick uint32, r *Room)) { h.onTick = fn }
 
 // Start 启动 20Hz tick 循环
 func (h *Hub) Start() {
+	h.initHubDeath()
 	h.startedAt = time.Now()
 	h.wg.Add(1)
 	go h.tickLoop()
@@ -128,6 +140,8 @@ func (h *Hub) tickLoop() {
 			tick++
 			h.currentTick = tick
 			h.tickCount.Store(tick)
+			// M2.5: 推进鬼魂倒计时(超时的 GHOST → DEAD + 遗物)
+			h.TickDeath(tick)
 			h.mu.RLock()
 			rooms := make([]*Room, 0, len(h.rooms))
 			for _, r := range h.rooms {
@@ -747,6 +761,9 @@ func (r *Room) Broadcast(f transport.Frame) {
 	r.mu.RLock()
 	members := make([]*Player, 0, len(r.members))
 	for _, p := range r.members {
+		if p.Conn == nil {
+			continue // M2.5 单测常见:RegisterPlayer 没接 conn;真实环境必有
+		}
 		members = append(members, p)
 	}
 	r.mu.RUnlock()
@@ -817,4 +834,43 @@ func checkVersion(clientVersion string) error {
 
 // 静默导入 codec / strings 防止 vendor prune
 var _ = codec.MaxFrameSize
+
+// -------------------- M2.5 死亡与复活 helper --------------------
+
+// BroadcastDelta 把任意 S2C proto message 编码并广播到房间(供 death.go 等子系统用)
+//
+// 容错:房间里的 Player 若 conn==nil(M2.5 单测常见,因不走真实 WS),跳过该玩家
+//      真实环境 RegisterPlayer + handleRoomJoin 一定注入 conn
+func (h *Hub) BroadcastDelta(r *Room, m proto.Message) error {
+	if r == nil {
+		return nil
+	}
+	frame := encodeFrame(protoMessageName(m), m)
+	r.Broadcast(frame)
+	return nil
+}
+
+// protoMessageName 取 proto message 的类型名(去掉包前缀),对齐 codec registry
+func protoMessageName(m proto.Message) string {
+	full := string(m.ProtoReflect().Descriptor().FullName())
+	// "wildwood.net.v1.S2C_WorldDelta" → "S2C_WorldDelta"
+	if idx := strings.LastIndex(full, "."); idx >= 0 {
+		return full[idx+1:]
+	}
+	return full
+}
+
+// 静默导入 strings 防止 vendor prune
 var _ = strings.LastIndex
+
+// -------------------- M2.5 tick / event id 工具 --------------------
+
+// currentTick 返回累计 tick(从 Start() 之后 0 开始累加)
+func (h *Hub) currentTick() uint32 {
+	return h.tickCount.Load()
+}
+
+// nextEventID 分配下一个事件 id
+func (h *Hub) nextEventID() uint32 {
+	return h.eventSeq.Add(1)
+}
