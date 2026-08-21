@@ -305,3 +305,123 @@ func floatNear(a, b, eps float64) bool {
 	}
 	return d <= eps
 }
+
+// ============================================================
+// 6. NaN/Inf 防护(Task 6:服务端校验增强)
+// ============================================================
+
+func TestAuthState_RejectNaNMoveVector(t *testing.T) {
+	s := newAuthStateForTest()
+	// MoveDx = NaN
+	in := &wildwoodv1.C2S_PlayerInput{
+		InputSeq:     1,
+		Action:       wildwoodv1.InputAction_INPUT_ACTION_MOVE,
+		MoveDx:       float32(math.NaN()),
+		MoveDy:       0.0,
+		Facing:       0.0,
+		ClientTimeMs: uint64(time.Now().UnixMilli()),
+	}
+	ok, reason := s.ApplyInput(in)
+	if ok {
+		t.Fatalf("NaN move vector accepted")
+	}
+	if reason != "non-finite move vector" {
+		t.Logf("reason=%s (expected non-finite move vector)", reason)
+	}
+	x, y := s.Pos()
+	if x != m31TestStartX || y != m31TestStartY {
+		t.Fatalf("pos changed after NaN: (%.3f,%.3f)", x, y)
+	}
+}
+
+func TestAuthState_RejectInfMoveVector(t *testing.T) {
+	s := newAuthStateForTest()
+	in := &wildwoodv1.C2S_PlayerInput{
+		InputSeq:     1,
+		Action:       wildwoodv1.InputAction_INPUT_ACTION_MOVE,
+		MoveDx:       float32(math.Inf(1)),
+		MoveDy:       0.0,
+		Facing:       0.0,
+		ClientTimeMs: uint64(time.Now().UnixMilli()),
+	}
+	ok, reason := s.ApplyInput(in)
+	if ok {
+		t.Fatalf("+Inf move vector accepted")
+	}
+	if reason == "" {
+		t.Fatalf("expected rejection reason")
+	}
+	x, y := s.Pos()
+	if x != m31TestStartX || y != m31TestStartY {
+		t.Fatalf("pos changed after Inf: (%.3f,%.3f)", x, y)
+	}
+}
+
+func TestAuthState_RejectNaNFacing(t *testing.T) {
+	s := newAuthStateForTest()
+	in := &wildwoodv1.C2S_PlayerInput{
+		InputSeq:     1,
+		Action:       wildwoodv1.InputAction_INPUT_ACTION_ATTACK,
+		TargetEntityId: 42,
+		Facing:       float32(math.NaN()),
+		ClientTimeMs: uint64(time.Now().UnixMilli()),
+	}
+	ok, reason := s.ApplyInput(in)
+	if ok {
+		t.Fatalf("NaN facing accepted")
+	}
+	if reason != "non-finite facing" {
+		t.Logf("reason=%s (expected non-finite facing)", reason)
+	}
+}
+
+func TestAuthState_RejectInfFacing(t *testing.T) {
+	s := newAuthStateForTest()
+	in := &wildwoodv1.C2S_PlayerInput{
+		InputSeq:     1,
+		Action:       wildwoodv1.InputAction_INPUT_ACTION_MOVE,
+		MoveDx:       0.5,
+		MoveDy:       0.0,
+		Facing:       float32(math.Inf(-1)),
+		ClientTimeMs: uint64(time.Now().UnixMilli()),
+	}
+	ok, reason := s.ApplyInput(in)
+	if ok {
+		t.Fatalf("-Inf facing accepted")
+	}
+	if reason == "" {
+		t.Fatalf("expected rejection reason")
+	}
+}
+
+func TestAuthState_RejectNaNMoveVector_Dy(t *testing.T) {
+	// MoveDy = NaN → 也应被拒
+	s := newAuthStateForTest()
+	in := &wildwoodv1.C2S_PlayerInput{
+		InputSeq:     1,
+		Action:       wildwoodv1.InputAction_INPUT_ACTION_MOVE,
+		MoveDx:       0.0,
+		MoveDy:       float32(math.NaN()),
+		Facing:       0.0,
+		ClientTimeMs: uint64(time.Now().UnixMilli()),
+	}
+	if ok, _ := s.ApplyInput(in); ok {
+		t.Fatalf("NaN MoveDy accepted")
+	}
+}
+
+func TestAuthState_RejectNegativeInfMoveVector(t *testing.T) {
+	// -Inf 也应被拒(单轴检查会捕获,但显式测试)
+	s := newAuthStateForTest()
+	in := &wildwoodv1.C2S_PlayerInput{
+		InputSeq:     1,
+		Action:       wildwoodv1.InputAction_INPUT_ACTION_MOVE,
+		MoveDx:       float32(math.Inf(-1)),
+		MoveDy:       0.0,
+		Facing:       0.0,
+		ClientTimeMs: uint64(time.Now().UnixMilli()),
+	}
+	if ok, _ := s.ApplyInput(in); ok {
+		t.Fatalf("-Inf move vector accepted")
+	}
+}

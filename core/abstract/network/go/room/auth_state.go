@@ -95,9 +95,14 @@ func (s *AuthState) LastInputSeq() uint32 {
 //   3. |v| > 1(双轴均 ≤ 1 但长度 > 1)→ 单位化(对角线不过冲)
 //   4. 速率窗口 > AuthStateMaxInputsPerWin → 拒绝(>60Hz)
 //   5. 应用后位置越界(±1024m) → 拒绝
+//   6. NaN/Inf 输入向量或朝向 → 拒绝(防 DoS/状态污染)
 func (s *AuthState) ApplyInput(in *wildwoodv1.C2S_PlayerInput) (bool, string) {
 	if in == nil {
 		return false, "nil input"
+	}
+	// 6. 朝向 NaN/Inf 防护(任何动作都拒)
+	if math.IsNaN(float64(in.Facing)) || math.IsInf(float64(in.Facing), 0) {
+		return false, "non-finite facing"
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -129,6 +134,12 @@ func (s *AuthState) ApplyInput(in *wildwoodv1.C2S_PlayerInput) (bool, string) {
 
 	dx, dy := float64(in.MoveDx), float64(in.MoveDy)
 
+	// 6. NaN/Inf 防护:NaN 让 Hypot/比较失效,Inf 让单轴检查失效
+	//   必须显式 IsNaN/IsInf(因为 NaN > 1 == false)
+	if math.IsNaN(dx) || math.IsNaN(dy) || math.IsInf(dx, 0) || math.IsInf(dy, 0) {
+		return false, "non-finite move vector"
+	}
+
 	// 2. 单轴超速
 	if math.Abs(dx) > 1.0 || math.Abs(dy) > 1.0 {
 		return false, fmt.Sprintf("overspeed component: dx=%.3f dy=%.3f", dx, dy)
@@ -147,6 +158,10 @@ func (s *AuthState) ApplyInput(in *wildwoodv1.C2S_PlayerInput) (bool, string) {
 
 	// 5. 越界检查(像素单位 = 米 × 32;半 bound = 1024m = 32768px)
 	maxPx := AuthStateWorldHalfBound * AuthStateTilePx
+	if math.IsNaN(nx) || math.IsNaN(ny) || math.IsInf(nx, 0) || math.IsInf(ny, 0) {
+		// 防御性:即使上面 NaN/Inf 防护已生效,也兜底检查
+		return false, "non-finite position"
+	}
 	if math.Abs(nx) > maxPx || math.Abs(ny) > maxPx {
 		return false, fmt.Sprintf("out of bounds: (%.2f,%.2f) > ±%.0fpx", nx, ny, maxPx)
 	}
