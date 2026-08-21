@@ -28,48 +28,33 @@ data_*/
 __pycache__/
 *.pyc
 *.pyo
-.pytest_cache/
 
-# .NET / C# build outputs (if using C# in future)
-bin/
-obj/
-*.csproj
-*.sln
-*.user
+# GUT addon(installed by tests/scripts/install_gut.sh,见 tests/README.md)
+addons/
 
-# Godot export presets secrets (don't commit)
-export_credentials.cfg
-export_presets.cfg.user
+# Node (tests/e2e 用)
+tests/e2e/node_modules/
+tests/e2e/screenshots/
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+tests/e2e/dist/
 
-# Editor / IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
-
-# OS files
-*.tmp
-*.bak
-*.log
-
-# Python (M1.4+ 数据层 + 后续 CI 脚本)
+# Python (M1.4 data layer + M2.8 world/season/daynight tests)
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
 .pytest_cache/
 .mypy_cache/
-.ruff_cache/
-*.egg-info/
+.coverage
+htmlcov/
+.tox/
+.nox/
 
-# CI / build artifacts
-build/
-dist/
-out/
-*.zip
-!docs/**/*.zip
+# Godot import cache (auto-regenerated on editor open)
+.import/
+addons/gut/
 
 # Test artifacts
 test_results/
@@ -87,13 +72,3 @@ pnpm-lock.yaml
 .env.local
 *.secret
 *.key
-
-# GUT addon(installed by tests/scripts/install_gut.sh,见 tests/README.md)
-addons/
-
-# Node (tests/e2e 用)
-tests/e2e/node_modules/
-tests/e2e/screenshots/
-tests/e2e/playwright-report/
-tests/e2e/test-results/
-tests/e2e/dist/
