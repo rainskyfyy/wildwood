@@ -16,13 +16,14 @@ echo ""
 echo "[M3.1] === 2) 跑 Python 端预测 + 插值 + 集成测试 ==="
 cd "$ROOT"
 python3 -m pytest \
-    core/abstract/network/python3/tests/test_prediction.py \
-    core/abstract/network/python3/tests/test_interpolation.py \
-    core/abstract/network/python3/tests/test_m31_integration.py \
-    -v 2>&1 | tail -10
+    core/abstract/network/python3/wildwood/tests/test_prediction.py \
+    core/abstract/network/python3/wildwood/tests/test_interpolation.py \
+    core/abstract/network/python3/wildwood/tests/test_m31_integration.py \
+    -v 2>&1 | tail -15
 
 echo ""
 echo "[M3.1] === 3) 跑 1000-tick 压力测试(p99 < 16ms)==="
+cd "$ROOT/core/abstract/network/go"
 go test -run 'TestM31_HubTick_TimingStress' -v ./room/ 2>&1 | tail -10
 
 echo ""
@@ -41,7 +42,7 @@ for f in \
     core/abstract/network/go/room/hub.go \
     core/abstract/network/go/room/auth_state.go \
     core/abstract/network/go/room/m31_auth_test.go \
-    core/abstract/network/go/room/m31_hub_tick_test.go \
+    core/abstract/network/go/room/m31_hub_broadcast_test.go \
     core/abstract/network/go/room/m31_tick_timing_test.go \
     scripts/network_client.gd \
     scripts/player_controller.gd \
@@ -88,14 +89,15 @@ done
 
 echo ""
 echo "[M3.1] === 6) 性能断言:Go 1000-tick p99 < 16ms ==="
-RESULT=$(go -C "$ROOT/core/abstract/network/go" test -run 'TestM31_HubTick_TimingStress' -v ./room/ 2>&1 | grep -oE 'p99=[0-9.]+ms' | head -1 || true)
+# 抓 "deviation: p99=Xms"(真正测试的偏差),不用 "p99=Xms"(tick period,50ms 量级)
+RESULT=$(go -C "$ROOT/core/abstract/network/go" test -run 'TestM31_HubTick_TimingStress' -v ./room/ 2>&1 | grep -oE 'deviation: p99=[0-9.]+ms' | head -1 || true)
 if [ -z "$RESULT" ]; then
-    echo "  ✗ 压力测试未输出 p99" >&2
+    echo "  ✗ 压力测试未输出 deviation p99" >&2
     exit 1
 fi
-P99=$(echo "$RESULT" | grep -oE '[0-9.]+' | head -1)
-echo "  p99 = ${P99} ms (预算 16 ms / tick @ 60Hz)"
-python3 -c "import sys; sys.exit(0 if $P99 < 16.0 else 1)" || {
+P99=$(echo "$RESULT" | sed -E 's/^deviation: p99=([0-9.]+)ms$/\1/')
+echo "  p99 deviation = ${P99} ms (预算 16 ms / tick @ 60Hz)"
+python3 -c "import sys; sys.exit(0 if float('$P99') < 16.0 else 1)" || {
     echo "  ✗ p99 ${P99}ms exceeds 16ms budget" >&2
     exit 1
 }
