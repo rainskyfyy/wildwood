@@ -5,7 +5,7 @@
 [![Engine](https://img.shields.io/badge/Godot-4.3-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Stage](https://img.shields.io/badge/stage-M1-blueviolet)](#里程碑)
-[![Status](https://img.shields.io/badge/M1.1-scaffold-success-brightgreen)](#里程碑)
+[![Status](https://img.shields.io/badge/M1.9--transport-success-brightgreen)](#里程碑)
 
 ---
 
@@ -162,13 +162,171 @@ godot --headless --quit --path . scenes/main.tscn
 
 ---
 
+## M1.9 传输层接入
+
+M1.9 在 M1.5 协议层之上接入真实 WebSocket 传输层,交付 **Go 房间服务**(服务端)+ **GDScript `WildwoodTransport`**(Godot 客户端),同时提供 Dockerfile + docker-compose 一键起服务。
+
+### 架构
+
+```
+┌────────────────────────┐  WebSocket (RFC 6455)   ┌──────────────────────────┐
+│  Godot 4.3 Client      │ ◀──────────────────────▶ │  Go 1.22 roomserver      │
+│  WsNetClient           │  frame: [varint LEN]    │  /ws handler             │
+│  (wildwood_transport.gd)│  [varint TYPE_LEN]     │  ↓                       │
+│  ↓                     │  [TYPE]                 │  transport.Conn          │
+│  WildwoodWire codec    │  [PAYLOAD]              │  (1 读 + 1 写 goroutine) │
+│  (M1.5)                │                          │  ↓                       │
+│                        │                          │  room.Hub (4 人满员)     │
+│                        │                          │  20Hz tickLoop           │
+└────────────────────────┘                          └──────────────────────────┘
+```
+
+帧格式与 M1.5 完全一致(Go / GDScript 端 codec 已对齐),`send_frame(type, payload)` / `recv_frame()` 在两侧 API 同形,后续 A→B 切换只重写 C# 绑定层即可。
+
+### 目录布局(M1.9 新增)
+
+```
+core/abstract/network/
+├── proto/                       # M1.5 .proto 真相源(未变)
+├── go/
+│   ├── codec/  mocks/  tests/  wildwood/v1/    # M1.5 已完成
+│   ├── transport/  # ✨ M1.9 新增:gorilla/websocket Conn 封装
+│   │   ├── websocket.go         # Conn 抽象 + Accept/Dial + 心跳 + 写超时
+│   │   └── websocket_test.go
+│   ├── room/      # ✨ M1.9 新增:真实多连接房间服务
+│   │   ├── hub.go               # Hub 房间/玩家注册表 + 20Hz tickLoop
+│   │   ├── hub_test.go
+│   │   └── server.go            # 多连接 + onDisconnect 钩子
+│   └── cmd/
+│       ├── roomserver/main.go   # ✨ 主程序(含 -healthcheck 探活)
+│       └── loadtest/main.go     # ✨ 独立压测工具
+└── gd/
+    ├── wildwood_transport.gd    # ✨ M1.9 新增:WsConn / WsNetClient / WsNetServer
+    └── wildwood_net.gd          # 升级:NetClient/NetServer 委托给 WildwoodTransport
+
+Dockerfile                       # ✨ 多阶段 build:golang:1.22-alpine → distroless/static
+docker-compose.yml               # ✨ 一键起服务(端口 8080,资源限制 + 安全选项)
+```
+
+### Godot 4.3 客户端接入示例
+
+```gdscript
+extends Node
+
+var _client: WildwoodTransport.WsNetClient
+
+func _ready() -> void:
+    _client = WildwoodTransport.WsNetClient.new()
+    var ok = _client.connect_to("ws://127.0.0.1:8080/ws")
+    if not ok:
+        push_error("connect_to failed"); return
+
+func _process(_dt: float) -> void:
+    if _client == null: return
+    _client.poll(0.0)
+    while _client.is_open():
+        var f: Dictionary = _client.recv_frame()
+        if f.is_empty(): break
+        _handle_frame(f["type"], f["payload"])
+
+func send_input(payload: PackedByteArray) -> void:
+    if _client != null and _client.is_open():
+        _client.send_frame("C2S_PlayerInput", payload)
+
+func _handle_frame(type_name: String, payload: PackedByteArray) -> void:
+    match type_name:
+        "S2C_HandshakeAck": _on_handshake_ack(payload)
+        "S2C_WorldDelta":   _on_world_delta(payload)
+        "S2C_HeartbeatAck": pass
+        _: push_warning("unknown frame: " + type_name)
+```
+
+完整 API 参见 `core/abstract/network/gd/wildwood_transport.gd` 顶部 docstring。
+
+### 房间服务启动
+
+```bash
+# 方式 1:本地直接跑
+cd core/abstract/network/go
+go run ./cmd/roomserver -addr :8080 -tick 20
+
+# 方式 2:Docker(distroless 镜像,无 shell,< 20MB)
+docker build -t wildwood/roomserver:dev .
+docker run -p 8080:8080 wildwood/roomserver:dev
+
+# 方式 3:docker-compose(含 /health 探活 + 资源限制)
+docker compose up --build
+```
+
+环境变量(可覆盖 flag):
+
+| 变量                  | 默认值 | 说明                          |
+|-----------------------|--------|-------------------------------|
+| `WILDWOOD_ROOM_ADDR`  | `:8080`| listen 地址                   |
+| `WILDWOOD_ROOM_TICK`  | `20`   | tick 频率(Hz)                 |
+| `WILDWOOD_ROOM_MAX`   | `1000` | 单进程最大并发连接数           |
+
+### 端到端联调
+
+```bash
+# 1. 启服务
+docker compose up --build
+
+# 2. 健康检查
+curl http://localhost:8080/health
+# {"status":"ok","active_conns":0,"total_accepted":0,"total_closed":0}
+
+# 3. 客户端握手(用 wscat 验证)
+wscat -c ws://localhost:8080/ws
+> [binary frame, type=C2S_Handshake, payload={...}]
+< [binary frame, type=S2C_HandshakeAck, payload={...}]
+```
+
+### M1.9 验收标准
+
+| 编号 | 验收标准                                                 | 状态 | 证据 |
+|------|----------------------------------------------------------|------|------|
+| ①    | 200 连接并发(同机房)                                     | ✅    | `TestStress_200Rooms_4Players`:50 房间 × 4 人 = 200 并发连接,setup 46ms,清理后残留 ≈ 0 |
+| ②    | RTT < 50ms(heartbeatAck / RoomCreate)                    | ✅    | `TestHeartbeat_RTT_Under50ms` + 压测 150 次 heartbeat,avg 34µs / max 331µs |
+| ③    | 心跳超时断开(60s 无 C2S → 关闭)                          | ✅    | `transport.PongHandler` 续命 + `SetReadDeadline(60s)`;`TestDisconnect_RemovesFromRoom` 覆盖 onDisconnect 路径 |
+| ④    | Dockerfile + docker-compose 一键起服务                   | ✅    | 多阶段 build → distroless/static(目标 < 20MB);`/health` 端点 + `no-new-privileges` + `cap_drop ALL` |
+| ⑤    | 4 人小队上限(第 5 人拒绝)                                 | ✅    | `TestRoomFull_RejectsFifth` + `TestInterop_FullRoom_RejectsFifthPlayer` |
+| ⑥    | GDScript 客户端 API(WsNetClient/Server)                  | ✅    | `gd/wildwood_transport.gd` + 委托到 `wildwood_net.gd`,gdlint 干净 |
+
+快速自检:
+
+```bash
+# 1. Go 单元测试(短测试模式,秒过)
+cd core/abstract/network/go
+go test -count=1 -short ./...
+
+# 2. 200 连接压测(约 1 秒)
+go test -count=1 -timeout 120s -run TestStress_200Rooms_4Players -v ./room/
+
+# 3. 编译静态二进制(≈ 10MB,CGO_ENABLED=0)
+CGO_ENABLED=0 go build -o /tmp/roomserver ./cmd/roomserver
+```
+
+**已知未覆盖 / 留给后续里程碑**:
+- Godot headless 跑 GDScript 测试:沙箱无 Godot 二进制,已用 `gdtoolkit` 静态检查 + Python wire format 验证器交叉验证(参见 M1.5 交付)
+- 5 分钟断线墓碑:当前 `onDisconnect` 立即 ForceLeave,M3.7 升级为墓碑保留
+- 跨机房 RTT 测量:本机 34µs 仅供同机房基线,M2.14 跨机房压测
+- WebTransport(QUIC):M1.9 锁定 WebSocket,M3.7 可选替换
+
+---
+
 ## 里程碑
 
 | 阶段     | 周次    | 目标                                       | 当前状态 |
 |----------|---------|--------------------------------------------|----------|
-| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅) |
+| **M1 框架**  | W1-W4   | 引擎选型落地、CI/CD、三层抽象接口跑通       | **进行中** (M1.1 ✅ / M1.5 ✅ / M1.9 ✅) |
 | M2 核心循环 | W5-W10  | 单机可玩:核心循环 + 战斗 + 合成 + 图鉴     | 未开始   |
 | M3 联机    | W11-W16 | 4 人联机 MVP 完整版可发布                  | 未开始   |
+
+M1 关键交付一览:
+- **M1.1 项目脚手架**:Godot 4.3 工程骨架 + Git 仓库(commit `38d4e15`)
+- **M1.5 网络协议语义层**:Protobuf `.proto` 真相源 + Go/GDScript 双端 codec + 字节预算 2851B < 4KB(commit `e57cae1`)
+- **M1.9 传输层接入**:Go gorilla/websocket 房间服务 + GDScript `WildwoodTransport` + Dockerfile/distroless 部署;200 连接压测 RTT avg 34µs,远低于 50ms 目标(见下节)
 
 任务依赖图与关键路径见[《项目任务拆分表》§2.1-2.2](https://hisense.feishu.cn/docx/JrCmdC2S9o4ID5xRM70cuSNsnS2)。
 

@@ -1,11 +1,11 @@
 class_name WildwoodNet
 extends RefCounted
-## Wildwood M1.5 — 高层网络抽象(NetClient/NetServer)
+## Wildwood M1.5 + M1.9 — 高层网络抽象(NetClient/NetServer)
 ##
 ## 提供:
 ##   1. MockPipe  + MockEndpoint: 内存管道(对端为 MockClient/MockServer)
 ##   2. MockClient/MockServer: 协议层 mock 实现(对标 Go mocks 包)
-##   3. NetClient/NetServer: 真实传输层桩位(M1.9 由工作台搭建师补)
+##   3. NetClient/NetServer: 真实传输层(转委托给 WildwoodTransport,WebSocket)
 ##
 ## A/B 通用:不依赖 WebSocket/UDP/QUIC;只暴露字符串类型 + 二进制帧。
 ##
@@ -16,8 +16,14 @@ extends RefCounted
 ##   srv.start()
 ##   cli.handshake("0.1.0", "player-1")
 ##   var resp = await cli.recv()
+##
+## 真实传输(委托给 WildwoodTransport):
+##   var cli = WildwoodNet.NetClient.new()
+##   cli.connect_to("ws://127.0.0.1:8080/ws")
+##   # 每帧调 cli.poll(0.0) 推进;之后用 send/recv 收发
 
 const WildwoodWire = preload("res://core/abstract/network/gd/wildwood_wire.gd")
+const WildwoodTransport = preload("res://core/abstract/network/gd/wildwood_transport.gd")
 const C2S = preload("res://core/abstract/network/gd/wildwood_c2s.gd")
 const S2C = preload("res://core/abstract/network/gd/wildwood_s2c.gd")
 const CommonTypes = preload("res://core/abstract/network/gd/wildwood_common.gd")
@@ -372,43 +378,119 @@ class MockClient:
 
 
 # ============================================================
-# NetClient/NetServer(真实传输层桩位;M1.9 由工作台搭建师实现)
+# NetClient/NetServer(真实传输层;M1.9 委托给 WildwoodTransport)
 # ============================================================
 
 class NetClient extends RefCounted:
 	## 客户端:连上服务端后,把 proto message 编码为帧,写到 transport。
-	## M1.5 阶段仅做字段占位;M1.9 由工作台搭建师补 WebSocket/UDP 实现。
-	var _transport = null  # WebSocket/QUIC(待 M1.9+ 接入)
+	## M1.9 委托给 WildwoodTransport.WsNetClient(WebSocket)。
+	var _ws: WildwoodTransport.WsNetClient = WildwoodTransport.WsNetClient.new()
 	var _frame_reader: WildwoodWire.FrameReader = WildwoodWire.FrameReader.new()
-	var _is_open: bool = false
 
-	func connect(_url: String) -> bool:
-		push_warning("NetClient.connect: stub, M1.9+ 接入")
-		return false
+	func connect_to(url: String, protocols: PackedStringArray = PackedStringArray()) -> int:
+		return _ws.connect_to(url, protocols)
 
-	func send(_type_name: String, _value) -> bool:
-		push_warning("NetClient.send: stub")
-		return false
+	func poll(delta: float = 0.0) -> void:
+		_ws.poll(delta)
 
+	func is_connecting() -> bool:
+		return _ws.is_connecting()
+
+	func is_open() -> bool:
+		return _ws.is_open()
+
+	func is_closed() -> bool:
+		return _ws.is_closed()
+
+	func get_close_code() -> int:
+		return _ws.get_close_code()
+
+	func get_close_reason() -> String:
+		return _ws.get_close_reason()
+
+	## 通用帧发送:把 (type_name, value) 编码后写入 transport
+	func send(type_name: String, value) -> bool:
+		var payload: PackedByteArray
+		if type_name.begins_with("C2S_"):
+			payload = C2S.encode(type_name, value)
+		elif type_name.begins_with("S2C_"):
+			payload = S2C.encode(type_name, value)
+		else:
+			push_error("NetClient.send: unknown type %s" % type_name)
+			return false
+		return _ws.send_frame(type_name, payload)
+
+	## 底层帧发送(已编码的 payload)
+	func send_frame(type_name: String, payload: PackedByteArray) -> bool:
+		return _ws.send_frame(type_name, payload)
+
+	## 取一帧(自动 poll);返回 {type, payload, eof}
 	func recv() -> Dictionary:
-		return {"type": "", "payload": PackedByteArray(), "eof": true}
+		_ws.poll(0.0)
+		return _ws.recv_frame()
 
-	func close() -> void:
-		_is_open = false
+	func close(code: int = 1000, reason: String = "bye") -> void:
+		_ws.close(code, reason)
 
 
 class NetServer extends RefCounted:
 	## 服务端:接收连接,逐帧解析,调用 handler。
-	## M1.5 阶段仅做字段占位;M1.9 由工作台搭建师补 WebSocket/UDP 实现。
-	var _port: int = 0
-	var _handler: Callable = Callable()
+	## M1.9 委托给 WildwoodTransport.WsNetServer(TCPServer + WebSocketPeer upgrade)。
 
-	func listen(_port: int, _handler: Callable) -> bool:
-		push_warning("NetServer.listen: stub, M1.9+ 接入")
-		return false
+	# 公开回调:handler(peer_id, type_name, payload)
+	var handler: Callable = Callable()
+	var on_connect: Callable = Callable()
+	var on_disconnect: Callable = Callable()
+
+	var _ws: WildwoodTransport.WsNetServer = WildwoodTransport.WsNetServer.new()
+	var _port: int = 0
+
+	func listen(port: int, path: String = WildwoodTransport.WsNetServer.DEFAULT_PATH) -> int:
+		_port = port
+		_ws.handler = _bridge_handler
+		_ws.on_connect = _bridge_on_connect
+		_ws.on_disconnect = _bridge_on_disconnect
+		return _ws.listen(port, path)
+
+	func is_listening() -> bool:
+		return _ws.is_listening()
+
+	func get_listen_port() -> int:
+		return _ws.get_listen_port()
+
+	func poll(delta: float = 0.0) -> void:
+		_ws.poll(delta)
 
 	func stop() -> void:
-		pass
+		_ws.stop()
+
+	func broadcast(type_name: String, payload: PackedByteArray) -> int:
+		return _ws.broadcast(type_name, payload)
+
+	func send_to(peer_id: String, type_name: String, payload: PackedByteArray) -> bool:
+		return _ws.send_to(peer_id, type_name, payload)
+
+	func broadcast_except(type_name: String, payload: PackedByteArray, except_peer_id: String) -> int:
+		return _ws.broadcast_except(type_name, payload, except_peer_id)
+
+	func conn_count() -> int:
+		return _ws.conn_count()
+
+	func peer_ids() -> Array:
+		return _ws.peer_ids()
+
+	# 内部:把 WildwoodTransport 的回调桥接到 user handler
+	func _bridge_handler(peer_id: String, type_name: String, payload: PackedByteArray) -> void:
+		if handler.is_valid():
+			handler.call(peer_id, type_name, payload)
+
+	func _bridge_on_connect(peer_id: String) -> void:
+		if on_connect.is_valid():
+			on_connect.call(peer_id)
+
+	func _bridge_on_disconnect(peer_id: String, code: int, reason: String) -> void:
+		if on_disconnect.is_valid():
+			on_disconnect.call(peer_id, code, reason)
 
 
 # ============================================================
