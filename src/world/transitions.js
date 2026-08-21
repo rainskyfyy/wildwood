@@ -5,6 +5,18 @@
  * is given by `bandWidth` (in tiles). Inside the band we linearly
  * interpolate the two biomes' primary colors.
  *
+ * M5 changes:
+ *   - Adds `transitionArt(a, b, blend)` to biome-config.js: looks up
+ *     the M3.13 transition PNG (e.g. desert2snow_step1.png) when
+ *     available, else returns null (procedural fallback).
+ *   - The transition table now covers all C(4,2) = 6 pairs:
+ *       desert↔snow        — real PNG
+ *       desert↔volcano     — real PNG
+ *       snow↔volcano       — real PNG
+ *       marsh↔desert       — null (procedural)
+ *       marsh↔snow         — null (procedural)
+ *       marsh↔volcano      — null (procedural)
+ *
  * Output: a `TransitionMap` = Float32Array of length width*height
  *   - 0.0  → fully biome A
  *   - 1.0  → fully biome B
@@ -16,9 +28,7 @@
 
 'use strict';
 
-import { getBiome } from './biome-config.js';
-
-const MAX_BIOMES = 4;
+import { getBiome, transitionArt as transitionArtLookup } from './biome-config.js';
 
 /**
  * @param {import('./generator.js').WorldGrid} world
@@ -57,6 +67,15 @@ export function computeTransitions(world, bandWidth = 3) {
     }
   }
   return { target, blend, neighbor };
+}
+
+/**
+ * Re-export for renderer convenience. Returns the M3.13 transition
+ * PNG path + step (0/1/2) for a (a, b) pair, or null if no real art
+ * exists. See biome-config.js for the table.
+ */
+export function transitionArtPath(a, b, blend) {
+  return transitionArtLookup(a, b, blend);
 }
 
 /**

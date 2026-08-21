@@ -10,6 +10,9 @@
  * }
  *
  * Determinism: same seed + same width/height always produces the same grid.
+ *
+ * M5: BIOME_TO_CODE order is ['desert', 'marsh', 'snow', 'volcano'] to
+ * match the M3.13 art directories. CODE_TO_BIOME mirrors it.
  */
 
 'use strict';
@@ -18,6 +21,7 @@ import { PerlinNoise } from './perlin.js';
 import { pickBiome, getBiome, BIOMES } from './biome-config.js';
 
 // Map biome id -> integer code for compact Uint8Array storage.
+// M5: keep ordered by BIOMES key insertion so Uint8Array round-trips stable.
 const BIOME_TO_CODE = Object.fromEntries(
   Object.keys(BIOMES).map((id, i) => [id, i])
 );

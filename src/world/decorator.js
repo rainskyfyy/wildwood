@@ -1,13 +1,22 @@
 /**
  * Decorator — scatters biome-appropriate decorations onto the world grid.
  *
- * Each decoration has a position (tile coords), a kind (e.g. 'tree'),
- * and a deterministic seed for jitter / sprite variant selection.
+ * M5 changes vs M4:
+ *   - Each decor entry now has an `art` field (PNG path) or `art: null`
+ *     for procedural fallbacks (marsh).
+ *   - The M3.13 PNG paths reference assets/art/biomes/_shared/decorations/
+ *     which the image loader resolves at render time.
+ *
+ * Each decoration has a position (tile coords), a kind (e.g. 'lizard'),
+ * a deterministic seed for jitter, and the original art path so the
+ * renderer can hot-swap to PNG when ready.
  *
  * Density comes from the biome's decorPool weights. The world is
  * reproducible: same seed + same biome config → same scatter.
  *
- * Output: Decor[] = { x, y, kind, color, size }
+ * Output: Decor[] = {
+ *   x, y, kind, color, size, art: string|null
+ * }
  */
 
 'use strict';
@@ -33,7 +42,7 @@ function mulberry32(seed) {
  * @param {object} [opts]
  * @param {number} [opts.density=0.04] — probability of a decor per tile per cycle
  * @param {number} [opts.seed] — override seed (defaults to world.seed)
- * @returns {Array<{x:number, y:number, kind:string, color:string, size:number}>}
+ * @returns {Array<{x:number, y:number, kind:string, color:string, size:number, art:(string|null)}>}
  */
 export function scatterDecorations(world, { density = 0.04, seed } = {}) {
   const rng = mulberry32(seed ?? world.seed ^ 0xDECAF);
@@ -55,7 +64,8 @@ export function scatterDecorations(world, { density = 0.04, seed } = {}) {
         y: y + 0.5 + (rng() - 0.5) * 0.4,
         kind: pick.id,
         color: pick.color,
-        size: 0.55 + rng() * 0.35
+        size: 0.55 + rng() * 0.35,
+        art: pick.art || null
       });
     }
   }

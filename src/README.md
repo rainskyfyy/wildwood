@@ -116,3 +116,96 @@ GUI 验证(必须有浏览器):打开 `demo.html`,检查
 - 物品系统真实数据(目前 5 占位)
 - 季节 / 昼夜视觉(M2.8 已通过 LightController 接入,本模块色板固定)
 - 4 人队伍 / 主机 host(M3.1 协议层已预埋)
+
+---
+
+# M5 美术资产接入
+
+> 用 M3.13 真实 PNG 替换 M4 的程序绘制;Canvas API 表面不变。
+
+## 接入范围
+
+| 层级 | M4 状态 | M5 状态 |
+| --- | --- | --- |
+| Tile sprite | 程序菱形 `buildSprite(biomeId)` | 4 群系 × 5 PNG 变体,`getTileSpriteAt(id, x, y)` 按 (x,y) 哈希选变体 |
+| Decoration | `drawDecoration` 按 kind 分支程序绘制 | `decor.art` 路径优先 `drawImage`,失败回退程序 |
+| Transition | `blendColors` 颜色混合 | `transitionArt(a, b, blend)` 查 M3.13 PNG(3 对有 art),缺失回退 `blendColors` |
+| 加载 | 同步 | `preloadImages()` 异步预加载,首帧前显示 Loading 进度条 |
+
+## 4 群系(M5)
+
+| id | 主色 | 装饰池来源 | 过渡 art 覆盖 |
+| --- | --- | --- | --- |
+| `desert` | 暖沙 `#c9a96e` | `assets/art/biomes/_shared/decorations/desert/`(lizard, sand_ripple, scorpion, tumbleweed) | ↔snow ↔volcano |
+| `marsh` | 暗绿泥 `#5a5a3a` | **无真 art,程序回退**(mud_speck / reed / moss_patch) | 无(全走程序) |
+| `snow` | 冷白 `#d8e4ec` | `.../decorations/snow/`(icicle, pinecone, rabbit_track, snowflake) | ↔desert ↔volcano |
+| `volcano` | 暗红黑 `#3a2a26` | `.../decorations/volcano/`(ash, ember_spark, lava_bubble, sulfur_crystal) | ↔desert ↔snow |
+
+## 模块改动清单
+
+| 文件 | 改动 |
+| --- | --- |
+| `src/render/image-loader.js` | **新增** — 异步 `loadImage / preloadImages / isReady / getOrFallback` |
+| `src/world/biome-config.js` | 4 群系改为 `desert/marsh/snow/volcano`;每群系带 `tileArt[5]` 路径;新增 `transitionArt(a, b, blend)` + `pickTileVariant(x, y, n)` |
+| `src/world/generator.js` | `BIOME_TO_CODE` 顺序同步:`[desert, marsh, snow, volcano]` |
+| `src/world/decorator.js` | decor 加 `art: string\|null` 字段, marsh 全为 null |
+| `src/world/transitions.js` | 转发 `transitionArt`;`blendColors` 不变 |
+| `src/render/tile-renderer.js` | `getTileSprite(id, variant=0)` + `getTileSpriteAt(id, x, y)`;`drawDecoration` 走 `decor.art` 优先 |
+| `src/main.js` | `bootGame` 启动时 `preloadImages(54 paths)`,首帧画 Loading 进度条;tile 渲染走 `getTileSpriteAt`;过渡渲染查 M3.13 PNG,失败回退 |
+| `tests/m4-node-smoke.mjs` | 4 群系名 + tileArt 长度 + decor.art 字段 + transitionArt 覆盖表断言(79/79 全过) |
+
+## 路径约定
+
+所有 PNG 相对 `demo.html` 解析(`./assets/...`):
+
+- Tiles:`./assets/art/biomes/{desert,marsh,snow,volcano}/tiles/<name>.png` × 5 = 20
+- Decorations:`./assets/art/biomes/_shared/decorations/{desert,snow,volcano}/<name>.png` × 4 = 12(marsh = 0)
+- Transitions:`./assets/art/biomes/_shared/transitions/{a}2{b}_step{0,1,2}.png` × 3 对 × 3 步 = 9
+  - 注意:全 18 个 transition PNG 中, 9 个是 `forest↔X` 旧资产(M2.7),M5 不读;3 对(9 个)用于 `desert/snow/volcano` 之间
+- **总计 M5 实际加载:20 + 12 + 9 = 41 张**
+
+## 程序回退链
+
+```
+getOrFallback(path, builder):
+  1. 命中已加载 Image → 直接返回
+  2. 命中加载失败    → 返回 builder() Canvas(单例缓存)
+  3. 仍在加载中      → 返回 1×1 stub,下帧继续试
+```
+
+装饰 / 过渡的 procedural fallback 与 M4 等价:矿点用圆点、reed 用竖线、过渡用菱形色块。
+
+## 确定性
+
+- `pickTileVariant(x, y, n)` 是 bit-mix 哈希,无 PRNG 实例化,确定性
+- `scatterDecorations` 走原 Mulberry32,decor 数 + 位置完全可复现
+- 同一 `seed` + `width` + `height` → 同一世界 → 同一 tile variant 选择
+
+## 验证
+
+```bash
+node tests/m4-node-smoke.mjs
+```
+
+覆盖(M5 新增):
+- `tileArt` 长度=5、`.png` 结尾
+- marsh 的 decor.art 全 null,其他 3 群系至少 1 个有 art
+- `transitionArt` 3 对有 art(↔ marsh 全 null)、step ∈ [0, 2]
+- scatterDecorations 输出的 art 字段存在性
+- 4 群系(沙漠/沼泽/雪原/火山)分布 > 0
+
+GUI 验证(浏览器):`demo.html` 打开后:
+
+1. 启动看到 Loading 进度条 → ~几十毫秒后消失
+2. 4 群系可分辨(沙黄 / 暗绿 / 雪白 / 红黑)
+3. 装饰物以真实 PNG 出现(沙漠蝎子、雪原雪花、火山灰烬等)
+4. 群系边界:沙漠↔雪/火 走真实过渡 PNG(渐变菱形),沼泽↔任意 走程序色块
+5. 同一世界内同一 tile 始终用同一变体(刷新不变化)
+
+## 与 M3.13 art 链路的边界
+
+- M5 用了 M3.13 的 4 群系 tile / 3 群系 decor / 3 对过渡,**未消费**:
+  - 4 群系 `elements/`(cactus / dead_tree / frozen_remains 等)— 留给 M5+ 资源实体
+  - `forest` 群系 art(M3.13 不再有 forest 群系 tile)— M2.7 遗留
+  - 旧 `forest↔X` 过渡 PNG — M2.7 遗留
+- M5 不动 `src/hud/*` — HUD 由 UI 设计师 M1.8/M2.12 接管

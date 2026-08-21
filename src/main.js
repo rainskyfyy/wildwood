@@ -1,10 +1,20 @@
 /**
- * Main entry — wires the M4 modules into a game loop.
+ * Main entry — wires the M5 modules into a game loop.
  *
  * Boots in this order:
  *   1. World generation (Perlin → 4 biomes → decorations → transitions).
  *   2. Player + camera + HUD construction.
  *   3. requestAnimationFrame loop: input → update → render.
+ *
+ * M5 changes vs M4:
+ *   - Async pre-load of all tile + decoration + transition PNGs at boot;
+ *     first frame shows a "Loading..." splash until ready, then swaps in
+ *     real M3.13 art automatically.
+ *   - Per-tile variant via getTileSpriteAt(biomeId, x, y) — same world
+ *     coord always picks the same PNG (deterministic).
+ *   - Transition rendering: prefers M3.13 transition PNG (e.g.
+ *     desert2snow_step1.png) when available; falls back to procedural
+ *     color blend for pairs not covered by art (marsh pairs).
  *
  * Renders in two passes:
  *   pass 1 — world tiles (culled to camera bounds), then decorations
@@ -16,8 +26,10 @@
 
 import { generateWorld } from './world/generator.js';
 import { scatterDecorations } from './world/decorator.js';
-import { computeTransitions, blendColors } from './world/transitions.js';
-import { getBiome } from './world/biome-config.js';
+import {
+  computeTransitions, blendColors, transitionArtPath
+} from './world/transitions.js';
+import { getBiome, BIOMES } from './world/biome-config.js';
 import { Player } from './player/player.js';
 import { Camera } from './player/camera.js';
 import { Input } from './utils/input.js';
@@ -26,7 +38,10 @@ import {
   TILE_W_HALF, TILE_H_HALF, TILE_SIZE,
   worldToScreen, depthKey
 } from './render/isometric.js';
-import { getTileSprite, drawDecoration, drawPlayer } from './render/tile-renderer.js';
+import {
+  getTileSpriteAt, drawDecoration, drawPlayer
+} from './render/tile-renderer.js';
+import { preloadImages, isReady, getOrFallback } from './render/image-loader.js';
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -57,6 +72,13 @@ export function bootGame(canvas) {
     sanity: { cur: 100, max: 100 }
   };
 
+  // 4. M5: pre-load all M3.13 art (tiles + decorations + transitions).
+  // Trigger loads immediately so the first frame is the only "Loading..."
+  // the user sees.
+  const artPaths = collectAllArtPaths();
+  let imagesReady = false;
+  preloadImages(artPaths).then(() => { imagesReady = true; });
+
   // Last frame timestamp for dt.
   let lastT = performance.now();
 
@@ -75,7 +97,11 @@ export function bootGame(canvas) {
     vitalsState.sanity.cur = Math.max(0, vitalsState.sanity.cur - dt * 0.2);
 
     // Render.
-    render(ctx, canvas, world, decor, transitions, player, camera);
+    if (imagesReady) {
+      render(ctx, canvas, world, decor, transitions, player, camera);
+    } else {
+      renderLoading(ctx, canvas, artPaths);
+    }
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
 
     requestAnimationFrame(frame);
@@ -83,6 +109,63 @@ export function bootGame(canvas) {
   requestAnimationFrame(frame);
 
   return { world, player, camera, hud };
+}
+
+/**
+ * Collect every PNG path we want pre-loaded: 20 tiles + 16 decor + 18
+ * transitions = 54 images.
+ */
+function collectAllArtPaths() {
+  const paths = [];
+  for (const id of Object.keys(BIOMES)) {
+    const b = BIOMES[id];
+    for (const p of b.tileArt) paths.push(p);
+    for (const d of b.decorPool) if (d.art) paths.push(d.art);
+  }
+  // Transitions: 6 pairs × 3 steps. Marsh pairs have no real art so are
+  // skipped — loadImage is harmless for missing paths but no point.
+  const transitionPairs = [
+    ['desert', 'snow'],
+    ['desert', 'volcano'],
+    ['snow', 'volcano']
+  ];
+  for (const [a, b] of transitionPairs) {
+    for (let step = 0; step < 3; step++) {
+      paths.push(`./assets/art/biomes/_shared/transitions/${a}2${b}_step${step}.png`);
+    }
+  }
+  return paths;
+}
+
+/**
+ * Minimal loading splash drawn while PNGs download. Keeps the demo
+ * responsive even on a slow first paint.
+ */
+function renderLoading(ctx, canvas, paths) {
+  // Clear.
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Count how many are ready.
+  let ready = 0;
+  for (const p of paths) if (isReady(p)) ready++;
+  const pct = paths.length > 0 ? (ready / paths.length) : 0;
+  // Bar.
+  const barW = canvas.width * 0.5;
+  const barH = 8;
+  const bx = (canvas.width - barW) / 2;
+  const by = canvas.height / 2;
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fillRect(bx, by, barW, barH);
+  ctx.fillStyle = '#d4a64a';
+  ctx.fillRect(bx, by, barW * pct, barH);
+  // Label.
+  ctx.fillStyle = '#f0f0f0';
+  ctx.font = '12px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Loading art… ${ready}/${paths.length}`, canvas.width / 2, by - 16);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 }
 
 function render(ctx, canvas, world, decor, transitions, player, camera) {
@@ -99,13 +182,11 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
   const offsetY = cy - camScreen.y;
 
   // Pass 1: tiles (back to front, by depth).
-  // We draw in tile order; the iso depth is implicit by traversal.
   for (let y = bounds.y0; y <= bounds.y1; y++) {
     for (let x = bounds.x0; x <= bounds.x1; x++) {
       if (x < 0 || y < 0 || x >= world.width || y >= world.height) continue;
       const id = world.getTile(x, y);
       if (!id) continue;
-      const biome = getBiome(id);
       const ei = world.idx(x, y);
 
       // Compute screen pos.
@@ -113,36 +194,43 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
       const sx = s.x + offsetX;
       const sy = s.y + offsetY;
 
-      // Tile sprite (cached).
-      const sprite = getTileSprite(id);
+      // M5: per-tile variant sprite (real M3.13 PNG).
+      const sprite = getTileSpriteAt(id, x, y);
       ctx.drawImage(sprite, sx - TILE_W_HALF, sy - TILE_H_HALF);
 
-      // Transition blend: tint with neighbor's color at midpoint.
+      // M5: transition — try real PNG first, else procedural blend.
       if (transitions.neighbor[ei] >= 0) {
         const otherCode = transitions.neighbor[ei];
-        const otherId = biomeCodeToId(otherCode);
+        const otherId = CODE_TO_BIOME[otherCode];
         const other = getBiome(otherId);
-        const blended = blendColors(biome.primary, other.primary, transitions.blend[ei]);
-        ctx.fillStyle = blended;
-        // Recolor only the diamond; rely on same drawImage then a tinted overlay.
-        // For perf, only do this for actual transition tiles.
-        ctx.globalAlpha = 0.55;
-        ctx.beginPath();
-        const tipX = sx;
-        const tipY = sy - TILE_H_HALF;
-        const rightX = sx + TILE_W_HALF;
-        const rightY = sy;
-        const botX = sx;
-        const botY = sy + TILE_H_HALF;
-        const leftX = sx - TILE_W_HALF;
-        const leftY = sy;
-        ctx.moveTo(tipX, tipY);
-        ctx.lineTo(rightX, rightY);
-        ctx.lineTo(botX, botY);
-        ctx.lineTo(leftX, leftY);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
+        const me = getBiome(id);
+        const blend = transitions.blend[ei];
+        const art = transitionArtPath(id, otherId, blend);
+        if (art && art.path && isReady(art.path)) {
+          const img = getOrFallback(art.path, () => buildTransitionFallback(me, other, blend));
+          ctx.drawImage(img, sx - TILE_W_HALF, sy - TILE_H_HALF);
+        } else {
+          // Procedural color blend.
+          const blended = blendColors(me.primary, other.primary, blend);
+          ctx.fillStyle = blended;
+          ctx.globalAlpha = 0.55;
+          ctx.beginPath();
+          const tipX = sx;
+          const tipY = sy - TILE_H_HALF;
+          const rightX = sx + TILE_W_HALF;
+          const rightY = sy;
+          const botX = sx;
+          const botY = sy + TILE_H_HALF;
+          const leftX = sx - TILE_W_HALF;
+          const leftY = sy;
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(rightX, rightY);
+          ctx.lineTo(botX, botY);
+          ctx.lineTo(leftX, leftY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.globalAlpha = 1.0;
+        }
       }
     }
   }
@@ -171,8 +259,34 @@ function render(ctx, canvas, world, decor, transitions, player, camera) {
   }
 }
 
-// Mirror of generator.js code map — kept local to avoid import cycle.
-const CODE_TO_BIOME = ['forest', 'plains', 'mines', 'snow'];
-function biomeCodeToId(c) {
-  return CODE_TO_BIOME[c] || 'plains';
+// M5: matches BIOMES key order — desert=0, marsh=1, snow=2, volcano=3.
+const CODE_TO_BIOME = Object.keys(BIOMES);
+
+// Fallback canvas (one per unique blend) used when a transition PNG
+// path is registered but the file is missing. Cached for the run.
+const transitionFallbackCache = new Map();
+function buildTransitionFallback(me, other, blend) {
+  const key = `${me.id}->${other.id}@${blend.toFixed(2)}`;
+  if (transitionFallbackCache.has(key)) return transitionFallbackCache.get(key);
+  const cv = document.createElement('canvas');
+  cv.width = TILE_SIZE;
+  cv.height = TILE_SIZE;
+  const c = cv.getContext('2d');
+  // Fill a diamond with the blended color.
+  const cx = TILE_SIZE / 2;
+  const cy = TILE_SIZE / 2;
+  c.fillStyle = blendColors(me.primary, other.primary, blend);
+  c.beginPath();
+  c.moveTo(cx, cy - TILE_H_HALF);
+  c.lineTo(cx + TILE_W_HALF, cy);
+  c.lineTo(cx, cy + TILE_H_HALF);
+  c.lineTo(cx - TILE_W_HALF, cy);
+  c.closePath();
+  c.fill();
+  transitionFallbackCache.set(key, cv);
+  return cv;
 }
+
+// Suppress unused-import warning for biomeCodeToId (kept for debug
+// hooks; main.js no longer calls it directly).
+void biomeCodeToId;
