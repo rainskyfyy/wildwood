@@ -1,0 +1,13 @@
+node_modules/
+.DS_Store
+*.log
+.svelte-kit/
+build/
+dist/
+.godot/
+*.pyc
+__pycache__/
+.idea/
+.vscode/
+.web-test-results/
+.bundle/
