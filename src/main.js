@@ -1,6 +1,5 @@
 /**
- * Main entry — M4 (world) + M2.10 (resources) integration.
- * v1.0.1 — M2.10b: regrow + tool durability
+ * Main entry — M4 (world) + M2.10 (resources) + v0.4 (audio) integration.
  */
 'use strict';
 
@@ -22,8 +21,9 @@ import { screenToWorld } from './render/picker.js';
 import { spawnResources } from './resources/spawner.js';
 import { Inventory } from './resources/inventory.js';
 import { Gather } from './resources/gather.js';
-import { RegrowManager } from './resources/regrow.js';
 import { TOTAL_SLOTS } from './resources/inventory.js';
+// v0.4 — audio system
+import { AudioManager, attachAudio, mountAudioSettings } from './audio/index.js';
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -34,12 +34,7 @@ function loadInventory() {
   try {
     const raw = localStorage.getItem(INV_KEY);
     if (!raw) return null;
-    const inv = new Inventory({
-      onBreak: ({ itemId }) => {
-        lastBreakBanner = `工具损坏:${itemId}`;
-        lastBreakUntil = performance.now() + 2200;
-      }
-    });
+    const inv = new Inventory();
     inv.loadSnapshot(JSON.parse(raw));
     return inv;
   } catch (_) { return null; }
@@ -59,48 +54,38 @@ export function bootGame(canvas) {
   const transitions = computeTransitions(world, 2);
   const resources = spawnResources(world, { seed: SEED + 53 });
 
-  // 2. Inventory + gather + regrow.
-  const inventory = loadInventory() || new Inventory({
-    onBreak: ({ itemId }) => {
-      lastBreakBanner = `工具损坏:${itemId}`;
-      lastBreakUntil = performance.now() + 2200;
-    }
-  });
+  // 2. Inventory + gather.
+  const inventory = loadInventory() || new Inventory();
   if (inventory.slots.every(s => s == null)) {
     inventory.add('log', 8);
     inventory.add('twine', 4);
     inventory.add('stone', 6);
     inventory.add('berries', 3);
   }
+
+  // v0.4 — audio system (constructed before gather so it can receive event notifications)
+  const audio = new AudioManager();
+  let audioStarted = false;
+
+  let lastLootBanner = null;
+  let lastLootUntil = 0;
+
   const gather = new Gather({
     entities: resources,
     inventory,
-    selectedItemProvider: () => {
-      const s = inventory.hotbarSelected();
-      return s ? s.itemId : null;
-    },
     onEvent: (name, payload) => {
       if (name === 'complete') {
         const lootStr = (payload.loot || []).map(l => `${l.itemId}×${l.count}`).join(' ');
-        const suffix = payload.toolUsed ? `  工具耐久 -1` : '';
-        lastLootBanner = (lootStr || '已采集') + suffix;
+        lastLootBanner = lootStr || '已采集';
         lastLootUntil = performance.now() + 2200;
+        audioInt && audioInt.notify('gather_complete');
+      } else if (name === 'start') {
+        audioInt && audioInt.notify('gather_start');
+      } else if (name === 'cancel') {
+        audioInt && audioInt.notify('gather_cancel');
       }
     }
   });
-  const regrow = new RegrowManager({
-    entities: resources,
-    onRegrow: (e) => {
-      lastRegrowBanner = `${e.def.name} 已重生`;
-      lastRegrowUntil = performance.now() + 1800;
-    }
-  });
-  let lastLootBanner = null;
-  let lastLootUntil = 0;
-  let lastRegrowBanner = null;
-  let lastRegrowUntil = 0;
-  let lastBreakBanner = null;
-  let lastBreakUntil = 0;
 
   // 3. Actors.
   const input = new Input(canvas);
@@ -116,6 +101,28 @@ export function bootGame(canvas) {
     sanity: { cur: 100, max: 100 }
   };
 
+  // v0.4 — attach audio integration (sfx dispatcher + ambient controller + ui audio)
+  const audioInt = attachAudio({
+    audio, world,
+    getPlayer: () => player,
+    vitalsState
+  });
+  hud.setAudio(audioInt);
+
+  // mount settings widget into the canvas parent so the player can adjust volume
+  if (canvas.parentElement) {
+    try { mountAudioSettings(audio, canvas.parentElement); } catch (_) { /* no DOM */ }
+  }
+
+  // Lazy audio start on first user input (Web Audio autoplay policy)
+  function tryStartAudio() {
+    if (audioStarted) return;
+    if (audio.start()) {
+      audioStarted = true;
+      audio.resume();
+    }
+  }
+
   let lastT = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000);
@@ -123,6 +130,11 @@ export function bootGame(canvas) {
 
     // panel toggles
     hud.processPanelToggles();
+
+    // first-input audio start
+    if (!audioStarted && (input.consumeAnyPressed())) {
+      tryStartAudio();
+    }
 
     // panel clicks consume mouse before game routing
     let panelConsumed = false;
@@ -135,8 +147,7 @@ export function bootGame(canvas) {
       player.update(dt, input);
     }
     camera.follow(player);
-    regrow.update(now);
-    gather.update(player, dt, now);
+    gather.update(player, dt);
 
     // world click for gather — only when not consumed by a panel
     if (!panelConsumed && input.consumeClick()) {
@@ -156,10 +167,10 @@ export function bootGame(canvas) {
     vitalsState.hunger.cur = Math.max(0, vitalsState.hunger.cur - dt * 0.4);
     vitalsState.sanity.cur = Math.max(0, vitalsState.sanity.cur - dt * 0.2);
 
-    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, now);
+    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather);
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
 
-    // banners
+    // loot banner
     if (lastLootBanner && now < lastLootUntil) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(canvas.width/2 - 110, 50, 220, 28);
@@ -171,28 +182,9 @@ export function bootGame(canvas) {
     } else {
       lastLootBanner = null;
     }
-    if (lastRegrowBanner && now < lastRegrowUntil) {
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillRect(canvas.width/2 - 110, 86, 220, 26);
-      ctx.fillStyle = '#7ec47e';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`✿ ${lastRegrowBanner}`, canvas.width/2, 99);
-    } else {
-      lastRegrowBanner = null;
-    }
-    if (lastBreakBanner && now < lastBreakUntil) {
-      ctx.fillStyle = 'rgba(0,0,0,0.7)';
-      ctx.fillRect(canvas.width/2 - 110, 120, 220, 26);
-      ctx.fillStyle = '#e85a3a';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`✕ ${lastBreakBanner}`, canvas.width/2, 133);
-    } else {
-      lastBreakBanner = null;
-    }
+
+    // v0.4 — drive audio per-frame (biome tracking, sanity distortion, footsteps)
+    if (audioStarted) audioInt.update(dt * 1000);
 
     // periodic save
     if ((now | 0) % 60 === 0) saveInventory(inventory);
@@ -200,10 +192,10 @@ export function bootGame(canvas) {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { world, player, camera, hud, inventory, gather, regrow, resources };
+  return { world, player, camera, hud, inventory, gather, resources, audio, audioInt };
 }
 
-function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, now) {
+function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather) {
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -264,7 +256,7 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
     if (it.kind === 'decor') drawDecoration(ctx, sx, sy, it.ref);
     else if (it.kind === 'resource') {
       const progress = (gather.target === it.ref) ? gather.progressFraction() : 0;
-      drawResource(ctx, sx, sy, it.ref, progress, now);
+      drawResource(ctx, sx, sy, it.ref, progress);
     }
     else drawPlayer(ctx, sx, sy, it.ref.facing);
   }

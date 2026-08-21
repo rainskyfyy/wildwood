@@ -1,12 +1,13 @@
 /**
  * Input — keyboard + mouse state tracker.
  *
- *   isDown('w')      // keyboard boolean
- *   axisH() | axisV()    // -1/0/+1
- *   consumePressed('e')  // keyboard edge (cleared per frame)
- *   mouseX / mouseY      // last mouse position over the canvas
- *   consumeClick()       // left-click edge (cleared per frame)
- *   consumeRightClick()  // right-click edge (cleared per frame)
+ *   isDown('w')              // keyboard boolean
+ *   axisH() | axisV()        // -1/0/+1
+ *   consumePressed('e')      // keyboard edge (cleared per frame)
+ *   consumeAnyPressed()      // true if any key edge this frame (does not clear)
+ *   mouseX / mouseY          // last mouse position over the canvas
+ *   consumeClick()           // left-click edge (cleared per frame)
+ *   consumeRightClick()      // right-click edge (cleared per frame)
  */
 'use strict';
 
@@ -69,6 +70,12 @@ export class Input {
       return true;
     }
     return false;
+  }
+
+  /** Non-consuming: true if any key was pressed this frame. Does NOT clear the
+   *  pressed-set (other code may still want the edge). */
+  consumeAnyPressed() {
+    return this.pressedThisFrame.size > 0;
   }
 
   consumeClick() {

@@ -1,5 +1,8 @@
 /**
  * HUD coordinator — vitals + hotbar + minimap + inventory/crafting panels.
+ *
+ * v0.4 audio: `setAudio(audioInt)` wires UI sounds (open/close/click)
+ * to the integration layer; otherwise HUD is unchanged.
  */
 'use strict';
 import { Vitals } from './vitals.js';
@@ -10,11 +13,18 @@ import { CraftingPanel } from './crafting-panel.js';
 
 export class HUD {
   constructor(ctx, input, world, inventory) {
+    this.input = input;
     this.vitals  = new Vitals(ctx);
     this.hotbar  = new Hotbar(ctx, input, inventory);
     this.minimap = new Minimap(ctx, { x: 0, y: 0, w: 160, h: 120 });
     this.inventoryPanel = new InventoryPanel(ctx, inventory);
     this.craftingPanel  = new CraftingPanel(ctx, inventory);
+    this._audioApi = null;
+  }
+
+  /** v0.4 — attach the audio integration object so the HUD can play UI sounds. */
+  setAudio(audioInt) {
+    this._audioApi = audioInt;
   }
 
   update() {
@@ -23,26 +33,44 @@ export class HUD {
 
   /** Per-frame UI edge processing (panel toggles). */
   processPanelToggles() {
+    let anyToggle = false;
     if (this.input.consumePressed('i')) {
       this.inventoryPanel.toggle();
       if (this.inventoryPanel.visible) this.craftingPanel.hide();
+      anyToggle = true;
     }
     if (this.input.consumePressed('c')) {
       this.craftingPanel.toggle();
       if (this.craftingPanel.visible) this.inventoryPanel.hide();
+      anyToggle = true;
     }
     if (this.input.consumePressed('escape')) {
-      this.inventoryPanel.hide();
-      this.craftingPanel.hide();
+      if (this.inventoryPanel.visible || this.craftingPanel.visible) {
+        this.inventoryPanel.hide();
+        this.craftingPanel.hide();
+        this._audioApi && this._audioApi.notify('ui_close');
+      }
+    }
+    // v0.4 — hotbar slot select 1..5 plays a click
+    for (let i = 1; i <= 5; i++) {
+      if (this.input.consumePressed(String(i))) {
+        this._audioApi && this._audioApi.notify('ui_click');
+      }
     }
   }
 
   /** Returns true if the click was consumed by a panel. */
   handlePanelClick(mx, my, cw, ch) {
     if (this.inventoryPanel.visible &&
-        this.inventoryPanel.onClick(mx, my, cw, ch)) return true;
+        this.inventoryPanel.onClick(mx, my, cw, ch)) {
+      this._audioApi && this._audioApi.notify('ui_click');
+      return true;
+    }
     if (this.craftingPanel.visible &&
-        this.craftingPanel.onClick(mx, my, ch, this.hotbar.inventory.selected)) return true;
+        this.craftingPanel.onClick(mx, my, ch, this.hotbar.inventory.selected)) {
+      this._audioApi && this._audioApi.notify('ui_click');
+      return true;
+    }
     return false;
   }
 
