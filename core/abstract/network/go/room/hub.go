@@ -19,6 +19,7 @@ package room
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -41,11 +42,14 @@ type Hub struct {
 	playerSeq   atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
 	roomSeq     atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
 	tokenSeq    atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
-	currentTick uint32        // M2.1/M2.2 tick counter
+	currentTick uint32        // M2.1/M2.2 tick counter (写穿透到 tickCount)
+	tickCount   atomic.Uint32 // 独立:server tick 自增 (M2.3 新增,供 BUILD_DONE 等事件携带 server_tick)
+	eventSeq    atomic.Uint32 // 独立:event_id 自增 (M2.3 新增,WorldEvent.event_id 单调递增)
 	tickHz      int
 	onTick      func(tick uint32, r *Room)
 	stop        chan struct{}
 	wg          sync.WaitGroup
+	startedAt   time.Time // 服务启动时间(M2.3 新增,供 WorldDelta.server_time_ms 使用;Start() 时设置)
 }
 
 // NewHub 构造房间中心
@@ -100,6 +104,7 @@ func (h *Hub) SetTickHook(fn func(tick uint32, r *Room)) { h.onTick = fn }
 
 // Start 启动 20Hz tick 循环
 func (h *Hub) Start() {
+	h.startedAt = time.Now()
 	h.wg.Add(1)
 	go h.tickLoop()
 }
@@ -120,7 +125,9 @@ func (h *Hub) tickLoop() {
 		case <-h.stop:
 			return
 		case <-t.C:
-			h.currentTick++
+			tick++
+			h.currentTick = tick
+			h.tickCount.Store(tick)
 			h.mu.RLock()
 			rooms := make([]*Room, 0, len(h.rooms))
 			for _, r := range h.rooms {
@@ -620,6 +627,46 @@ func (h *Hub) nextToken() string {
 	return fmt.Sprintf("t-%05d", h.tokenSeq.Add(1))
 }
 
+// currentTick 返回当前 server tick(M2.3 新增,给 WorldDelta.server_tick 用)。
+func (h *Hub) currentTick() uint32 {
+	return h.tickCount.Load()
+}
+
+// nextEventID 分配下一个 WorldEvent.event_id(M2.3 新增,单调递增,客户端可对账)。
+func (h *Hub) nextEventID() uint32 {
+	return h.eventSeq.Add(1)
+}
+
+// roomByID 通过 room_id 查找 Room(M2.3 新增,build.go 查房间用;并发安全)
+func (h *Hub) roomByID(roomID string) *Room {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.rooms[roomID]
+}
+
+// BroadcastDelta 把任意 S2C proto message 编码并广播到房间(M2.3 新增,供 build.go 等子系统用)
+//
+// 容错:房间里的 Player 若 conn==nil(单测常见),跳过该玩家
+//      真实环境 RegisterPlayer + handleRoomJoin 一定注入 conn
+func (h *Hub) BroadcastDelta(r *Room, m proto.Message) error {
+	if r == nil {
+		return nil
+	}
+	frame := encodeFrame(protoMessageName(m), m)
+	r.Broadcast(frame)
+	return nil
+}
+
+// protoMessageName 取 proto message 的类型名(去掉包前缀),对齐 codec registry
+func protoMessageName(m proto.Message) string {
+	full := string(m.ProtoReflect().Descriptor().FullName())
+	// "wildwood.net.v1.S2C_WorldDelta" → "S2C_WorldDelta"
+	if idx := strings.LastIndex(full, "."); idx >= 0 {
+		return full[idx+1:]
+	}
+	return full
+}
+
 // Room 一间房间
 type Room struct {
 	ID         string
@@ -704,6 +751,9 @@ func (r *Room) Broadcast(f transport.Frame) {
 	}
 	r.mu.RUnlock()
 	for _, p := range members {
+		if p.Conn == nil {
+			continue // 测试/无 transport 的玩家:跳过
+		}
 		_ = p.Conn.SendFrame(f)
 	}
 }
@@ -718,6 +768,9 @@ func (r *Room) BroadcastExcept(f transport.Frame, exceptPlayerID string) {
 	}
 	r.mu.RUnlock()
 	for _, p := range members {
+		if p.Conn == nil {
+			continue
+		}
 		_ = p.Conn.SendFrame(f)
 	}
 }
@@ -762,5 +815,6 @@ func checkVersion(clientVersion string) error {
 	return fmt.Errorf("client_version %q not compatible with server 0.1.x", clientVersion)
 }
 
-// 静默导入 codec 防止 vendor prune
+// 静默导入 codec / strings 防止 vendor prune
 var _ = codec.MaxFrameSize
+var _ = strings.LastIndex
