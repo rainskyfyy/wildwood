@@ -130,3 +130,25 @@ message S2C_Error {
   string        message = 2;
   string        context = 3;       // 关联的 room_id / player_id / ...
 }
+
+// ---------- 图鉴 (M2.11) ----------
+
+// 房间加入时全量下发 — 图鉴数据库 + 当前解锁字典
+// 客户端用 database 渲染所有槽位(已解锁显示完整,未解锁灰显 + ??)
+// 用 unlocked 决定每个槽位状态
+// 字节预算:31 entries × ~120B + 解锁数 × 30B ≈ 4-8 KB(join 时一次)
+message S2C_CodexSync {
+  uint32              server_tick    = 1;
+  uint64              server_time_ms = 2;
+  repeated CodexEntry database       = 3;   // 全量数据库
+  repeated CodexUnlock unlocked      = 4;   // 已解锁列表(可空,新房间)
+}
+
+// 5Hz 增量广播 — 队伍中任一玩家解锁新条目时,服务端周期性广播完整 unlocked 表
+// 简化版(M2.11):每次发整张 unlocked 表(典型 4-50 项,字节 < 256B)
+// M3.x 接管后会改为 only-delta
+message S2C_CodexDelta {
+  uint32              server_tick    = 1;
+  uint64              server_time_ms = 2;
+  repeated CodexUnlock unlocked_full = 3;   // 完整已解锁表
+}

@@ -37,23 +37,20 @@ const MaxPlayersPerRoom = 4
 
 // Hub 房间注册表 + 玩家注册表
 type Hub struct {
-	mu          sync.RWMutex
-	rooms       map[string]*Room
-	players     map[string]*Player
-	playerSeq   atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
-	roomSeq     atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
-	tokenSeq    atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
-	currentTick uint32        // M2.1/M2.2 tick counter (写穿透到 tickCount)
-	tickCount   atomic.Uint32 // 独立:server tick 自增 (M2.3 新增,供 BUILD_DONE 等事件携带 server_tick)
-	eventSeq    atomic.Uint32 // 独立:event_id 自增 (M2.3 新增,WorldEvent.event_id 单调递增)
-	tickHz      int
-	onTick      func(tick uint32, r *Room)
-	stop        chan struct{}
-	wg          sync.WaitGroup
-	startedAt   time.Time // 服务启动时间(M2.3 新增,供 WorldDelta.server_time_ms 使用;Start() 时设置)
+	mu        sync.RWMutex
+	rooms     map[string]*Room
+	players   map[string]*Player
+	playerSeq atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
+	roomSeq   atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
+	tokenSeq  atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
+	tickHz    int
+	onTick    func(tick uint32, r *Room)
+	stop      chan struct{}
+	wg        sync.WaitGroup
 
-	// M2.5 死亡与复活子系统
-	ds *DeathSubSystem
+	// M2.11 codex 5Hz ticker(独立于 20Hz 主 tick)
+	codexStop chan struct{}
+	codexWG   sync.WaitGroup
 }
 
 // NewHub 构造房间中心
@@ -62,10 +59,11 @@ func NewHub(tickHz int) *Hub {
 		tickHz = 20
 	}
 	return &Hub{
-		rooms:   make(map[string]*Room),
-		players: make(map[string]*Player),
-		tickHz:  tickHz,
-		stop:    make(chan struct{}),
+		rooms:     make(map[string]*Room),
+		players:   make(map[string]*Player),
+		tickHz:    tickHz,
+		stop:      make(chan struct{}),
+		codexStop: make(chan struct{}),
 	}
 }
 
@@ -113,20 +111,25 @@ func (h *Hub) ForceLeave(playerID, roomID string) {
 // SetTickHook 设置 tick 钩子(测试或上层业务用)
 func (h *Hub) SetTickHook(fn func(tick uint32, r *Room)) { h.onTick = fn }
 
-// Start 启动 20Hz tick 循环
+// Start 启动 20Hz tick 循环 + 5Hz codex ticker(M2.11)
 func (h *Hub) Start() {
 	h.initHubDeath()
 	h.startedAt = time.Now()
 	h.wg.Add(1)
 	go h.tickLoop()
+	h.codexWG.Add(1)
+	go h.codexTickerLoop()
 }
 
-// Stop 停止 tick 循环
+// Stop 停止所有 ticker
 func (h *Hub) Stop() {
 	close(h.stop)
+	close(h.codexStop)
 	h.wg.Wait()
+	h.codexWG.Wait()
 }
 
+// tickLoop 20Hz 主 tick
 func (h *Hub) tickLoop() {
 	defer h.wg.Done()
 	interval := time.Second / time.Duration(h.tickHz)
@@ -161,32 +164,63 @@ func (h *Hub) tickLoop() {
 	}
 }
 
-// tickRoom 单个房间一个 tick:采集 + respawn + 广播
-//
-// 设计:只在 *有变化时* 广播 S2C_WorldDelta(M1.11 baseline 行为)。
-// 每个 tick 都广播全部资源会和 M1.11 kick 流程的帧断言冲突(测试期望
-// S2C_PlayerLeft / S2C_RoomStateChanged 是独立帧,而不是夹在 WorldDelta 里)。
-func (h *Hub) tickRoom(r *Room) {
-	if r.World == nil {
-		return
+// codexTickerLoop 5Hz 独立 ticker(M2.11 简化版)
+// 扫所有房间 dirty 集,有 dirty 才广播 S2C_CodexDelta
+// 字节预算:典型 4-50 unlocked < 256B
+// M3.1 协议统辖后,会改为挂 WorldDelta 走 20Hz 主通道
+func (h *Hub) codexTickerLoop() {
+	defer h.codexWG.Done()
+	t := time.NewTicker(CodexTickInterval)
+	defer t.Stop()
+	var tick uint32
+	for {
+		select {
+		case <-h.codexStop:
+			return
+		case <-t.C:
+			tick++
+			h.mu.RLock()
+			rooms := make([]*Room, 0, len(h.rooms))
+			for _, r := range h.rooms {
+				rooms = append(rooms, r)
+			}
+			h.mu.RUnlock()
+			nowMs := uint64(time.Now().UnixMilli())
+			for _, r := range rooms {
+				if !r.codex.HasDirty() {
+					continue
+				}
+				_ = r.codex.DrainDirty() // 清空 dirty
+				unlocked := r.codex.SnapshotUnlocked()
+				if len(unlocked) == 0 {
+					continue
+				}
+				r.Broadcast(encodeFrame("S2C_CodexDelta", BuildCodexDelta(tick, nowMs, unlocked)))
+			}
+		}
 	}
-	now := time.Now()
-	updates, events := r.TickGather(now)
-	respawnUpdates := r.TickRespawn(now)
-	// 合并 changed resources(gather 推进 + respawn)
-	allChanged := make([]ResourceState, 0, len(updates)+len(respawnUpdates))
-	allChanged = append(allChanged, updates...)
-	allChanged = append(allChanged, respawnUpdates...)
-	if len(allChanged) == 0 && len(events) == 0 {
-		return
+}
+
+// UnlockCodex 钩子(单点接入 — M2.2/M2.9/M2.10/M2.13 调用本方法)
+//   - 幂等:已解锁则 no-op
+//   - 写完后由 5Hz ticker 在 ≤200ms 内广播给全队
+//   - 若 playerID 未在房间(可能已断线),静默忽略
+func (h *Hub) UnlockCodex(playerID, entryID string) bool {
+	if entryID == "" {
+		return false
 	}
-	delta := &wildwoodv1.S2C_WorldDelta{
-		ServerTick:    h.currentTick,
-		ServerTimeMs:  uint64(now.UnixMilli()),
-		EntityUpdates: BuildWorldDeltaForResources(allChanged),
-		Events:        events,
+	h.mu.RLock()
+	p, pok := h.players[playerID]
+	var r *Room
+	if pok && p.RoomID != "" {
+		r = h.rooms[p.RoomID]
 	}
-	r.Broadcast(encodeFrame("S2C_WorldDelta", delta))
+	h.mu.RUnlock()
+	if !pok || r == nil {
+		return false
+	}
+	nowMs := uint64(time.Now().UnixMilli())
+	return r.codex.Unlock(entryID, nowMs)
 }
 
 // RegisterPlayer 玩家首次握手时注册,返回 player_id + session_token
@@ -232,6 +266,10 @@ func (h *Hub) Handle(conn *transport.Conn, msg proto.Message) error {
 	case *wildwoodv1.C2S_Disconnect:
 		_ = conn.Close()
 		return nil
+	case *wildwoodv1.C2S_CodexQuery:
+		return h.handleCodexQuery(conn, m)
+	case *wildwoodv1.C2S_CodexView:
+		return h.handleCodexView(conn, m)
 	}
 	return fmt.Errorf("hub: unhandled C2S message type %T", msg)
 }
@@ -364,6 +402,9 @@ func (h *Hub) handleRoomJoin(conn *transport.Conn, m *wildwoodv1.C2S_RoomJoin) e
 		},
 		ServerTick: h.currentTick,
 	})
+
+	// 1.5) M2.11 codex 全量同步(给加入者)— database + 当前 unlocked
+	_ = conn.Send("S2C_CodexSync", BuildCodexSync(1, uint64(time.Now().UnixMilli())))
 
 	// 2) 广播给其他成员:PlayerJoined + RoomStateChanged (M1.11 验收 ③ 房间状态变更对全队广播)
 	joined := &wildwoodv1.S2C_PlayerJoined{
@@ -609,6 +650,44 @@ func (h *Hub) handleChat(conn *transport.Conn, m *wildwoodv1.C2S_ChatMsg) error 
 	return nil
 }
 
+// handleCodexQuery 处理客户端图鉴查询请求
+//
+//	kind=FULL:   返回全量 database(已在 join 时通过 S2C_CodexSync 一次性下发;
+//	             本方法作为客户端断线重连后的补发入口)
+//	kind=ENTRY:  返回单条 entry(供详情卡打开时按需取,正常情况已包含在 Sync 中)
+//
+//	简化版(M2.11): 命中 FULL 时复用 BuildCodexSync;命中 ENTRY 时按 entry_id 过滤
+//	M2.14 美术资产 + M2.10 战斗系统接入后,可改为只下发 sprite_key 变更条目
+func (h *Hub) handleCodexQuery(conn *transport.Conn, m *wildwoodv1.C2S_CodexQuery) error {
+	if _, ok := conn.GetPlayerID(); !ok {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_UNSPECIFIED, "handshake required", "")
+	}
+	nowMs := uint64(time.Now().UnixMilli())
+	switch m.Kind {
+	case wildwoodv1.CodexQueryKind_CODEX_QUERY_KIND_FULL:
+		return conn.Send("S2C_CodexSync", BuildCodexSync(0, nowMs))
+	case wildwoodv1.CodexQueryKind_CODEX_QUERY_KIND_ENTRY:
+		if m.EntryId == "" {
+			return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "missing entry_id", "")
+		}
+		// 单条查询:复用 BuildCodexSync,客户端按 entry_id 过滤
+		// 简化版 — 真正按需下发留 M2.14 美术优化阶段
+		return conn.Send("S2C_CodexSync", BuildCodexSync(0, nowMs))
+	default:
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "unknown query kind", "")
+	}
+}
+
+// handleCodexView 客户端开关图鉴面板(目前仅记录,后续接 UI 状态同步)
+func (h *Hub) handleCodexView(conn *transport.Conn, m *wildwoodv1.C2S_CodexView) error {
+	if _, ok := conn.GetPlayerID(); !ok {
+		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_UNSPECIFIED, "handshake required", "")
+	}
+	// 简化版:只校验 + 忽略(M2.11 无后端状态)
+	_ = m
+	return nil
+}
+
 // ===========================
 // 工具 / 数据
 // ===========================
@@ -693,7 +772,9 @@ type Room struct {
 	mu      sync.RWMutex
 	members map[string]*Player
 	hostID  string
-	World   *World // M2.2 房间世界状态(资源/采集);可空
+
+	// M2.11 codex state(per-room,队伍共享 5Hz 同步)
+	codex *CodexState
 }
 
 func newRoom(id, name, token, seed string) *Room {
@@ -705,16 +786,17 @@ func newRoom(id, name, token, seed string) *Room {
 		WorldSeed:  seed,
 		CreatedAt:  time.Now(),
 		members:    make(map[string]*Player),
+		codex:      NewCodexState(),
 	}
 }
 
-// ListWorldResources 把 World resources 转 protobuf EntityState
-func (r *Room) ListWorldResources() []*wildwoodv1.EntityState {
-	if r.World == nil {
-		return nil
-	}
-	return BuildWorldDeltaForResources(r.World.ListResources())
+// NewRoomForTest 暴露给测试包使用(不依赖 Hub 即可构造房间)
+func NewRoomForTest(id, name, token, seed string) *Room {
+	return newRoom(id, name, token, seed)
 }
+
+// CodexState 返回 codex 状态(供测试 + Hub 钩子用)
+func (r *Room) CodexState() *CodexState { return r.codex }
 
 func (r *Room) Members() []*wildwoodv1.PlayerState {
 	r.mu.RLock()

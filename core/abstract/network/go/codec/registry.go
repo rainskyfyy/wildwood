@@ -27,6 +27,9 @@ var registry = map[string]MessageFactory{
 	"C2S_RoomList":   func() proto.Message { return &wildwoodv1.C2S_RoomList{} },
 	"C2S_PlayerInput": func() proto.Message { return &wildwoodv1.C2S_PlayerInput{} },
 	"C2S_ChatMsg":     func() proto.Message { return &wildwoodv1.C2S_ChatMsg{} },
+	// M2.11 图鉴
+	"C2S_CodexQuery": func() proto.Message { return &wildwoodv1.C2S_CodexQuery{} },
+	"C2S_CodexView":  func() proto.Message { return &wildwoodv1.C2S_CodexView{} },
 
 	// S2C
 	"S2C_HandshakeAck":  func() proto.Message { return &wildwoodv1.S2C_HandshakeAck{} },
@@ -43,6 +46,9 @@ var registry = map[string]MessageFactory{
 	"S2C_WorldDelta":    func() proto.Message { return &wildwoodv1.S2C_WorldDelta{} },
 	"S2C_ChatBroadcast": func() proto.Message { return &wildwoodv1.S2C_ChatBroadcast{} },
 	"S2C_Error":         func() proto.Message { return &wildwoodv1.S2C_Error{} },
+	// M2.11 图鉴
+	"S2C_CodexSync":  func() proto.Message { return &wildwoodv1.S2C_CodexSync{} },
+	"S2C_CodexDelta": func() proto.Message { return &wildwoodv1.S2C_CodexDelta{} },
 }
 
 // IsKnownType 检查 type 字符串是否注册

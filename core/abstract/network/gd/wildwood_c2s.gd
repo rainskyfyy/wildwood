@@ -440,6 +440,77 @@ class ChatMsg:
 
 
 # ============================================================
+# C2S_CodexQuery (M2.11)
+# 对应 c2s.proto: message C2S_CodexQuery
+#   kind=1 (CodexQueryKind enum), entry_id=2
+# ============================================================
+class CodexQuery:
+	var kind: int = 0  # CodexQueryKind: 0=UNSPECIFIED 1=FULL 2=ENTRY
+	var entry_id: String = ""
+
+	static func encode(v: CodexQuery) -> PackedByteArray:
+		var buf: PackedByteArray = PackedByteArray()
+		if v.kind != 0:
+			buf = WildwoodWire.write_tag(buf, 1, WildwoodWire.WT_VARINT)
+			buf = WildwoodWire.write_varint(buf, v.kind)
+		if not v.entry_id.is_empty():
+			buf = WildwoodWire.write_tag(buf, 2, WildwoodWire.WT_LENGTH)
+			buf = WildwoodWire.write_string(buf, v.entry_id)
+		return buf
+
+	static func decode(buf: PackedByteArray, offset: int) -> Array:
+		var v: CodexQuery = CodexQuery.new()
+		var end: int = buf.size()
+		var pos: int = offset
+		while pos < end:
+			var t: Array = WildwoodWire.read_tag(buf, pos)
+			var fn: int = t[0]; pos = t[2]
+			match fn:
+				1:
+					var vi: Array = WildwoodWire.read_varint(buf, pos)
+					v.kind = vi[0]; pos = vi[1]
+				2:
+					var b: Array = WildwoodWire.read_bytes(buf, pos)
+					v.entry_id = b[0].get_string_from_utf8(); pos = b[1]
+				_:
+					push_warning("C2S_CodexQuery: unknown field %d" % fn)
+					break
+		return [v, pos]
+
+
+# ============================================================
+# C2S_CodexView (M2.11) — 客户端开关图鉴面板
+# 对应 c2s.proto: message C2S_CodexView
+#   is_open=1
+# ============================================================
+class CodexView:
+	var is_open: bool = false
+
+	static func encode(v: CodexView) -> PackedByteArray:
+		var buf: PackedByteArray = PackedByteArray()
+		if v.is_open:
+			buf = WildwoodWire.write_tag(buf, 1, WildwoodWire.WT_VARINT)
+			buf = WildwoodWire.write_varint(buf, 1)
+		return buf
+
+	static func decode(buf: PackedByteArray, offset: int) -> Array:
+		var v: CodexView = CodexView.new()
+		var end: int = buf.size()
+		var pos: int = offset
+		while pos < end:
+			var t: Array = WildwoodWire.read_tag(buf, pos)
+			var fn: int = t[0]; pos = t[2]
+			match fn:
+				1:
+					var vi: Array = WildwoodWire.read_varint(buf, pos)
+					v.is_open = (vi[0] != 0); pos = vi[1]
+				_:
+					push_warning("C2S_CodexView: unknown field %d" % fn)
+					break
+		return [v, pos]
+
+
+# ============================================================
 # 模块末尾:外部依赖(const 必须在 func 之前)
 # ============================================================
 const WildwoodWire = preload("res://core/abstract/network/gd/wildwood_wire.gd")
@@ -461,6 +532,8 @@ const _TYPE_TO_ENCODE: Dictionary = {
 	"C2S_RoomList": RoomList.encode,
 	"C2S_PlayerInput": PlayerInput.encode,
 	"C2S_ChatMsg": ChatMsg.encode,
+	"C2S_CodexQuery": CodexQuery.encode,
+	"C2S_CodexView": CodexView.encode,
 }
 
 const _TYPE_TO_DECODE: Dictionary = {
@@ -473,6 +546,8 @@ const _TYPE_TO_DECODE: Dictionary = {
 	"C2S_RoomList": RoomList.decode,
 	"C2S_PlayerInput": PlayerInput.decode,
 	"C2S_ChatMsg": ChatMsg.decode,
+	"C2S_CodexQuery": CodexQuery.decode,
+	"C2S_CodexView": CodexView.decode,
 }
 
 
