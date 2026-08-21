@@ -81,8 +81,14 @@ def main():
     # 默认: 中心 3x3 = 9 宫格,外扩 10 chunk
     player = (0, 0)
     radius = 10
-    if len(sys.argv) >= 2:
-        radius = int(sys.argv[1])
+    # 兼容两种调用:
+    #   python3 lod-memory-estimate.py 5           (positional)
+    #   python3 lod-memory-estimate.py --radius 5  (flag, perf-ci.yml 用法)
+    args = sys.argv[1:]
+    if len(args) >= 2 and args[0] == "--radius":
+        radius = int(args[1])
+    elif len(args) >= 1:
+        radius = int(args[0])
 
     band_chunks = simulate_3x3_grid(player, radius)
     mem = estimate_memory(band_chunks)
