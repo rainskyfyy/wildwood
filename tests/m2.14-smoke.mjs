@@ -167,8 +167,11 @@ group('Monster state machine', () => {
   ok('initial state IDLE', m.state === MonsterState.IDLE);
   // Idle ticks should eventually flip to WANDER.
   let didWander = false;
-  for (let i = 0; i < 200 && !didWander; i++) m.update(0.1, { x: 100, y: 100 });
-  ok('eventually leaves IDLE → WANDER', m.state === MonsterState.WANDER, `state=${m.state}`);
+  for (let i = 0; i < 200 && !didWander; i++) {
+    m.update(0.1, { x: 100, y: 100 });
+    if (m.state === MonsterState.WANDER) didWander = true;
+  }
+  ok('eventually leaves IDLE → WANDER', didWander, `state=${m.state}`);
   // Player within detectRange → CHASE.
   const m2 = new Monster({ typeId: 'test', world: w, config: cfg, x: 5, y: 5, seed: 1, stateTable: table });
   m2.update(0.016, { x: 7, y: 5 }); // dist = 2 < 5

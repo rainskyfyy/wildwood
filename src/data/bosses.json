@@ -1,0 +1,115 @@
+{
+  "_meta": {
+    "version": 1,
+    "schema": "wildwood-bosses-v1",
+    "comment": "v0.5.2 Boss 数据. 每只 boss 2-3 阶段, hp 阈值触发阶段切换, 阶段解锁新技能 + 提升属性. 4 只季节 boss 对应 4 群系(草原用 marsh 替代)."
+  },
+  "spring_deer": {
+    "id": "spring_deer",
+    "name": "春季巨鹿",
+    "biome": "marsh",
+    "hp": 800,
+    "atk": 35,
+    "speed": 3.2,
+    "size": 1.5,
+    "color": "#c8a878",
+    "detectRange": 8,
+    "attackRange": 2,
+    "wanderRadius": 4,
+    "fps": 8,
+    "actions": ["idle", "walk", "attack", "hurt", "death"],
+    "phases": [
+      { "hpThreshold": 1.0, "atkMul": 1.0, "speedMul": 1.0, "colorTint": "#c8a878" },
+      { "hpThreshold": 0.4, "atkMul": 1.5, "speedMul": 1.4, "colorTint": "#e88a3a" }
+    ],
+    "skills": [
+      { "id": "charge", "type": "charge", "cooldown": 4.0, "range": 6, "damageMul": 1.5, "speed": 12.0, "duration": 0.6 },
+      { "id": "roar",   "type": "roar",   "cooldown": 8.0, "range": 4, "duration": 0.4 }
+    ],
+    "drops": [
+      { "itemId": "deer_antler", "count": 1, "chance": 1.0 }
+    ]
+  },
+  "summer_queen": {
+    "id": "summer_queen",
+    "name": "夏季蚁后",
+    "biome": "desert",
+    "hp": 600,
+    "atk": 25,
+    "speed": 1.8,
+    "size": 1.2,
+    "color": "#7a3a4a",
+    "detectRange": 6,
+    "attackRange": 1,
+    "wanderRadius": 2,
+    "fps": 8,
+    "actions": ["idle", "walk", "attack", "hurt", "death"],
+    "phases": [
+      { "hpThreshold": 1.0, "atkMul": 1.0, "speedMul": 1.0, "colorTint": "#7a3a4a" },
+      { "hpThreshold": 0.5, "atkMul": 1.3, "speedMul": 1.2, "colorTint": "#c43a3a" }
+    ],
+    "skills": [
+      { "id": "summon", "type": "summon", "cooldown": 6.0, "count": 2, "minionType": "spider", "range": 3 },
+      { "id": "aoe",    "type": "aoe",    "cooldown": 5.0, "range": 3, "damageMul": 1.0 }
+    ],
+    "drops": [
+      { "itemId": "ant_ichor", "count": 2, "chance": 1.0 }
+    ]
+  },
+  "autumn_bear": {
+    "id": "autumn_bear",
+    "name": "秋季熊獾",
+    "biome": "marsh",
+    "hp": 1200,
+    "atk": 50,
+    "speed": 2.4,
+    "size": 1.7,
+    "color": "#5a3a1a",
+    "detectRange": 7,
+    "attackRange": 2,
+    "wanderRadius": 3,
+    "fps": 6,
+    "actions": ["idle", "walk", "attack", "hurt", "death"],
+    "phases": [
+      { "hpThreshold": 1.0, "atkMul": 1.0, "speedMul": 1.0, "colorTint": "#5a3a1a" },
+      { "hpThreshold": 0.6, "atkMul": 1.4, "speedMul": 1.2, "colorTint": "#a85a2a" },
+      { "hpThreshold": 0.25, "atkMul": 1.8, "speedMul": 1.5, "colorTint": "#d4622a" }
+    ],
+    "skills": [
+      { "id": "aoe",    "type": "aoe",    "cooldown": 5.0, "range": 3, "damageMul": 1.2 },
+      { "id": "charge", "type": "charge", "cooldown": 7.0, "range": 6, "damageMul": 1.8, "speed": 10.0, "duration": 0.5 },
+      { "id": "roar",   "type": "roar",   "cooldown": 10.0, "range": 5, "duration": 0.5 }
+    ],
+    "drops": [
+      { "itemId": "bear_pelt", "count": 1, "chance": 1.0 }
+    ]
+  },
+  "winter_dragon": {
+    "id": "winter_dragon",
+    "name": "冬季冰龙",
+    "biome": "snow",
+    "hp": 1500,
+    "atk": 60,
+    "speed": 2.0,
+    "size": 2.2,
+    "color": "#a8d4e8",
+    "detectRange": 9,
+    "attackRange": 3,
+    "wanderRadius": 2,
+    "fps": 6,
+    "actions": ["idle", "walk", "attack", "hurt", "death"],
+    "phases": [
+      { "hpThreshold": 1.0, "atkMul": 1.0, "speedMul": 1.0, "colorTint": "#a8d4e8" },
+      { "hpThreshold": 0.6, "atkMul": 1.3, "speedMul": 1.2, "colorTint": "#6ec4d4" },
+      { "hpThreshold": 0.3, "atkMul": 1.7, "speedMul": 1.4, "colorTint": "#4aa8d4" }
+    ],
+    "skills": [
+      { "id": "aoe",    "type": "aoe",    "cooldown": 6.0, "range": 4, "damageMul": 1.5 },
+      { "id": "charge", "type": "charge", "cooldown": 8.0, "range": 7, "damageMul": 2.0, "speed": 9.0, "duration": 0.7 },
+      { "id": "summon", "type": "summon", "cooldown": 12.0, "count": 2, "minionType": "hound", "range": 4 }
+    ],
+    "drops": [
+      { "itemId": "dragon_scale", "count": 1, "chance": 1.0 }
+    ]
+  }
+}

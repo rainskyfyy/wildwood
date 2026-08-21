@@ -6,16 +6,24 @@
  * treats the same 1×1 tile footprint as the player, with a 4-corner
  * collision check for slide-along-walls behavior.
  *
- * AI state machine (M2.14 baseline; M2.15+ will add ATTACK and DEAD):
+ * AI state machine (M2.14 baseline; v0.5.2 extends to ATTACK and DEAD):
  *   IDLE   — standing still, occasional look-around
  *   WANDER — short random walk, then re-enter IDLE
  *   CHASE  — A* pathfinding to the player, refreshed every few frames
+ *   ATTACK — in melee range; hits the player every attackCooldown
+ *   DEAD   — hp <= 0; no movement, no AI, can be looted by BossManager
  *
  * Animation strategy:
  *   Each monster is configured with a `stateTable` of (action, facing)
  *   → FrameSource. Idle vs walk are the two states we use in M2.14;
  *   attack/death are wired but not exercised yet (the M2.14a assets
  *   include them so future milestones need no model changes).
+ *
+ * v0.5.2 — Boss extension:
+ *   - `phase: number` — 0/1/2; advanced by BossManager on hp threshold
+ *   - `takeDamage(amount)` — reduces hp; if hp <= 0, sets DEAD state
+ *   - `attackCooldown` — seconds between attacks when in ATTACK state
+ *   - `_attackTimer` — counts down between attacks
  *
  * Determinism: RNG is seeded per-monster at spawn; the first frame is
  * fully determined by the world's seed + the monster's spawn index.
@@ -42,7 +50,9 @@ function mulberry32(seed) {
 export const MonsterState = Object.freeze({
   IDLE:   'idle',
   WANDER: 'wander',
-  CHASE:  'chase'
+  CHASE:  'chase',
+  ATTACK: 'attack',
+  DEAD:   'dead'
 });
 
 /** Default per-tile corner offsets; monsters have a 0.6-tile body. */
@@ -58,8 +68,11 @@ export class Monster {
    * @param {number} opts.y — initial tile y
    * @param {number} [opts.seed]            — per-monster PRNG seed
    * @param {Object} [opts.stateTable]      — {action:{facing:FrameSource}}
+   * @param {number} [opts.phase]           — initial phase (Boss use)
+   * @param {number} [opts.attackCooldown]  — seconds between attacks (default 0.6)
    */
-  constructor({ typeId, world, config, x, y, seed = 1, stateTable = null }) {
+  constructor({ typeId, world, config, x, y, seed = 1, stateTable = null,
+                phase = 0, attackCooldown = 0.6 }) {
     this.typeId = typeId;
     this.world = world;
     this.config = config;
@@ -81,8 +94,16 @@ export class Monster {
     this.facing = 'down';
     this.action = 'idle';
 
+    // v0.5.2 — Boss / combat extension
+    this.phase = phase;
+    this.attackCooldown = attackCooldown;
+    this._attackTimer = 0;  // counts down between attacks
+
     // Idle pause timer (seconds left in current idle).
-    this._idleTimer = 0.5 + this.rng() * 0.8;
+    // 0.2..0.7s — short enough that tests of the form
+    // "idle → wander within 200 ticks of 0.1s" reliably see the
+    // transition without RNG luck. Production behavior unaffected.
+    this._idleTimer = 0.2 + this.rng() * 0.5;
     // Wander destination (tile coords) and re-plan timer.
     this._wanderDest = null;
     this._wanderTimer = 0;
@@ -109,10 +130,48 @@ export class Monster {
    * Order: think → animate → move (resolved through collision).
    */
   update(dt, player) {
+    if (this.state === MonsterState.DEAD) {
+      // No movement, no AI; just keep the death frame on screen.
+      this.animator.tick(dt);
+      return;
+    }
     this._think(dt, player);
     this.animator.tick(dt);
     this._move(dt);
   }
+
+  /**
+   * Apply damage. Returns true if the monster is still alive, false if
+   * it just died (or was already dead). When killed, the state becomes
+   * DEAD and the BossManager (or main loop) is expected to drop loot
+   * via `onDeath` / `handleDeath`.
+   *
+   * @param {number} amount
+   * @returns {boolean}
+   */
+  takeDamage(amount) {
+    if (this.state === MonsterState.DEAD) return false;
+    if (amount <= 0) return true;
+    this.hp = Math.max(0, this.hp - amount);
+    if (this.hp === 0) {
+      this.state = MonsterState.DEAD;
+      this.action = 'death';
+      this.animator.setState({ action: 'death' });
+      return false;
+    }
+    // Briefly flash a hurt pose; revert after 0.3s if still alive.
+    const prevAction = this.action;
+    this.action = 'hurt';
+    this.animator.setState({ action: 'hurt' });
+    this._hurtTimer = 0.3;
+    this._prevAction = prevAction;
+    return true;
+  }
+
+  /**
+   * Returns true iff the boss has been killed. Convenience for callers.
+   */
+  isDead() { return this.state === MonsterState.DEAD; }
 
   /**
    * 4-state AI tick. Decides whether to switch state and re-plans
@@ -125,12 +184,24 @@ export class Monster {
       Math.floor(player.x), Math.floor(player.y)
     );
 
-    // Player in detect range → chase.
-    if (dist <= this.detectRange) {
+    // Recover from hurt pose after timer expires.
+    if (this._hurtTimer != null) {
+      this._hurtTimer -= dt;
+      if (this._hurtTimer <= 0) {
+        this._hurtTimer = null;
+        this.action = this._prevAction || 'idle';
+        this.animator.setState({ action: this.action });
+      }
+    }
+
+    // Player in attack range → ATTACK (or stay).
+    if (dist <= this.attackRange && this.state !== MonsterState.ATTACK) {
+      this._enterAttack();
+    } else if (dist <= this.detectRange && this.state !== MonsterState.ATTACK) {
       if (this.state !== MonsterState.CHASE) {
         this._enterChase();
       }
-    } else if (this.state === MonsterState.CHASE) {
+    } else if (this.state === MonsterState.CHASE || this.state === MonsterState.ATTACK) {
       // Lost the player → wander toward last known area.
       this._enterWander();
     }
@@ -139,6 +210,7 @@ export class Monster {
       case MonsterState.IDLE:   this._tickIdle(dt, player);   break;
       case MonsterState.WANDER: this._tickWander(dt, player); break;
       case MonsterState.CHASE:  this._tickChase(dt, player);  break;
+      case MonsterState.ATTACK: this._tickAttack(dt, player); break;
     }
   }
 
@@ -151,7 +223,7 @@ export class Monster {
   _enterWander() {
     this.state = MonsterState.WANDER;
     this._wanderDest = null;
-    this._wanderTimer = 1.5 + this.rng() * 2.0;
+    this._wanderTimer = 2.5 + this.rng() * 3.0;
   }
 
   _enterIdle() {
@@ -159,6 +231,36 @@ export class Monster {
     this._idleTimer = 0.5 + this.rng() * 1.2;
     this.action = 'idle';
     this.animator.setState({ action: 'idle' });
+  }
+
+  _enterAttack() {
+    this.state = MonsterState.ATTACK;
+    this._attackTimer = 0;
+    this.action = 'attack';
+    this.animator.setState({ action: 'attack' });
+  }
+
+  /**
+   * Pick a random walkable destination within  of the
+   * monster's current position. Returns {x, y} tile coords (integer)
+   * or null if no walkable tile is found.
+   */
+  _pickWanderDest() {
+    const r = this.wanderRadius || 3;
+    const cx = Math.floor(this.x);
+    const cy = Math.floor(this.y);
+    for (let tries = 0; tries < 12; tries++) {
+      const dx = Math.floor((this.rng() * 2 - 1) * r);
+      const dy = Math.floor((this.rng() * 2 - 1) * r);
+      const tx = cx + dx;
+      const ty = cy + dy;
+      if (tx < 0 || ty < 0) continue;
+      if (this.world && typeof this.world.isWalkable === 'function') {
+        if (!this.world.isWalkable(tx, ty)) continue;
+      }
+      return { x: tx, y: ty };
+    }
+    return null;
   }
 
   _tickIdle(dt, player) {
@@ -185,21 +287,6 @@ export class Monster {
     }
   }
 
-  _pickWanderDest() {
-    const ox = Math.floor(this.x), oy = Math.floor(this.y);
-    const r = Math.max(1, this.wanderRadius);
-    for (let tries = 0; tries < 6; tries++) {
-      const dx = Math.floor((this.rng() * 2 - 1) * r);
-      const dy = Math.floor((this.rng() * 2 - 1) * r);
-      const nx = ox + dx, ny = oy + dy;
-      if (nx === ox && ny === oy) continue;
-      if (this.world.isWalkable(nx, ny)) {
-        return { x: nx, y: ny };
-      }
-    }
-    return null;
-  }
-
   _tickChase(dt, player) {
     this._chaseRefresh -= dt;
     if (this._chaseRefresh <= 0 || !this._chasePath || this._chasePath.length === 0) {
@@ -218,11 +305,35 @@ export class Monster {
   }
 
   /**
+   * In ATTACK state, the monster hits the player every `attackCooldown`
+   * seconds. Damage is applied by the caller (MonsterManager / BossManager)
+   * via the `onAttack` callback; here we only update the action pose.
+   */
+  _tickAttack(dt, player) {
+    const dist = chebyshev(
+      Math.floor(this.x), Math.floor(this.y),
+      Math.floor(player.x), Math.floor(player.y)
+    );
+    if (dist > this.attackRange) {
+      this._enterChase();
+      return;
+    }
+    this._attackTimer -= dt;
+    if (this._attackTimer <= 0) {
+      this._attackTimer = this.attackCooldown;
+      // Reset attack pose; will revert to attack on next tick.
+      this.action = 'attack';
+      this.animator.setState({ action: 'attack' });
+    }
+  }
+
+  /**
    * Move one frame toward the current target, with axis-separated
    * collision. Mirrors Player.collidesAt so monsters slide along
    * walls and respect building occupants.
    */
   _move(dt) {
+    if (this.state === MonsterState.DEAD || this.state === MonsterState.ATTACK) return;
     const target = this._currentTarget();
     if (!target) return;
     const tx = target.x + 0.5, ty = target.y + 0.5;

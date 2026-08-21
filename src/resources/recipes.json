@@ -1,6 +1,6 @@
 {
-  "_meta": { "version": "1.0.1", "schema": "wildwood-recipes-v1",
-             "note": "v1.0.1 新增 shovel 配方" },
+  "_meta": { "version": "1.1.0", "schema": "wildwood-recipes-v1",
+             "note": "v1.1.0 新增 boss 装备配方(远古长矛/回火镐/毛皮大衣/冰霜之刃);以 boss 掉落物为核心材料" },
   "torch": {
     "id": "torch", "name": "火把", "station": "hand", "grid": "2x2",
     "pattern": [["log", ""], ["", "twine"]],
@@ -30,5 +30,26 @@
     "id": "shovel", "name": "铲", "station": "science", "grid": "3x3",
     "pattern": [["", "", ""], ["iron_ore", "log", ""], ["", "log", ""]],
     "output": { "itemId": "shovel", "count": 1 }
+  },
+
+  "ancient_spear": {
+    "id": "ancient_spear", "name": "远古长矛", "station": "science", "grid": "3x3",
+    "pattern": [["deer_antler", "log", ""], ["", "log", ""], ["", "flint", ""]],
+    "output": { "itemId": "ancient_spear", "count": 1 }
+  },
+  "tempered_pickaxe": {
+    "id": "tempered_pickaxe", "name": "回火镐", "station": "science", "grid": "3x3",
+    "pattern": [["ant_ichor", "iron_ore", "iron_ore"], ["", "log", ""], ["", "log", ""]],
+    "output": { "itemId": "tempered_pickaxe", "count": 1 }
+  },
+  "fur_coat": {
+    "id": "fur_coat", "name": "毛皮大衣", "station": "hand", "grid": "2x2",
+    "pattern": [["bear_pelt", "bear_pelt"], ["twine", ""]],
+    "output": { "itemId": "fur_coat", "count": 1 }
+  },
+  "frost_blade": {
+    "id": "frost_blade", "name": "冰霜之刃", "station": "science", "grid": "3x3",
+    "pattern": [["dragon_scale", "ice", ""], ["", "log", ""], ["", "flint", ""]],
+    "output": { "itemId": "frost_blade", "count": 1 }
   }
 }
