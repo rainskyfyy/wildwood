@@ -34,11 +34,15 @@ const M310_ASSERTIONS = {
 };
 
 // 1. 校验 .lighthouserc.cjs 是否存在,不存在就用 M310_ASSERTIONS 现场生成
-function ensureConfig() {
+//    strict=true(real-collect) 强制 lhciDataManifestPath 字段;strict=false(self-test) 只校验 4 项 assertion
+function ensureConfig({ strict = false } = {}) {
   if (existsSync(CONFIG_PATH)) {
     const content = readFileSync(CONFIG_PATH, 'utf8');
-    if (!content.includes('lhciDataManifestPath')) {
+    if (strict && !content.includes('lhciDataManifestPath')) {
       throw new Error(`.lighthouserc.cjs 缺少 lhciDataManifestPath 字段,无法产出 perf-ci 消费的 manifest.json`);
+    }
+    if (!content.includes('categories:performance') || !content.includes('total-blocking-time')) {
+      throw new Error(`.lighthouserc.cjs 缺少 4 项 assertion 任一,无法 perf-ci 跑通`);
     }
     return content;
   }
@@ -95,7 +99,7 @@ function parseArgs(args) {
 // 3. self-test: 校验 config + 打印 4 项 assertion + 模拟 manifest.json
 function selfTest() {
   console.log('▶ lhci-data-collect self-test');
-  const config = ensureConfig();
+  const config = ensureConfig({ strict: false });
   console.log(`✓ .lighthouserc.cjs 已就位 (${config.length} 字节)`);
 
   console.log('\n▶ M3.10 4 项 assertion:');
@@ -124,7 +128,7 @@ function selfTest() {
 
 // 4. 真实采集模式:调 @lhci/cli
 function realCollect(args) {
-  ensureConfig();
+  ensureConfig({ strict: true });
   if (!args.url) {
     console.error('✗ --url <perf-ci target url> 必填(perf-ci 应从 build artifact 提供)');
     exit(2);
