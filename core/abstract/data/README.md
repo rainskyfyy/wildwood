@@ -1,22 +1,80 @@
-# core/abstract/data/ — 数据层抽象(A/B 通用层 1)
+# core/abstract/data — Wildwood 数据层(M1.4 关键路径)
 
-按方案 §3.3.1,本目录在 A 线(Godot) / B 线(Unity)切换时**保留**,
-只重写引擎层。这意味着这里的代码必须满足:
+A/B 通用层 1:世界状态 / 玩家档案 / 存档 schema 全部走 JSON + 版本号,不绑引擎 API。
 
-- **JSON-friendly**:只使用基础类型 + 字符串 + 字典 + 数组
-- **无引擎依赖**:不引用 Node / SceneTree / 资源
-- **版本契约**:每次写都带 `schema_version`,读时校验
+## 模块结构
 
-## 当前内容
+```
+core/abstract/data/
+├── __init__.py         公开 API(WorldState / PlayerProfile / SaveGame / DataStore / make_store)
+├── SCHEMAS.md          schema 字段文档(验收 ①;含 M2.6 增量章节)
+├── schemas.py          数据类 + 校验器 + 版本号工具(验收 ②)
+├── chunks.py           M2.6 分块管理(TerrainChunk / InventoryChunk + 切分重组工具)
+├── migrations.py       M2.6 SchemaMigrator(版本迁移 + 内置迁移函数)
+├── store.py            DataStore 抽象接口 + JsonFileStore(reference, M2.6 分块)
+├── store_mock.py       MockLiteDbStore(mock,M2.6 加 terrain/inventory collection)
+├── adapter.py          A/B 切换工厂 make_store(backend, **kwargs)
+└── examples/
+    ├── seed_data.py    演示:reference / mock / A→B 切换
+    └── m26_demo.py     M2.6 演示:满存档 < 10MB / 跨模式 / 版本迁移 / 跨 backend 一致
+```
 
-| 文件 | 任务 | 备注 |
-|---|---|---|
-| `save_metadata.gd` | M1.3 占位 → M1.4 完整 → M2.6 落盘 | 存档元数据 v1 schema |
+## 跑测试
 
-## 后续(M1.4 完整 + M2.6 落盘)
+```bash
+cd wildwood
+# M1.4 单元测试
+python3 -m unittest tests.unit.test_data_layer -v
+# Ran 66 tests in 0.07s — OK
 
-- `inventory_item.gd` — 物品条目(物品 ID + 数量 + 耐久)
-- `world_chunk.gd` — 区块数据(地形 / 建筑 / 实体引用)
-- `player_state.gd` — 玩家状态(HP / 饱腹 / 精神 / 温度 / 位置)
-- `migrations.gd` — 版本迁移链 v1→v2→...
-- `validator.gd` — 通用字段合法性校验(枚举值 / 数值范围)
+# M2.6 单元测试
+python3 -m unittest tests.unit.test_m26_world_persistence -v
+# Ran 59 tests in 1.3s — OK
+
+# 全部测试
+python3 -m unittest tests.unit.test_data_layer tests.unit.test_m26_world_persistence
+# Ran 125 tests in 0.8s — OK
+```
+
+## 跑示例
+
+```bash
+python3 -m core.abstract.data.examples.seed_data
+python3 -m core.abstract.data.examples.m26_demo  # M2.6:满存档 / 跨模式 / 迁移 / 跨 backend
+```
+
+## 选 backend
+
+```python
+from core.abstract.data import make_store
+
+# 显式
+store = make_store("reference", reference_root="./data/saves")
+store = make_store("mock", mock_db_path="./data/wildwood.db.json")
+
+# 环境变量
+os.environ["WILDSWOOD_DATA_BACKEND"] = "mock"
+store = make_store(mock_db_path="./data/wildwood.db.json")
+```
+
+## 验收对账
+
+### M1.4
+
+| 验收标准                                | 状态    |
+|----------------------------------------|---------|
+| ① schema 文档                           | `SCHEMAS.md` ✓ |
+| ② schema 校验器(版本号兼容判断)          | `SchemaValidator` + `is_compatible` ✓ |
+| ③ reference + mock 实现各 1 份          | `JsonFileStore` + `MockLiteDbStore` ✓ |
+| ④ A/B 切换 mock 适配器测试通过            | `tests/unit/test_data_layer.py::TestAdapter` 11 个测试 + `DataStoreContractMixin` 11 个共享测试 ✓ |
+
+### M2.6(增量)
+
+| 验收标准 | 实现 | 测试 |
+|----------|------|------|
+| ① 退出后重进世界完全一致 | `save_load` roundtrip 校验 | `test_basic_roundtrip` + `test_full_save_load_roundtrip_under_1s` + `m26_demo.py [2]` |
+| ② 版本号不匹配时迁移成功 | `_migrate_*` 加载时自动迁移 | `TestBuiltinMigrations` + `test_load_v1_0_*_auto_migrates` + `m26_demo.py [4]` |
+| ③ 存档 < 10MB(4 季 30 日循环满存档) | 分块存储 | `test_full_save_under_10mb_*` + `m26_demo.py [1]`(实测 1.0-1.4MB) |
+| ④ 单机/联机存档格式一致 | `SaveGame.game_mode` + `clients` 字段 | `TestCrossModeRoundtrip` + `m26_demo.py [3]` |
+
+详细文档见 `SCHEMAS.md`(M2.6 增量章节 §9)。

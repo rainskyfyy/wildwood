@@ -48,6 +48,16 @@ Thumbs.db
 *.bak
 *.log
 
+# Python (M1.4+ 数据层 + 后续 CI 脚本)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
 # CI / build artifacts
 build/
 dist/
