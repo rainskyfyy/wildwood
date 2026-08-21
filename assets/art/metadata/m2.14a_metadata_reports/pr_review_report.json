@@ -1,0 +1,520 @@
+{
+  "task_id": "M2.14a",
+  "total_assets_in_meta": 128,
+  "total_assets_checked": 128,
+  "skipped_corrupt": 0,
+  "ai_layer_evaluation": {
+    "note": "AI 概念图（256x256 缩略图评测），最终 .ase 需 Aseprite 手工修整到 PASS",
+    "palette": {
+      "tolerance_ai": "< 30% 违例 (AI 概念层)",
+      "tolerance_final_ase": "= 0% 违例 (最终 .ase)",
+      "passing_ai": 0,
+      "failing_ai": 128
+    },
+    "antialias": {
+      "tolerance_ai": "< 30% 中间灰阶",
+      "tolerance_final_ase": "= 0% 中间灰阶",
+      "passing_ai": 128,
+      "failing_ai": 0
+    }
+  },
+  "silhouette_check_sample": [
+    {
+      "image_size": [
+        256,
+        256
+      ],
+      "dark_pct": 25.0,
+      "light_pct": 58.1,
+      "asset": "protagonist_up_idle"
+    },
+    {
+      "image_size": [
+        256,
+        256
+      ],
+      "dark_pct": 40.5,
+      "light_pct": 43.8,
+      "asset": "protagonist_down_idle"
+    },
+    {
+      "image_size": [
+        256,
+        256
+      ],
+      "dark_pct": 39.2,
+      "light_pct": 46.9,
+      "asset": "protagonist_left_idle"
+    },
+    {
+      "image_size": [
+        256,
+        256
+      ],
+      "dark_pct": 43.0,
+      "light_pct": 31.9,
+      "asset": "protagonist_right_idle"
+    },
+    {
+      "image_size": [
+        256,
+        256
+      ],
+      "dark_pct": 33.5,
+      "light_pct": 58.6,
+      "asset": "protagonist_up_walk"
+    }
+  ],
+  "grid_check_summary": [
+    {
+      "status": "ok",
+      "image_size": [
+        256,
+        256
+      ],
+      "grid_size": 32,
+      "asset": "protagonist_up_idle"
+    },
+    {
+      "status": "ok",
+      "image_size": [
+        256,
+        256
+      ],
+      "grid_size": 32,
+      "asset": "protagonist_down_idle"
+    },
+    {
+      "status": "ok",
+      "image_size": [
+        256,
+        256
+      ],
+      "grid_size": 32,
+      "asset": "protagonist_left_idle"
+    }
+  ],
+  "animation_consistency": {
+    "protagonist": {
+      "hero_idle": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "hero_walk": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          8
+        ],
+        "consistent": true
+      },
+      "hero_run": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "hero_attack": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "hero_gather": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "hero_hurt": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          2
+        ],
+        "consistent": true
+      },
+      "hero_death": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      }
+    },
+    "monster": {
+      "treant_idle": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "treant_walk": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "treant_attack": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "treant_hurt": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          2
+        ],
+        "consistent": true
+      },
+      "treant_death": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "spider_idle": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "spider_walk": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "spider_attack": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "spider_hurt": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          2
+        ],
+        "consistent": true
+      },
+      "spider_death": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "bat_idle": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "bat_walk": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "bat_attack": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "bat_hurt": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          2
+        ],
+        "consistent": true
+      },
+      "bat_death": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "hound_idle": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "hound_walk": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "hound_attack": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "hound_hurt": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          2
+        ],
+        "consistent": true
+      },
+      "hound_death": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "merm_idle": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "merm_walk": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      },
+      "merm_attack": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          4
+        ],
+        "consistent": true
+      },
+      "merm_hurt": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          2
+        ],
+        "consistent": true
+      },
+      "merm_death": {
+        "count": 4,
+        "directions": [
+          "down",
+          "left",
+          "right",
+          "up"
+        ],
+        "frame_count_unique": [
+          6
+        ],
+        "consistent": true
+      }
+    }
+  },
+  "next_step": "Aseprite 手工修整：基于 AI 概念图作为视觉锚点，重画为严格 32px 像素 .ase 源文件"
+}

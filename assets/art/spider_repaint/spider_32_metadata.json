@@ -1,0 +1,61 @@
+{
+  "version": "v2-32x32-repaint",
+  "subject": "spider",
+  "category": "怪物",
+  "replaces": "M2.14a spider 48×48 (R4 违例)",
+  "passes_rules": [
+    "R1 32×32 网格",
+    "R2 首屏 ≤64",
+    "R4 非 32 倍数零容忍",
+    "R6 24 色板（概念阶段提示，正式出图由 aseprite CLI 校验）"
+  ],
+  "load_strategy": "neighbor chunk（≤64）",
+  "frames": [
+    {
+      "name": "spider_32_neighbor_idle_00",
+      "action": "idle",
+      "frame": 0,
+      "size_px": [
+        32,
+        32
+      ]
+    },
+    {
+      "name": "spider_32_neighbor_walk_00",
+      "action": "walk",
+      "frame": 0,
+      "size_px": [
+        32,
+        32
+      ]
+    },
+    {
+      "name": "spider_32_neighbor_attack_00",
+      "action": "attack",
+      "frame": 0,
+      "size_px": [
+        32,
+        32
+      ]
+    },
+    {
+      "name": "spider_32_neighbor_hurt_00",
+      "action": "hurt",
+      "frame": 0,
+      "size_px": [
+        32,
+        32
+      ]
+    },
+    {
+      "name": "spider_32_neighbor_death_00",
+      "action": "death",
+      "frame": 0,
+      "size_px": [
+        32,
+        32
+      ]
+    }
+  ],
+  "note": "本批 5 帧为 AI 概念阶段 placeholder；Aseprite 桌面出图阶段需真人 Aseprite 同事按本规范 + 实际玩法定型后重画"
+}

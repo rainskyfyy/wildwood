@@ -1,0 +1,4936 @@
+{
+  "schema_version": "1.0",
+  "task_id": "M2.14a",
+  "generated_at": "2026-08-20T08:22:53.633196+00:00",
+  "total_assets": 128,
+  "protagonist_count": 28,
+  "monster_count": 100,
+  "expected_total": 128,
+  "completion_pct": 100.0,
+  "assets": [
+    {
+      "asset_id": "protagonist_up_idle",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_idle.png",
+        "generated_at": "2026-08-20T08:22:53.616957+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，轻微呼吸/眨眼"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_idle",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_idle.png",
+        "generated_at": "2026-08-20T08:22:53.616991+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，轻微呼吸/眨眼"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_idle",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617010+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，轻微呼吸/眨眼"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_idle",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617028+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，轻微呼吸/眨眼"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_up_walk",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "walk",
+      "frame_count": 8,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617044+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，4 步完整步态"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_walk",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "walk",
+      "frame_count": 8,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617060+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，4 步完整步态"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_walk",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "walk",
+      "frame_count": 8,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617074+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，4 步完整步态"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_walk",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "walk",
+      "frame_count": 8,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617088+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，4 步完整步态"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_up_run",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "run",
+      "frame_count": 6,
+      "fps": 12,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_run.png",
+        "generated_at": "2026-08-20T08:22:53.617103+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_run.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，步幅加大"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_run",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "run",
+      "frame_count": 6,
+      "fps": 12,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_run.png",
+        "generated_at": "2026-08-20T08:22:53.617120+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_run.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，步幅加大"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_run",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "run",
+      "frame_count": 6,
+      "fps": 12,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_run.png",
+        "generated_at": "2026-08-20T08:22:53.617134+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_run.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，步幅加大"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_run",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "run",
+      "frame_count": 6,
+      "fps": 12,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_run.png",
+        "generated_at": "2026-08-20T08:22:53.617148+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_run.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，步幅加大"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_up_attack",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "attack",
+      "frame_count": 4,
+      "fps": 15,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617165+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 15fps 节奏，蓄力-挥击-击中-收招"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_attack",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "attack",
+      "frame_count": 4,
+      "fps": 15,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617179+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 15fps 节奏，蓄力-挥击-击中-收招"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_attack",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "attack",
+      "frame_count": 4,
+      "fps": 15,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617193+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 15fps 节奏，蓄力-挥击-击中-收招"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_attack",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "attack",
+      "frame_count": 4,
+      "fps": 15,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617208+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 15fps 节奏，蓄力-挥击-击中-收招"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_up_gather",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "gather",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_gather.png",
+        "generated_at": "2026-08-20T08:22:53.617223+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_gather.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，挥工具-接触"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_gather",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "gather",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_gather.png",
+        "generated_at": "2026-08-20T08:22:53.617237+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_gather.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，挥工具-接触"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_gather",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "gather",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_gather.png",
+        "generated_at": "2026-08-20T08:22:53.617250+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_gather.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，挥工具-接触"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_gather",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "gather",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_gather.png",
+        "generated_at": "2026-08-20T08:22:53.617264+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_gather.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，挥工具-接触"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_up_hurt",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617277+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，闪白+后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_hurt",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617291+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，闪白+后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_hurt",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617304+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，闪白+后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_hurt",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617317+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，闪白+后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_up_death",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "up",
+      "action": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_up_death.png",
+        "generated_at": "2026-08-20T08:22:53.617332+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_up_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地+淡出"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_down_death",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "down",
+      "action": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_down_death.png",
+        "generated_at": "2026-08-20T08:22:53.617348+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_down_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地+淡出"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_left_death",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "left",
+      "action": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_left_death.png",
+        "generated_at": "2026-08-20T08:22:53.617363+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_left_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地+淡出"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "protagonist_right_death",
+      "type": "protagonist",
+      "character": "hero",
+      "direction": "right",
+      "action": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "protagonist/hero_right_death.png",
+        "generated_at": "2026-08-20T08:22:53.617379+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Hero/hero_right_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地+淡出"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_up_idle",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "up",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_up_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617398+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_up_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_down_idle",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "down",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_down_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617416+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_down_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_left_idle",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "left",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_left_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617431+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_left_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_right_idle",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "right",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_right_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617445+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_right_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_up_walk",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "up",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_up_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617460+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_up_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_down_walk",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "down",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_down_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617473+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_down_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_left_walk",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "left",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_left_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617489+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_left_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_right_walk",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "right",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_right_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617503+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_right_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_up_attack",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "up",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_up_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617519+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_up_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_down_attack",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "down",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_down_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617534+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_down_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_left_attack",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "left",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_left_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617547+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_left_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_right_attack",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "right",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_right_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617600+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_right_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_up_hurt",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "up",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_up_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617616+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_up_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_down_hurt",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "down",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_down_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617630+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_down_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_left_hurt",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "left",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_left_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617646+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_left_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_right_hurt",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "right",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_right_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617671+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_right_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_up_death",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "up",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_up_death.png",
+        "generated_at": "2026-08-20T08:22:53.617689+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_up_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_down_death",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "down",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_down_death.png",
+        "generated_at": "2026-08-20T08:22:53.617704+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_down_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_left_death",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "left",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_left_death.png",
+        "generated_at": "2026-08-20T08:22:53.617719+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_left_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_treant_right_death",
+      "type": "monster",
+      "character": "treant",
+      "character_name_cn": "树精",
+      "biome": "forest",
+      "ai_pattern": "patrol->chase->melee",
+      "stats": {
+        "hp": 60,
+        "atk": 12
+      },
+      "direction": "right",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/treant_right_death.png",
+        "generated_at": "2026-08-20T08:22:53.617735+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/treant/treant_right_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_up_idle",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "up",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_up_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617752+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_up_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_down_idle",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "down",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_down_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617766+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_down_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_left_idle",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "left",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_left_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617782+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_left_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_right_idle",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "right",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_right_idle.png",
+        "generated_at": "2026-08-20T08:22:53.617798+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_right_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_up_walk",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "up",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_up_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617812+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_up_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_down_walk",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "down",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_down_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617826+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_down_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_left_walk",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "left",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_left_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617847+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_left_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_right_walk",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "right",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_right_walk.png",
+        "generated_at": "2026-08-20T08:22:53.617861+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_right_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_up_attack",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "up",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_up_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617875+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_up_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_down_attack",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "down",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_down_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617891+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_down_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_left_attack",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "left",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_left_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617906+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_left_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_right_attack",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "right",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_right_attack.png",
+        "generated_at": "2026-08-20T08:22:53.617921+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_right_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_up_hurt",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "up",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_up_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617935+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_up_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_down_hurt",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "down",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_down_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617950+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_down_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_left_hurt",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "left",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_left_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617964+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_left_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_right_hurt",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "right",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_right_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.617979+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_right_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_up_death",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "up",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_up_death.png",
+        "generated_at": "2026-08-20T08:22:53.617992+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_up_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_down_death",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "down",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_down_death.png",
+        "generated_at": "2026-08-20T08:22:53.618007+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_down_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_left_death",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "left",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_left_death.png",
+        "generated_at": "2026-08-20T08:22:53.618021+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_left_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_spider_right_death",
+      "type": "monster",
+      "character": "spider",
+      "character_name_cn": "蜘蛛",
+      "biome": "cave",
+      "ai_pattern": "ambush->poison->retreat",
+      "stats": {
+        "hp": 40,
+        "atk": 10
+      },
+      "direction": "right",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/spider_right_death.png",
+        "generated_at": "2026-08-20T08:22:53.618036+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/spider/spider_right_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_up_idle",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "up",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_up_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618052+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_up_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_down_idle",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "down",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_down_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618066+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_down_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_left_idle",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "left",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_left_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618081+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_left_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_right_idle",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "right",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_right_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618097+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_right_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_up_walk",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "up",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_up_walk.png",
+        "generated_at": "2026-08-20T08:22:53.618112+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_up_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_down_walk",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "down",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_down_walk.png",
+        "generated_at": "2026-08-20T08:22:53.618126+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_down_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_left_walk",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "left",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_left_walk.png",
+        "generated_at": "2026-08-20T08:22:53.618140+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_left_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_right_walk",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "right",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_right_walk.png",
+        "generated_at": "2026-08-20T08:22:53.618154+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_right_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_up_attack",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "up",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_up_attack.png",
+        "generated_at": "2026-08-20T08:22:53.618168+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_up_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_down_attack",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "down",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_down_attack.png",
+        "generated_at": "2026-08-20T08:22:53.618182+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_down_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_left_attack",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "left",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_left_attack.png",
+        "generated_at": "2026-08-20T08:22:53.618198+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_left_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_right_attack",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "right",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_right_attack.png",
+        "generated_at": "2026-08-20T08:22:53.618213+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_right_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_up_hurt",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "up",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_up_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.618229+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_up_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_down_hurt",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "down",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_down_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.618243+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_down_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_left_hurt",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "left",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_left_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.618259+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_left_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_right_hurt",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "right",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_right_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.618274+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_right_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_up_death",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "up",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_up_death.png",
+        "generated_at": "2026-08-20T08:22:53.618288+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_up_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_down_death",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "down",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_down_death.png",
+        "generated_at": "2026-08-20T08:22:53.618302+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_down_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_left_death",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "left",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_left_death.png",
+        "generated_at": "2026-08-20T08:22:53.618315+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_left_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_bat_right_death",
+      "type": "monster",
+      "character": "bat",
+      "character_name_cn": "蝙蝠",
+      "biome": "swamp",
+      "ai_pattern": "swarm->dive->scatter",
+      "stats": {
+        "hp": 20,
+        "atk": 6
+      },
+      "direction": "right",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/bat_right_death.png",
+        "generated_at": "2026-08-20T08:22:53.618329+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/bat/bat_right_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_up_idle",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "up",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_up_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618345+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_up_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_down_idle",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "down",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_down_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618359+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_down_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_left_idle",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "left",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_left_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618372+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_left_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_right_idle",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "right",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_right_idle.png",
+        "generated_at": "2026-08-20T08:22:53.618386+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_right_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_up_walk",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "up",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_up_walk.png",
+        "generated_at": "2026-08-20T08:22:53.618399+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_up_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_down_walk",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "down",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_down_walk.png",
+        "generated_at": "2026-08-20T08:22:53.618413+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_down_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_left_walk",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "left",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_left_walk.png",
+        "generated_at": "2026-08-20T08:22:53.623319+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_left_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_right_walk",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "right",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_right_walk.png",
+        "generated_at": "2026-08-20T08:22:53.628031+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_right_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_up_attack",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "up",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_up_attack.png",
+        "generated_at": "2026-08-20T08:22:53.628066+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_up_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_down_attack",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "down",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_down_attack.png",
+        "generated_at": "2026-08-20T08:22:53.628085+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_down_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_left_attack",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "left",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_left_attack.png",
+        "generated_at": "2026-08-20T08:22:53.628100+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_left_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_right_attack",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "right",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_right_attack.png",
+        "generated_at": "2026-08-20T08:22:53.628114+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_right_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_up_hurt",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "up",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_up_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.628132+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_up_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_down_hurt",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "down",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_down_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.628146+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_down_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_left_hurt",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "left",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_left_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.628161+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_left_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_right_hurt",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "right",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_right_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.628178+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_right_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_up_death",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "up",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_up_death.png",
+        "generated_at": "2026-08-20T08:22:53.628193+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_up_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_down_death",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "down",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_down_death.png",
+        "generated_at": "2026-08-20T08:22:53.628207+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_down_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_left_death",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "left",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_left_death.png",
+        "generated_at": "2026-08-20T08:22:53.628222+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_left_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_hound_right_death",
+      "type": "monster",
+      "character": "hound",
+      "character_name_cn": "猎犬",
+      "biome": "plains",
+      "ai_pattern": "pack->chase->bite",
+      "stats": {
+        "hp": 80,
+        "atk": 16
+      },
+      "direction": "right",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/hound_right_death.png",
+        "generated_at": "2026-08-20T08:22:53.628237+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/hound/hound_right_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_up_idle",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "up",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_up_idle.png",
+        "generated_at": "2026-08-20T08:22:53.632872+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_up_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_down_idle",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "down",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_down_idle.png",
+        "generated_at": "2026-08-20T08:22:53.632900+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_down_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_left_idle",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "left",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_left_idle.png",
+        "generated_at": "2026-08-20T08:22:53.632917+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_left_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_right_idle",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "right",
+      "state": "idle",
+      "frame_count": 4,
+      "fps": 8,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_right_idle.png",
+        "generated_at": "2026-08-20T08:22:53.632940+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_right_idle.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，扫描警戒"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_up_walk",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "up",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_up_walk.png",
+        "generated_at": "2026-08-20T08:22:53.632957+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_up_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_down_walk",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "down",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_down_walk.png",
+        "generated_at": "2026-08-20T08:22:53.632971+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_down_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_left_walk",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "left",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_left_walk.png",
+        "generated_at": "2026-08-20T08:22:53.632986+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_left_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_right_walk",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "right",
+      "state": "walk",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": true,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_right_walk.png",
+        "generated_at": "2026-08-20T08:22:53.633002+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_right_walk.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，巡逻/追击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_up_attack",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "up",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_up_attack.png",
+        "generated_at": "2026-08-20T08:22:53.633016+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_up_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_down_attack",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "down",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_down_attack.png",
+        "generated_at": "2026-08-20T08:22:53.633031+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_down_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_left_attack",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "left",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_left_attack.png",
+        "generated_at": "2026-08-20T08:22:53.633046+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_left_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_right_attack",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "right",
+      "state": "attack",
+      "frame_count": 4,
+      "fps": 12,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_right_attack.png",
+        "generated_at": "2026-08-20T08:22:53.633062+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_right_attack.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 12fps 节奏，前扑攻击"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_up_hurt",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "up",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_up_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.633076+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_up_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_down_hurt",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "down",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_down_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.633090+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_down_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_left_hurt",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "left",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_left_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.633104+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_left_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_right_hurt",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "right",
+      "state": "hurt",
+      "frame_count": 2,
+      "fps": 8,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_right_hurt.png",
+        "generated_at": "2026-08-20T08:22:53.633120+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_right_hurt.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 8fps 节奏，受击后仰"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_up_death",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "up",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_up_death.png",
+        "generated_at": "2026-08-20T08:22:53.633134+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_up_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_down_death",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "down",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_down_death.png",
+        "generated_at": "2026-08-20T08:22:53.633150+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_down_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_left_death",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "left",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_left_death.png",
+        "generated_at": "2026-08-20T08:22:53.633167+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_left_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    },
+    {
+      "asset_id": "monster_merm_right_death",
+      "type": "monster",
+      "character": "merm",
+      "character_name_cn": "鱼人",
+      "biome": "swamp",
+      "ai_pattern": "stealth->ranged->retreat",
+      "stats": {
+        "hp": 70,
+        "atk": 14
+      },
+      "direction": "right",
+      "state": "death",
+      "frame_count": 6,
+      "fps": 10,
+      "loop": false,
+      "grid_unit_px": 32,
+      "palette_constraint": "wilderness_24.ase",
+      "source_ai": {
+        "model": "aily-generate-image (Doubao Seedream V4.5)",
+        "concept_png": "monsters/merm_right_death.png",
+        "generated_at": "2026-08-20T08:22:53.633182+00:00"
+      },
+      "final_ase_required": true,
+      "final_ase_path": "Assets/Art/Sprites/Monsters/merm/merm_right_death.ase",
+      "post_processing_required": [
+        "1) 严格 32×32 整数网格对齐",
+        "2) 24 色板量化（违例色 = 0）",
+        "3) 像素硬边清理（无抗锯齿）",
+        "4) 帧间角色剪影一致",
+        "5) 10fps 节奏，倒地死亡"
+      ],
+      "pr_review": {
+        "silhouette_pass": "pending",
+        "palette_pass": "pending",
+        "grid_pass": "pending",
+        "antialias_pass": "pending",
+        "animation_pass": "pending"
+      }
+    }
+  ]
+}

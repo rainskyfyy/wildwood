@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "1.0",
+  "assetSet": "M2.14b",
+  "title": "M2.14b 美术资产 PNG 实际交付 v1.1",
+  "doc_id": "J7SOd67S3o9gLixzRIocA6APn0f",
+  "total": 28,
+  "categories": {
+    "ui_monsters": {
+      "count": 8,
+      "items": [
+        {
+          "id": "ui_monster_bat",
+          "file": "ui_monsters/bat.png",
+          "label_zh": "蝙蝠"
+        },
+        {
+          "id": "ui_monster_deerclops",
+          "file": "ui_monsters/deerclops.png",
+          "label_zh": "巨鹿 Boss"
+        },
+        {
+          "id": "ui_monster_hound",
+          "file": "ui_monsters/hound.png",
+          "label_zh": "猎犬"
+        },
+        {
+          "id": "ui_monster_lureplant",
+          "file": "ui_monsters/lureplant.png",
+          "label_zh": "食人花"
+        },
+        {
+          "id": "ui_monster_merm",
+          "file": "ui_monsters/merm.png",
+          "label_zh": "鱼人"
+        },
+        {
+          "id": "ui_monster_spider",
+          "file": "ui_monsters/spider.png",
+          "label_zh": "蜘蛛"
+        },
+        {
+          "id": "ui_monster_tentacle",
+          "file": "ui_monsters/tentacle.png",
+          "label_zh": "触须"
+        },
+        {
+          "id": "ui_monster_treeguard",
+          "file": "ui_monsters/treeguard.png",
+          "label_zh": "树精"
+        }
+      ]
+    },
+    "resources": {
+      "count": 10,
+      "items": [
+        {
+          "id": "resource_berry_bush",
+          "file": "resources/berry_bush.png",
+          "label_zh": "浆果灌木"
+        },
+        {
+          "id": "resource_charcoal",
+          "file": "resources/charcoal.png",
+          "label_zh": "木炭"
+        },
+        {
+          "id": "resource_flint",
+          "file": "resources/flint.png",
+          "label_zh": "燧石"
+        },
+        {
+          "id": "resource_gold_ore",
+          "file": "resources/gold_ore.png",
+          "label_zh": "金"
+        },
+        {
+          "id": "resource_grass",
+          "file": "resources/grass.png",
+          "label_zh": "草"
+        },
+        {
+          "id": "resource_hay",
+          "file": "resources/hay.png",
+          "label_zh": "干草"
+        },
+        {
+          "id": "resource_rope",
+          "file": "resources/rope.png",
+          "label_zh": "绳"
+        },
+        {
+          "id": "resource_stone",
+          "file": "resources/stone.png",
+          "label_zh": "石"
+        },
+        {
+          "id": "resource_twig",
+          "file": "resources/twig.png",
+          "label_zh": "树枝"
+        },
+        {
+          "id": "resource_wood",
+          "file": "resources/wood.png",
+          "label_zh": "木"
+        }
+      ]
+    },
+    "tools": {
+      "count": 5,
+      "items": [
+        {
+          "id": "tool_axe",
+          "file": "tools/axe.png",
+          "label_zh": "斧"
+        },
+        {
+          "id": "tool_pickaxe",
+          "file": "tools/pickaxe.png",
+          "label_zh": "镐"
+        },
+        {
+          "id": "tool_pitchfork",
+          "file": "tools/pitchfork.png",
+          "label_zh": "草叉"
+        },
+        {
+          "id": "tool_shovel",
+          "file": "tools/shovel.png",
+          "label_zh": "铲"
+        },
+        {
+          "id": "tool_torch",
+          "file": "tools/torch.png",
+          "label_zh": "火把"
+        }
+      ]
+    },
+    "buildings": {
+      "count": 5,
+      "items": [
+        {
+          "id": "building_bonfire",
+          "file": "buildings/bonfire.png",
+          "label_zh": "篝火"
+        },
+        {
+          "id": "building_campfire",
+          "file": "buildings/campfire.png",
+          "label_zh": "火堆"
+        },
+        {
+          "id": "building_chest",
+          "file": "buildings/chest.png",
+          "label_zh": "箱子"
+        },
+        {
+          "id": "building_crock_pot",
+          "file": "buildings/crock_pot.png",
+          "label_zh": "烹饪锅"
+        },
+        {
+          "id": "building_shelter",
+          "file": "buildings/shelter.png",
+          "label_zh": "避难所"
+        }
+      ]
+    }
+  },
+  "generation": {
+    "model": "Seedream V4.5",
+    "resolution": "1024x1024",
+    "format": "PNG",
+    "purpose": "Aseprite 重建工序的视觉锚点"
+  },
+  "backfill_note": "本批为 GitHub 仓 wildwood/assets/art/ 的 backfill 占位交付",
+  "backfill_date": "2026-08-21"
+}
