@@ -1,51 +1,118 @@
 /**
- * Biome configuration for M5 (real M3.13 art integration).
+ * Biome configuration for v0.5.1 (6 biomes).
  *
- * 4 biomes aligned with the M3.13 art layer:
- *   - desert    (sand / dunes / pebbles)
- *   - marsh     (mud / swamp / puddles — M5 first; previously M2.7 "plains")
- *   - snow      (snow / ice / permafrost)
- *   - volcano   (basalt / lava / ash)
+ * 6 biomes total:
+ *   - forest    (新增 — 中心,新手区,树木密集、浆果丛)
+ *   - plains    (新增 — 过渡带,开阔草原、牛群)
+ *   - desert    (M5 原有)
+ *   - marsh     (M5 原有 — M2.7 旧名 "plains")
+ *   - snow      (M5 原有)
+ *   - volcano   (M5 原有)
  *
  * Each biome defines:
- *   - elevation/moisture thresholds (Perlin field bands)
- *   - primary + secondary + accent colors (used as procedural fallback
- *     when M3.13 PNGs fail to load; UI 设计师 tokens reuse these)
+ *   - center config (for radial layout in generator.js)
+ *   - elevation/moisture thresholds (Perlin field bands) — kept
+ *     from M5 for the legacy 4-biome world.
+ *   - primary + secondary + accent colors
  *   - decorPool: M3.13 decoration PNGs (desert/snow/volcano) and
- *     procedural kinds for marsh (no real art)
- *   - tileArt: 5 PNG paths under assets/art/biomes/<id>/tiles/
- *   - transitionArt: per-neighbor PNG path or null (procedural blend)
+ *     procedural kinds for marsh/forest/plains (no real art yet)
+ *   - tileArt: PNG paths under assets/art/biomes/<id>/tiles/
+ *   - transitionArt: per-neighbor PNG path or null
  *
- * Tile variant selection at render time: a Mulberry32 PRNG hashes the
- * tile's world coord to a stable [0..5) index so the same world tile
- * always picks the same PNG variant.
+ * v0.5.1 变更:
+ *   - 加 forest + plains 两个新群系
+ *   - layout.quadrants 标记四大极端群系在径向布局中各占哪个象限
+ *   - 保留原 M5 pickBiome() 函数(4 群系 Perlin 模式)以做旧测兼容
+ *   - 新增 pickBiomeRadial() 给 6 群系径向布局使用
  */
 
 'use strict';
 
-// Path to a single M3.13 tile PNG; helpers below build full paths.
 const TILE_DIR = id => `./assets/art/biomes/${id}/tiles/`;
 const TILE_PNG = (id, name) => `${TILE_DIR(id)}${name}.png`;
 
-// Decoration paths.
 const DECOR_DIR = id => `./assets/art/biomes/_shared/decorations/${id}/`;
 const DECOR_PNG = (id, name) => `${DECOR_DIR(id)}${name}.png`;
 
-// Transition PNG: <a>2<b>_step{0,1,2}.png, sorted alphabetically.
 const TRANS_PNG = (a, b, step) =>
   `./assets/art/biomes/_shared/transitions/${a}2${b}_step${step}.png`;
 
 /**
- * M5 biomes. Order matters for BIOME_TO_CODE Uint8Array mapping in
- * generator.js — keep stable: ['desert', 'marsh', 'snow', 'volcano'].
+ * v0.5.1 6 群系配置。
+ *
+ * 顺序固定为 ['forest', 'plains', 'desert', 'marsh', 'snow', 'volcano']。
+ * generator.js 的 BIOME_TO_CODE 按本顺序映射 0..5,新加群系请追加到末尾
+ * 以免破坏存档/序列化(老世界会把 forest 存成 0, plains 存成 1, etc.)
  */
 export const BIOMES = {
+  forest: {
+    id: 'forest',
+    name: '森林',
+    elevation: { min: 0.30, max: 0.75 },
+    moisture:  { min: 0.40, max: 0.80 },
+    primary:   '#3f6b3a',  // 暗松绿
+    secondary: '#2a4a26',
+    accent:    '#7a9a4a',  // 嫩绿
+    tileArt: [
+      TILE_PNG('forest', 'grass_base'),
+      TILE_PNG('forest', 'grass_dark'),
+      TILE_PNG('forest', 'forest_floor'),
+      TILE_PNG('forest', 'moss_ground'),
+      TILE_PNG('forest', 'leaf_litter')
+    ],
+    decorPool: [
+      { id: 'mushroom',  weight: 30, art: null, color: '#a87a4a' },
+      { id: 'fern',      weight: 35, art: null, color: '#4a8a3a' },
+      { id: 'flower_blue', weight: 15, art: null, color: '#5a8ac4' },
+      { id: 'log_floor', weight: 20, art: null, color: '#6a4a2a' }
+    ],
+    // 出生点 + 浆果丛 / 树木 / 蝴蝶 / 猪人(预留)
+    ecology: {
+      grass: 200,        // 隐式资源,兔群可食
+      berry_bush: 12,    // 浆果丛,boar 食物 + 玩家可采集
+      tree_density: 0.20,
+      butterfly: true,
+      pig_village_reserved: true
+    },
+    walkable: true
+  },
+
+  plains: {
+    id: 'plains',
+    name: '草原',
+    elevation: { min: 0.20, max: 0.65 },
+    moisture:  { min: 0.30, max: 0.65 },
+    primary:   '#9ab86a',  // 嫩草黄绿
+    secondary: '#7a9852',
+    accent:    '#c4d68a',  // 高草
+    tileArt: [
+      TILE_PNG('plains', 'grass_plain'),
+      TILE_PNG('plains', 'grass_short'),
+      TILE_PNG('plains', 'grass_tall'),
+      TILE_PNG('plains', 'wildflower_meadow'),
+      TILE_PNG('plains', 'dry_grass')
+    ],
+    decorPool: [
+      { id: 'tall_grass',  weight: 45, art: null, color: '#c4d68a' },
+      { id: 'wild_flower', weight: 25, art: null, color: '#e8b8c4' },
+      { id: 'rock_small',  weight: 15, art: null, color: '#7a7a7a' },
+      { id: 'rabbit_hole', weight: 15, art: null, color: '#4a3a2a' }
+    ],
+    ecology: {
+      tall_grass: 200,
+      wild_flower: true,
+      cow: true,
+      rabbit_hole_density: 0.08
+    },
+    walkable: true
+  },
+
   desert: {
     id: 'desert',
     name: '荒漠',
     elevation: { min: 0.20, max: 0.85 },
     moisture:  { min: 0.00, max: 0.40 },
-    primary:   '#c9a96e',  // 暖沙
+    primary:   '#c9a96e',
     secondary: '#a88a52',
     accent:    '#e0c89a',
     tileArt: [
@@ -69,7 +136,7 @@ export const BIOMES = {
     name: '沼泽',
     elevation: { min: 0.05, max: 0.55 },
     moisture:  { min: 0.55, max: 1.00 },
-    primary:   '#5a5a3a',  // 暗绿泥
+    primary:   '#5a5a3a',
     secondary: '#3a4a2a',
     accent:    '#6e7a3a',
     tileArt: [
@@ -79,7 +146,6 @@ export const BIOMES = {
       TILE_PNG('marsh', 'dark_mud'),
       TILE_PNG('marsh', 'mud_swamp')
     ],
-    // Marsh has no M3.13 decoration art; fall back to procedural dots.
     decorPool: [
       { id: 'mud_speck',  weight: 50, art: null, color: '#3a4a2a' },
       { id: 'reed',       weight: 25, art: null, color: '#6e7a3a' },
@@ -117,9 +183,9 @@ export const BIOMES = {
     name: '火山',
     elevation: { min: 0.65, max: 1.00 },
     moisture:  { min: 0.00, max: 0.30 },
-    primary:   '#3a2a26',  // 暗红黑
+    primary:   '#3a2a26',
     secondary: '#5a2a1a',
-    accent:    '#d4622a',  // 熔岩橙
+    accent:    '#d4622a',
     tileArt: [
       TILE_PNG('volcano', 'lava_flow'),
       TILE_PNG('volcano', 'basalt'),
@@ -138,13 +204,65 @@ export const BIOMES = {
 };
 
 /**
- * Pick a biome id given elevation + moisture fields in [0, 1].
+ * 径向布局 (v0.5.1): 中心 = forest, 内圈 = plains, 外圈 = 4 大极端群系
+ * 按象限分配。
  *
- * Priority (most specific first):
- *   - marsh    : moisture >= 0.55 (wet)
- *   - volcano  : elevation >= 0.65 && moisture <= 0.30 (high + dry)
- *   - snow     : elevation >= 0.50 && moisture <= 0.50 (high + cool/dry)
- *   - desert   : fallback (warm + dry)
+ * 6 群系布局示意 (80x60 地图):
+ *
+ *                  SNOW              SNOW
+ *              ┌─────────┐     ┌─────────┐
+ *              │  snow   │     │ volcano │
+ *              │  (NW)   │     │  (NE)   │
+ *              └─────────┘     └─────────┘
+ *                              ┌─────────┐
+ *                              │ PLAINS  │
+ *                              │ FOREST  │  ← 中心(40, 30) 玩家出生
+ *                              │  ring   │
+ *                              └─────────┘
+ *              ┌─────────┐     ┌─────────┐
+ *              │ marsh   │     │ desert  │
+ *              │  (SW)   │     │  (SE)   │
+ *              └─────────┘     └─────────┘
+ *                  DESERT            DESERT
+ *
+ * @param {number} x — world tile x
+ * @param {number} y — world tile y
+ * @param {number} width
+ * @param {number} height
+ * @returns {string} biome id
+ */
+export function pickBiomeRadial(x, y, width, height) {
+  const cx = width / 2;
+  const cy = height / 2;
+  const dx = x - cx;
+  const dy = y - cy;
+  const dist = Math.hypot(dx, dy);
+  const maxR = Math.hypot(cx, cy);
+  // Normalize to [0, 1].
+  const r = Math.min(1, dist / maxR);
+
+  // 中心 = forest (r < 0.25)
+  if (r < 0.25) return 'forest';
+  // 内圈 = plains (0.25 <= r < 0.45)
+  if (r < 0.45) return 'plains';
+
+  // 外圈 = 4 极端群系,按角度象限分:
+  //   NE (volcano): -45° < angle < 45°(右半)
+  //   SE (desert):  45° < angle < 135°(下)
+  //   SW (marsh):  135° < angle < 225°(左)
+  //   NW (snow):   225° < angle < 315°(上)
+  // 角度从 +X 顺时针,atan2(dy, dx) 给的是从 +X 逆时针 → 取反。
+  const angle = Math.atan2(dy, dx);
+  const deg = (angle * 180) / Math.PI;
+  // 分四象限 (注意 y 轴向下,所以屏幕"上"是 dy < 0)
+  if (dy <= 0 && Math.abs(dy) > Math.abs(dx)) return 'snow';     // NW 上
+  if (dy > 0 && Math.abs(dy) > Math.abs(dx))  return 'marsh';    // SW 下
+  if (dx > 0)                                  return 'volcano'; // NE 右
+  return 'desert';                                              // NW 左
+}
+
+/**
+ * M5 4 群系 Perlin 模式(保留供 v0.5.0 老世界和测试使用)。
  *
  * @param {number} elevation
  * @param {number} moisture
@@ -167,43 +285,27 @@ export function getBiome(id) {
 }
 
 /**
- * Resolve the transition PNG path for a biome A → biome B pair, and
- * which `step` (0, 1, 2) to use given a blend factor in [0, 1].
- *
- * Returns `null` for `path` when no real art exists for the pair — the
- * caller then falls back to procedural color blending.
- *
- * Pairs with real art (M3.13): desert↔snow, desert↔volcano, snow↔volcano
- *   (3 of 6 pairs). The other 3 pairs (any involving marsh) get null.
- *
- * @param {string} a — biome id, sorted alphabetically vs b
- * @param {string} b — biome id
- * @param {number} blend — 0..1 (0=fully A, 1=fully B)
- * @returns {{ path: string|null, step: number } | null}
+ * Resolve the transition PNG path for a biome A → biome B pair.
+ * v0.5.1: pairs without real art return null (procedural blend).
+ * v0.5.0 pairs (desert↔snow/volcano) keep their M3.13 PNGs.
  */
 export function transitionArt(a, b, blend) {
   if (a === b) return null;
-  // Alphabetize so desert↔snow and snow↔desert hit the same PNG.
   const [lo, hi] = a < b ? [a, b] : [b, a];
-  // Pairs without real art: anything involving marsh.
-  if (lo === 'marsh' || hi === 'marsh') return null;
-  // step index: 0=close to A, 1=midpoint, 2=close to B
+  // 涉及 forest/plains/marsh 的过渡 — 全部走程序混合(no M3.13 art)
+  if (lo === 'marsh' || hi === 'marsh'
+   || lo === 'forest' || hi === 'forest'
+   || lo === 'plains' || hi === 'plains') {
+    return null;
+  }
   const step = blend < (1 / 3) ? 0 : blend < (2 / 3) ? 1 : 2;
   return { path: TRANS_PNG(lo, hi, step), step };
 }
 
 /**
- * Pick a tile variant index for a given world coordinate.
- * Deterministic Mulberry32-style hash → [0, n).
- *
- * @param {number} x — world tile x
- * @param {number} y — world tile y
- * @param {number} n — number of variants (default 5)
- * @returns {number} index in [0, n)
+ * Deterministic Mulberry32-style tile variant hash.
  */
 export function pickTileVariant(x, y, n = 5) {
-  // Hash coord with bit mix (same spirit as Mulberry32). Avoids creating
-  // an RNG instance per tile.
   let h = ((x | 0) * 0x27d4eb2d) ^ ((y | 0) * 0x165667b1);
   h = (h ^ (h >>> 15)) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 0x85ebca6b) >>> 0;

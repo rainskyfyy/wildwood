@@ -1,0 +1,139 @@
+{
+  "_meta": {
+    "version": 1,
+    "ticksPerDay": 240,
+    "comment": "v0.5.1 ecology params. Numbers tuned by hand for a visible-but-stable Lotka-Volterra loop on an 80x60 map. Test fixtures in tests/v051-ecology-smoke.mjs."
+  },
+  "biomes": {
+    "forest": {
+      "carryingCapacity": {
+        "rabbit":    12,
+        "fox":        3,
+        "wolf":       1,
+        "butterfly":  8,
+        "boar":       2
+      },
+      "birthRate": {
+        "rabbit":    0.040,
+        "fox":       0.015,
+        "wolf":      0.005,
+        "butterfly": 0.060,
+        "boar":      0.010
+      },
+      "deathRate": {
+        "rabbit":    0.020,
+        "fox":       0.010,
+        "wolf":      0.008,
+        "butterfly": 0.030,
+        "boar":      0.010
+      }
+    },
+    "plains": {
+      "carryingCapacity": {
+        "rabbit":    18,
+        "fox":        4,
+        "wolf":       2,
+        "butterfly":  4,
+        "cow":        6
+      },
+      "birthRate": {
+        "rabbit":    0.045,
+        "fox":       0.018,
+        "wolf":      0.006,
+        "butterfly": 0.050,
+        "cow":       0.012
+      },
+      "deathRate": {
+        "rabbit":    0.022,
+        "fox":       0.011,
+        "wolf":      0.009,
+        "butterfly": 0.030,
+        "cow":       0.010
+      }
+    },
+    "desert": {
+      "carryingCapacity": {
+        "rabbit":     2,
+        "fox":        0,
+        "wolf":       0,
+        "butterfly":  1
+      },
+      "birthRate": {
+        "rabbit":    0.020,
+        "butterfly": 0.020
+      },
+      "deathRate": {
+        "rabbit":    0.030,
+        "butterfly": 0.040
+      }
+    },
+    "marsh": {
+      "carryingCapacity": {
+        "rabbit":     6,
+        "fox":        1,
+        "wolf":       0,
+        "butterfly":  3
+      },
+      "birthRate": {
+        "rabbit":    0.030,
+        "fox":       0.010,
+        "butterfly": 0.040
+      },
+      "deathRate": {
+        "rabbit":    0.025,
+        "fox":       0.012,
+        "butterfly": 0.035
+      }
+    },
+    "snow": {
+      "carryingCapacity": {
+        "rabbit":     4,
+        "fox":        2,
+        "wolf":       2,
+        "butterfly":  0
+      },
+      "birthRate": {
+        "rabbit":    0.025,
+        "fox":       0.012,
+        "wolf":      0.005
+      },
+      "deathRate": {
+        "rabbit":    0.025,
+        "fox":       0.012,
+        "wolf":      0.010
+      }
+    },
+    "volcano": {
+      "carryingCapacity": {
+        "rabbit":     0,
+        "fox":        1,
+        "wolf":       1,
+        "butterfly":  0
+      },
+      "birthRate": {
+        "fox":       0.008,
+        "wolf":      0.004
+      },
+      "deathRate": {
+        "fox":       0.014,
+        "wolf":      0.012
+      }
+    }
+  },
+  "foodChain": {
+    "rabbit":    { "eats": ["grass"],            "eatenBy": ["fox", "wolf"] },
+    "fox":       { "eats": ["rabbit"],           "eatenBy": ["wolf"] },
+    "wolf":      { "eats": ["fox", "rabbit"],    "eatenBy": [] },
+    "butterfly": { "eats": [],                  "eatenBy": [] },
+    "cow":       { "eats": ["tall_grass"],      "eatenBy": [] },
+    "boar":      { "eats": ["berries", "grass"],"eatenBy": [] }
+  },
+  "predationEfficiency": {
+    "fox":  { "rabbit": 0.30 },
+    "wolf": { "fox": 0.30, "rabbit": 0.30 }
+  },
+  "predatorHungerDecay": {
+    "fox":  0.020,
+    "wolf": 0.015
+  }
+}
