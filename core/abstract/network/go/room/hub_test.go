@@ -89,23 +89,49 @@ func (c *client) send(t *testing.T, typeName string, m proto.Message) {
 	}
 }
 
+// recv 读下一帧(自动跳过 S2C_WorldDelta — M3.1 引入的 20Hz tick 噪声)
+//
+// M3.1 起:Hub 每 50ms 广播 WorldDelta,会污染既有测试对精确帧序的断言。
+// 这里用 20ms 短轮询把 WorldDelta 帧排空,直到拿到业务帧或超时。
+//
+// 关键:成功读取后清除 read deadline(startReadPump / 其他 reader 会接力读 ws)
+// 否则留下的 20ms 短 deadline 会让接力者立刻 i/o timeout。
 func (c *client) recv(t *testing.T, timeout time.Duration) (string, proto.Message) {
 	t.Helper()
-	c.ws.SetReadDeadline(time.Now().Add(timeout))
-	_, data, err := c.ws.ReadMessage()
-	if err != nil {
-		t.Fatalf("ws.ReadMessage: %v", err)
+	deadline := time.Now().Add(timeout)
+	for {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			t.Fatalf("recv timeout: no business frame within %v", timeout)
+		}
+		// 短读窗口,逐帧排空 WorldDelta
+		if remaining > 20*time.Millisecond {
+			remaining = 20 * time.Millisecond
+		}
+		c.ws.SetReadDeadline(time.Now().Add(remaining))
+		_, data, err := c.ws.ReadMessage()
+		if err != nil {
+			// 短超时 → 继续循环,直到 deadline
+			continue
+		}
+		rdr := codec.NewReader()
+		frames, err := rdr.Feed(data)
+		if err != nil || len(frames) == 0 {
+			continue
+		}
+		f := frames[0]
+		if f.Type == "S2C_WorldDelta" {
+			// 排空,继续读下一帧
+			continue
+		}
+		msg, err := codec.UnmarshalFrame(f)
+		if err != nil {
+			t.Fatalf("unmarshal %s: %v", f.Type, err)
+		}
+		// 成功读取业务帧:清掉 20ms 短 deadline,留给后续 reader(startReadPump 等)
+		c.ws.SetReadDeadline(time.Time{})
+		return f.Type, msg
 	}
-	rdr := codec.NewReader()
-	frames, err := rdr.Feed(data)
-	if err != nil || len(frames) == 0 {
-		t.Fatalf("feed: %v frames=%d", err, len(frames))
-	}
-	msg, err := codec.UnmarshalFrame(frames[0])
-	if err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	return frames[0].Type, msg
 }
 
 // handshake -> player_id

@@ -7,6 +7,10 @@
 //
 // 业务逻辑继承自 mocks.MockServer(M1.5 已对齐协议层互通),
 // 区别:mocks 是单连接;room.Hub 支持 N 个连接跨房间广播。
+//
+// M3.1 扩展:Hub 集成权威状态(AuthState)+ 20Hz tick 广播 WorldDelta
+//   - handlePlayerInput: 应用输入到 AuthState,记录 last_acked_seq
+//   - tickLoop: 每 tick 广播 S2C_WorldDelta{acked_input_seqs, entity_updates}
 package room
 
 import (
@@ -25,15 +29,19 @@ import (
 // MaxPlayersPerRoom 硬约束(方案 §5.4)
 const MaxPlayersPerRoom = 4
 
+// AuthStateStartingPos 玩家初始位置(像素);M3.1 占位,M2.1 已用真实 spawn 点
+const AuthStateStartingPos = 100.0
+
 // Hub 房间注册表 + 玩家注册表
 type Hub struct {
 	mu        sync.RWMutex
 	rooms     map[string]*Room
 	players   map[string]*Player
-	playerSeq atomic.Uint32 // 独立:玩家 id 自增 (p-NNN)
-	roomSeq   atomic.Uint32 // 独立:房间 id 自增 (r-NNNNN) 5 位短链
-	tokenSeq  atomic.Uint32 // 独立:join_token 自增 (t-NNNNN)
+	playerSeq atomic.Uint32
+	roomSeq   atomic.Uint32
+	tokenSeq  atomic.Uint32
 	tickHz    int
+	tickCount atomic.Uint64 // M3.1: 自增 tick 计数器
 	onTick    func(tick uint32, r *Room)
 	stop      chan struct{}
 	wg        sync.WaitGroup
@@ -78,6 +86,7 @@ func (h *Hub) ForceLeave(playerID, roomID string) {
 		delete(h.rooms, roomID)
 	}
 	h.mu.Unlock()
+
 	if pok {
 		p.RoomID = ""
 	}
@@ -110,12 +119,22 @@ func (h *Hub) tickLoop() {
 			return
 		case <-t.C:
 			tick++
+			h.tickCount.Add(1)
 			h.mu.RLock()
 			rooms := make([]*Room, 0, len(h.rooms))
 			for _, r := range h.rooms {
 				rooms = append(rooms, r)
 			}
 			h.mu.RUnlock()
+
+			// M3.1: 每 tick 给每个非空房间广播 WorldDelta
+			for _, r := range rooms {
+				if r.MemberCount() == 0 {
+					continue
+				}
+				h.broadcastWorldDelta(tick, r)
+			}
+
 			if h.onTick != nil {
 				for _, r := range rooms {
 					h.onTick(tick, r)
@@ -125,6 +144,67 @@ func (h *Hub) tickLoop() {
 	}
 }
 
+// broadcastWorldDelta 构造并广播 S2C_WorldDelta(M3.1 关键)
+//
+// 包含:
+//   - acked_input_seqs: 该房间所有玩家的 last_input_seq
+//   - entity_updates:  所有玩家的 EntityState(权威位置/朝向/HP)
+func (h *Hub) broadcastWorldDelta(tick uint32, r *Room) {
+	r.mu.RLock()
+	members := make([]*Player, 0, len(r.members))
+	for _, p := range r.members {
+		members = append(members, p)
+	}
+	r.mu.RUnlock()
+
+	if len(members) == 0 {
+		return
+	}
+
+	ackedSeqs := make([]uint32, 0, len(members))
+	entities := make([]*wildwoodv1.EntityState, 0, len(members))
+	for _, p := range members {
+		auth := p.AuthState()
+		if auth == nil {
+			continue
+		}
+		seq := auth.LastInputSeq()
+		if seq > 0 {
+			ackedSeqs = append(ackedSeqs, seq)
+		}
+		x, y := auth.Pos()
+		facing := auth.Facing()
+		entities = append(entities, &wildwoodv1.EntityState{
+			EntityId: entityIDFromPlayer(p.ID),
+			Kind:     wildwoodv1.EntityKind_ENTITY_KIND_PLAYER,
+			Position: &wildwoodv1.Vec2F{X: float32(x), Y: float32(y)},
+			Facing:   float32(facing),
+			Hp:       100,
+			MaxHp:    100,
+			PrefabId: 0,
+			PlayerId: p.ID,
+		})
+	}
+
+	delta := &wildwoodv1.S2C_WorldDelta{
+		ServerTick:     tick,
+		ServerTimeMs:   uint64(time.Now().UnixMilli()),
+		AckedInputSeqs: ackedSeqs,
+		EntityUpdates:  entities,
+	}
+	r.Broadcast(encodeFrame("S2C_WorldDelta", delta))
+}
+
+// entityIDFromPlayer 简单 hash:用 player id 字符串前 8 字符当 entity id(房间内稳定)
+func entityIDFromPlayer(playerID string) uint32 {
+	var h uint32 = 2166136261
+	for i := 0; i < len(playerID) && i < 8; i++ {
+		h ^= uint32(playerID[i])
+		h *= 16777619
+	}
+	return h
+}
+
 // RegisterPlayer 玩家首次握手时注册,返回 player_id + session_token
 func (h *Hub) RegisterPlayer(playerName string) (string, string) {
 	pid := h.nextPlayerID()
@@ -132,6 +212,7 @@ func (h *Hub) RegisterPlayer(playerName string) (string, string) {
 		ID:       pid,
 		Name:     playerName,
 		JoinedAt: time.Now(),
+		auth:     NewAuthState(AuthStateStartingPos, AuthStateStartingPos, AuthStateDefaultSpeedMps),
 	}
 	h.mu.Lock()
 	h.players[pid] = p
@@ -140,8 +221,6 @@ func (h *Hub) RegisterPlayer(playerName string) (string, string) {
 }
 
 // Handle 把 C2S 消息分发到对应的 handler
-//
-// conn 必须是 transport.Conn(已注入 playerID 或未认证)
 func (h *Hub) Handle(conn *transport.Conn, msg proto.Message) error {
 	switch m := msg.(type) {
 	case *wildwoodv1.C2S_Handshake:
@@ -174,12 +253,9 @@ func (h *Hub) Handle(conn *transport.Conn, msg proto.Message) error {
 // ===========================
 
 func (h *Hub) handleHandshake(conn *transport.Conn, m *wildwoodv1.C2S_Handshake) error {
-	// Handshake 之前必须未认证
 	if _, ok := conn.GetPlayerID(); ok {
-		// 已认证:重复 handshake,忽略
 		return nil
 	}
-	// 协议版本检查
 	if err := checkVersion(m.ClientVersion); err != nil {
 		_ = conn.Send("S2C_Error", &wildwoodv1.S2C_Error{
 			Code:    wildwoodv1.RoomErrorCode_ROOM_ERROR_VERSION_MISMATCH,
@@ -190,8 +266,6 @@ func (h *Hub) handleHandshake(conn *transport.Conn, m *wildwoodv1.C2S_Handshake)
 	}
 	pid, token := h.RegisterPlayer(m.PlayerName)
 	conn.SetPlayerID(pid)
-
-	// 把 conn 反查到 player(后续 dispatch 用)
 	h.mu.Lock()
 	if p, ok := h.players[pid]; ok {
 		p.Conn = conn
@@ -276,7 +350,6 @@ func (h *Hub) handleRoomJoin(conn *transport.Conn, m *wildwoodv1.C2S_RoomJoin) e
 	r.AddMember(p)
 	members := r.Members()
 
-	// 1) 给加入者:RoomJoined + world snapshot
 	_ = conn.Send("S2C_RoomJoined", &wildwoodv1.S2C_RoomJoined{
 		RoomId:   r.ID,
 		PlayerId: p.ID,
@@ -292,7 +365,6 @@ func (h *Hub) handleRoomJoin(conn *transport.Conn, m *wildwoodv1.C2S_RoomJoin) e
 		ServerTick: 1,
 	})
 
-	// 2) 广播给其他成员:PlayerJoined + RoomStateChanged (M1.11 验收 ③ 房间状态变更对全队广播)
 	joined := &wildwoodv1.S2C_PlayerJoined{
 		RoomId: r.ID,
 		Player: p.Snapshot(),
@@ -325,7 +397,6 @@ func (h *Hub) handleRoomLeave(conn *transport.Conn, m *wildwoodv1.C2S_RoomLeave)
 	r.RemoveMember(playerID)
 	p.RoomID = ""
 
-	// 广播给剩下的成员
 	r.Broadcast(encodeFrame("S2C_PlayerLeft", &wildwoodv1.S2C_PlayerLeft{
 		RoomId:   r.ID,
 		PlayerId: playerID,
@@ -338,33 +409,18 @@ func (h *Hub) handleRoomLeave(conn *transport.Conn, m *wildwoodv1.C2S_RoomLeave)
 		Trigger:        "leave",
 	}))
 
-	// 房间空 → 清理
 	if r.MemberCount() == 0 {
 		h.mu.Lock()
 		delete(h.rooms, r.ID)
 		h.mu.Unlock()
 	}
 
-	// 给离开者回 ack
 	_ = conn.Send("S2C_RoomLeft", &wildwoodv1.S2C_RoomLeft{
 		RoomId: r.ID,
 	})
 	return nil
 }
 
-// handleRoomKick 房主踢人 (M1.11 验收 ②)
-//
-// 流程:
-//  1. 调用方必须是 host(hostID 比对)
-//  2. 目标必须在同房间
-//  3. 目标收到 S2C_RoomKicked + ROOM_ERROR_KICKED(明确错误码)
-//  4. 全队(包括被踢者以外的成员)收到 S2C_PlayerLeft(reason="kicked")
-//  5. 全队收到 S2C_RoomStateChanged 槽位刷新
-//  6. 槽位立即释放(MemberCount 减 1),下个 join 不再返回 ROOM_ERROR_FULL
-//
-// 错误码约定:
-//   - ROOM_ERROR_NOT_FOUND      房间不存在
-//   - ROOM_ERROR_INVALID_INPUT  非 host / 目标不在房间
 func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) error {
 	hostID, ok := conn.GetPlayerID()
 	if !ok {
@@ -404,7 +460,6 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 		return sendError(conn, wildwoodv1.RoomErrorCode_ROOM_ERROR_INVALID_INPUT, "target not in this room", m.TargetPlayerId)
 	}
 
-	// 1) 踢出 (持有写锁,避免并发 join 误判满员)
 	h.mu.Lock()
 	r.RemoveMember(target.ID)
 	target.RoomID = ""
@@ -418,13 +473,12 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 	targetConn := target.Conn
 	h.mu.Unlock()
 
-	// 2) 通知被踢者:S2C_RoomKicked(直接给客户端)+ S2C_Error(明确错误码,符合"明确错误码"验收)
 	if targetConn != nil {
 		_ = targetConn.Send("S2C_RoomKicked", &wildwoodv1.S2C_RoomKicked{
-			RoomId:        roomID,
-			KickedById:    hostID,
-			Reason:        m.Reason,
-			ServerTimeMs:  uint64(time.Now().UnixMilli()),
+			RoomId:       roomID,
+			KickedById:   hostID,
+			Reason:       m.Reason,
+			ServerTimeMs: uint64(time.Now().UnixMilli()),
 		})
 		_ = targetConn.Send("S2C_Error", &wildwoodv1.S2C_Error{
 			Code:    wildwoodv1.RoomErrorCode_ROOM_ERROR_KICKED,
@@ -433,7 +487,6 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 		})
 	}
 
-	// 3) 通知全队(包括被踢者,作为冗余):PlayerLeft
 	if !roomEmpty {
 		r.Broadcast(encodeFrame("S2C_PlayerLeft", &wildwoodv1.S2C_PlayerLeft{
 			RoomId:   roomID,
@@ -441,9 +494,6 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 			Reason:   "kicked",
 		}))
 	}
-
-	// 4) 通知全队:RoomStateChanged(槽位刷新,触发 UI 重新计算剩余位)
-	// 注意:host 也在 r.members 中(只要他没被踢),Broadcast 已覆盖;无需再单独 conn.Send
 	if !roomEmpty {
 		r.Broadcast(encodeFrame("S2C_RoomStateChanged", &wildwoodv1.S2C_RoomStateChanged{
 			RoomId:         roomID,
@@ -452,10 +502,6 @@ func (h *Hub) handleRoomKick(conn *transport.Conn, m *wildwoodv1.C2S_RoomKick) e
 			Trigger:        "kick",
 		}))
 	}
-
-	// 5) 房主 ack:已在步骤 4 收到 RoomStateChanged,无需冗余发送
-	//    (历史版本此处有 conn.Send 重复发,导致 host 收到 2 份 RoomStateChanged,
-	//     污染后续 p5.rejoin 的广播断言 — 2026-08-20 修复)
 
 	return nil
 }
@@ -468,15 +514,10 @@ func (h *Hub) handleRoomList(conn *transport.Conn) error {
 			RoomId:         r.ID,
 			CurrentPlayers: uint32(r.MemberCount()),
 			MaxPlayers:     uint32(r.MaxPlayers),
-			IsOpen:         true,
 		})
 	}
-	total := uint32(len(rooms))
 	h.mu.RUnlock()
-	return conn.Send("S2C_RoomList", &wildwoodv1.S2C_RoomList{
-		Rooms: rooms,
-		Total: total,
-	})
+	return conn.Send("S2C_RoomList", &wildwoodv1.S2C_RoomList{Rooms: rooms})
 }
 
 func (h *Hub) handlePlayerInput(conn *transport.Conn, m *wildwoodv1.C2S_PlayerInput) error {
@@ -486,21 +527,17 @@ func (h *Hub) handlePlayerInput(conn *transport.Conn, m *wildwoodv1.C2S_PlayerIn
 	}
 	h.mu.RLock()
 	p, pok := h.players[playerID]
-	var r *Room
-	if pok {
-		r = h.rooms[p.RoomID]
-	}
 	h.mu.RUnlock()
-	if !pok || r == nil {
+	if !pok {
 		return nil
 	}
-	// 简单 echo:M2.1 接入移动/采集后替换
-	delta := &wildwoodv1.S2C_WorldDelta{
-		ServerTick:     1,
-		ServerTimeMs:   uint64(time.Now().UnixMilli()),
-		AckedInputSeqs: []uint32{m.InputSeq},
+	// M3.1: 应用输入到 AuthState(权威状态机)
+	auth := p.AuthState()
+	if auth == nil {
+		return nil
 	}
-	r.Broadcast(encodeFrame("S2C_WorldDelta", delta))
+	accepted, _ := auth.ApplyInput(m)
+	_ = accepted // 拒绝时由下一个 tick 自然反映(不广播单独帧,延迟也低)
 	return nil
 }
 
@@ -629,29 +666,28 @@ func (r *Room) HostID() string {
 	return r.hostID
 }
 
-func (r *Room) Broadcast(f transport.Frame) {
+// Broadcast 群发(给房间内所有成员)
+func (r *Room) Broadcast(frame transport.Frame) {
 	r.mu.RLock()
-	members := make([]*Player, 0, len(r.members))
+	defer r.mu.RUnlock()
 	for _, p := range r.members {
-		members = append(members, p)
-	}
-	r.mu.RUnlock()
-	for _, p := range members {
-		_ = p.Conn.SendFrame(f)
+		if p.Conn != nil {
+			_ = p.Conn.SendFrame(frame)
+		}
 	}
 }
 
-func (r *Room) BroadcastExcept(f transport.Frame, exceptPlayerID string) {
+// BroadcastExcept 群发排除某 player
+func (r *Room) BroadcastExcept(frame transport.Frame, exceptID string) {
 	r.mu.RLock()
-	members := make([]*Player, 0, len(r.members))
+	defer r.mu.RUnlock()
 	for _, p := range r.members {
-		if p.ID != exceptPlayerID {
-			members = append(members, p)
+		if p.ID == exceptID {
+			continue
 		}
-	}
-	r.mu.RUnlock()
-	for _, p := range members {
-		_ = p.Conn.SendFrame(f)
+		if p.Conn != nil {
+			_ = p.Conn.SendFrame(frame)
+		}
 	}
 }
 
@@ -662,14 +698,28 @@ type Player struct {
 	Conn     *transport.Conn
 	RoomID   string
 	JoinedAt time.Time
+	auth     *AuthState // M3.1 权威状态
 }
 
+// AuthState 返回权威状态机(只读访问;并发由 AuthState 内部 mu 保护)
+func (p *Player) AuthState() *AuthState { return p.auth }
+
 func (p *Player) Snapshot() *wildwoodv1.PlayerState {
+	// 优先用 AuthState 当前位置(若已存在)
+	var pos *wildwoodv1.Vec2F
+	var facing float32
+	if p.auth != nil {
+		x, y := p.auth.Pos()
+		facing = float32(p.auth.Facing())
+		pos = &wildwoodv1.Vec2F{X: float32(x), Y: float32(y)}
+	} else {
+		pos = &wildwoodv1.Vec2F{X: 0, Y: 0}
+	}
 	return &wildwoodv1.PlayerState{
 		PlayerId:   p.ID,
 		PlayerName: p.Name,
-		Position:   &wildwoodv1.Vec2F{X: 0, Y: 0},
-		Facing:     0,
+		Position:   pos,
+		Facing:     facing,
 		ColorRgb:   0xc89058,
 		IsAlive:    true,
 	}
@@ -679,7 +729,6 @@ func checkVersion(clientVersion string) error {
 	if clientVersion == "" {
 		return fmt.Errorf("empty client_version")
 	}
-	// 主版本 0 都接受(次版本兼容)
 	if clientVersion[0] == '0' {
 		return nil
 	}
