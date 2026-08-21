@@ -22,12 +22,6 @@ import { spawnResources } from './resources/spawner.js';
 import { Inventory } from './resources/inventory.js';
 import { Gather } from './resources/gather.js';
 import { TOTAL_SLOTS } from './resources/inventory.js';
-// M2.14: monster system. image-loader is reused for the lazy
-// per-state PNG load so we don't have to write our own cache.
-import { loadImage, isReady, getOrFallback } from './render/image-loader.js';
-import { MonsterManager } from './monster/monster-manager.js';
-import { drawMonster } from './render/tile-renderer.js';
-let monstersData = null;
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -94,31 +88,6 @@ export function bootGame(canvas) {
     sanity: { cur: 100, max: 100 }
   };
 
-  // M2.14: monster manager. Lazy-loads per-state PNGs through the
-  // shared image-loader so the demo boots instantly; the monsters
-  // appear in their procedural-fallback diamond until the M2.14a
-  // sprites arrive. Data is fetched on first boot — until it
-  // arrives, the manager is empty.
-  const monsterMgr = new MonsterManager({
-    world,
-    monsterData: monstersData || {},
-    loadImage,
-    isReady,
-    getOrFallback
-  });
-  if (!monstersData) {
-    fetch('./data/monsters.json').then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data) return;
-        monstersData = data;
-        monsterMgr.monsterData = data;
-        monsterMgr.types = Object.keys(data).filter(k => !k.startsWith('_'));
-        monsterMgr.spawnDefaults();
-      });
-  } else {
-    monsterMgr.spawnDefaults();
-  }
-
   let lastT = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000);
@@ -139,10 +108,6 @@ export function bootGame(canvas) {
     }
     camera.follow(player);
     gather.update(player, dt);
-    // M2.14: monster AI tick — only when no panel is open.
-    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible) {
-      monsterMgr.update(dt, player);
-    }
 
     // world click for gather — only when not consumed by a panel
     if (!panelConsumed && input.consumeClick()) {
@@ -162,7 +127,7 @@ export function bootGame(canvas) {
     vitalsState.hunger.cur = Math.max(0, vitalsState.hunger.cur - dt * 0.4);
     vitalsState.sanity.cur = Math.max(0, vitalsState.sanity.cur - dt * 0.2);
 
-    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, monsterMgr);
+    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather);
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
 
     // loot banner
@@ -187,7 +152,7 @@ export function bootGame(canvas) {
   return { world, player, camera, hud, inventory, gather, resources };
 }
 
-function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, monsterMgr) {
+function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather) {
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -239,13 +204,6 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
      || r.y < bounds.y0 - 1 || r.y > bounds.y1 + 1) continue;
     drawables.push({ kind: 'resource', ref: r, depth: depthKey(r.x, r.y) });
   }
-  // M2.14: monsters interleave between resources and the player.
-  if (monsterMgr) {
-    for (const m of monsterMgr.visible(camera)) {
-      const t = m.tilePos();
-      drawables.push({ kind: 'monster', ref: m, depth: depthKey(t.x, t.y) });
-    }
-  }
   drawables.push({ kind: 'player', depth: depthKey(player.x, player.y), ref: player });
   drawables.sort((a, b) => a.depth - b.depth);
   for (const it of drawables) {
@@ -256,10 +214,8 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
     else if (it.kind === 'resource') {
       const progress = (gather.target === it.ref) ? gather.progressFraction() : 0;
       drawResource(ctx, sx, sy, it.ref, progress);
-    } else if (it.kind === 'monster') {
-      const sprite = monsterMgr.resolveSprite(it.ref);
-      drawMonster(ctx, sx, sy, it.ref, sprite);
-    } else drawPlayer(ctx, sx, sy, it.ref.facing);
+    }
+    else drawPlayer(ctx, sx, sy, it.ref.facing);
   }
 }
 
