@@ -1,0 +1,82 @@
+/* Wildwood UI · Design Tokens
+ * 暗黑哥特 × 像素风 · 与美术色板共用 night_black 锚点
+ * 8px 主网格 + 16px 组件间距
+ * 5 档字号 + 4 档图标 + 0/2px 圆角 + 2px 硬阴影
+ */
+
+:root {
+  /* ===== 颜色 · 与美术色板 1:1 对齐 ===== */
+  /* 锚点色(共用) */
+  --night-black: #101820;    /* 美术色板 night_black 锚点 */
+  --night-deep:  #0d0d18;    /* demo.html 已有 bg */
+  --night-elev:  #1a1a2a;    /* canvas 背景 / 容器底 */
+
+  /* 文字 */
+  --fg:          #f0f0f0;    /* demo.html 已有 */
+  --fg-muted:    #aaa;
+  --fg-faint:    #666;
+
+  /* 强调色(哥特暖色基底) */
+  --accent:      #d4a64a;    /* demo.html 已有,美术 amber 主色 */
+  --accent-2:    #b8862a;    /* amber 加深 */
+  --accent-3:    #8a5a1a;    /* amber 最深 */
+
+  /* 警示色(24 色板内) */
+  --warn-hp:     #c43a3a;    /* HP 低 < 30% */
+  --warn-hunger: #d4a64a;    /* 饥饿 */
+  --warn-sanity: #6a4a8a;    /* 理智(暗紫) */
+  --warn-cold:   #4a7a9a;    /* 温度(冷蓝) */
+
+  /* 容器 / 边框 */
+  --bg-panel:    rgba(16, 24, 32, 0.85);   /* 半透叠加,与画面透叠 */
+  --bg-panel-solid: #14182a;
+  --border:      #2a2a3a;    /* demo.html 已有 */
+  --border-bold: #444;
+
+  /* ===== 字号(5 档) ===== */
+  --fs-10: 10px;
+  --fs-12: 12px;   /* 控件文字 / 状态数字 */
+  --fs-14: 14px;   /* 列表项 / 副标题 */
+  --fs-18: 18px;   /* 标题(小) */
+  --fs-24: 24px;   /* 标题(大) / Buff 数字 */
+
+  /* ===== 图标(4 档) ===== */
+  --icon-16: 16px;   /* 状态数字 / 角标 */
+  --icon-24: 24px;   /* 快捷栏图标 */
+  --icon-32: 32px;   /* HUD 主图标(HP/饥饿/理智) */
+  --icon-64: 64px;   /* 图鉴插画 */
+
+  /* ===== 间距(8px 主网格) ===== */
+  --sp-0:  0;
+  --sp-8:  8px;      /* 主网格步长 */
+  --sp-16: 16px;     /* 组件间距 */
+  --sp-24: 24px;     /* 区段间距 */
+  --sp-32: 32px;     /* 大块间距 */
+  --sp-48: 48px;
+
+  /* ===== 圆角(0/2px) ===== */
+  --r-0:  0;        /* HUD 浮窗(保持像素感) */
+  --r-2:  2px;      /* 按钮 / 输入框 */
+
+  /* ===== 阴影(2px 硬切,无模糊) ===== */
+  --shadow-2: 2px 2px 0 var(--night-black);    /* 浮窗 */
+  --shadow-2-inset: inset 0 -2px 0 var(--accent-3);   /* 按钮按下 */
+
+  /* ===== 状态条 / 进度条 ===== */
+  --bar-w: 240px;        /* 三围条统一宽度 */
+  --bar-h: 24px;         /* 三围条高度 */
+  --bar-track: rgba(0, 0, 0, 0.5);
+
+  /* ===== 锚定区(对应方案 §5.2) ===== */
+  --anchor-tl: 16px;     /* 左上队伍+状态 280 宽 */
+  --anchor-tr: 16px;     /* 右上时间+季节 240 宽 */
+  --anchor-br: 16px;     /* 右下小地图 200×200 */
+  --anchor-bl: 16px;     /* 左下快捷栏 520×60 */
+  --anchor-b:  16px;     /* 底部聊天 全宽 160 高 */
+
+  /* ===== 字体 ===== */
+  --font-ui:    -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+                Arial, "Microsoft YaHei", sans-serif;
+  --font-pixel: "Press Start 2P", "VT323", ui-monospace, monospace;
+  /* 像素字体仅用于 24px 标题 / 状态数字 */
+}

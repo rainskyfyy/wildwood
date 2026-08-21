@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <title>Wildwood M4 Demo — 核心游戏系统</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- M1.7 UI 基础布局(tokens 必须先于其他) -->
+  <link rel="stylesheet" href="./src/ui/layout/tokens.css">
+  <link rel="stylesheet" href="./src/ui/layout/grid.css">
+  <link rel="stylesheet" href="./src/ui/layout/anchors.css">
   <style>
     :root {
       --bg: #0d0d18;
@@ -25,15 +29,19 @@
       font-size: 18px; font-weight: 600; margin: 0;
       color: var(--accent); letter-spacing: 0.5px;
     }
+    /* M1.7: 视口 1440×900 · 16:10 · 中央净空区留出 5 锚定区 */
     .stage {
-      position: relative; width: 960px; max-width: 100%;
-      aspect-ratio: 4 / 3;
+      position: relative;
+      width: 1440px;
+      max-width: calc(100vw - 24px);
+      aspect-ratio: 16 / 10;            /* 1440:900 = 16:10 */
       box-shadow: 0 6px 30px rgba(0,0,0,0.5);
       border: 2px solid #2a2a3a;
       border-radius: 6px;
       overflow: hidden;
+      background: #1a1a2a;
     }
-    canvas {
+    canvas#game {
       display: block; width: 100%; height: 100%;
       background: #1a1a2a;
       image-rendering: pixelated;
@@ -43,7 +51,7 @@
     .controls {
       font-size: 12px; color: #aaa;
       display: flex; gap: 16px; flex-wrap: wrap;
-      max-width: 960px; justify-content: center;
+      max-width: 1440px; justify-content: center;
     }
     .controls kbd {
       background: #2a2a3a; border: 1px solid #444;
@@ -51,18 +59,35 @@
       font-family: ui-monospace, monospace; font-size: 11px;
       color: #fff;
     }
+    /* M1.7: 5 锚定区占位 · 内容由 M1.8 / M2.12 填充 */
+    .Anchor-TL::before, .Anchor-TR::before, .Anchor-BR::before,
+    .Anchor-BL::before, .Anchor-B::before {
+      content: attr(data-label);
+      font-family: var(--font-pixel);
+      font-size: var(--fs-10);
+      color: var(--fg-faint);
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Wildwood · M4 核心游戏系统 MVP</h1>
     <div class="stage">
-      <canvas id="game" width="960" height="720"></canvas>
+      <canvas id="game" width="1440" height="900"></canvas>
+      <!-- M1.7: UI 锚定层,5 区域绝对定位 -->
+      <div class="UILayer">
+        <div class="Anchor-TL" data-label="[TL · 队伍+状态 280×...]"></div>
+        <div class="Anchor-TR" data-label="[TR · 时间+季节 240×...]"></div>
+        <div class="Anchor-BR" data-label="[BR · 小地图 200×200]"></div>
+        <div class="Anchor-BL" data-label="[BL · 快捷栏 520×60]"></div>
+        <div class="Anchor-B"   data-label="[B · 聊天 全宽×160]"></div>
+      </div>
     </div>
     <div class="controls">
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
       <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
-      <span>摄像机跟随 · 32×32 tile · 4 群系(森林/平原/矿区/雪原)</span>
+      <span>摄像机跟随 · 32×32 tile · 4 群系(森林/平原/矿区/雪原) · UI 锚定层 M1.7</span>
     </div>
   </div>
   <script type="module">

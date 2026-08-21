@@ -1,0 +1,184 @@
+/* Wildwood UI · 5 锚定区 · 对应方案 §5.2
+ * 1440×900 基准分辨率 · 锚定区绝对定位 · 零弹窗遮挡中央净空区
+ * 与 M4 demo.html 集成:UI 叠加层在 .stage 内 absolute 定位
+ */
+
+/* ===== 锚定区容器 ===== */
+.UILayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;   /* 默认不拦截,内部交互元素单独开启 */
+  z-index: 10;
+}
+.UILayer > * {
+  pointer-events: auto;
+}
+
+/* ===== 左上 · 队伍槽 + 三围状态条 ===== */
+.Anchor-TL {
+  position: absolute;
+  top: var(--anchor-tl);
+  left: var(--anchor-tl);
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-8);
+}
+/* 4 队伍槽 36×36(联机 4 人上限硬约束) */
+.PartySlot {
+  width: 36px;
+  height: 36px;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+}
+/* 4 三围状态条 */
+.VitalBar {
+  width: var(--bar-w);
+  height: var(--bar-h);
+  background: var(--bar-track);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  position: relative;
+}
+.VitalBar-Fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+.VitalBar-HP     .VitalBar-Fill { background: var(--warn-hp); }
+.VitalBar-Hunger .VitalBar-Fill { background: var(--warn-hunger); }
+.VitalBar-Sanity .VitalBar-Fill { background: var(--warn-sanity); }
+.VitalBar-Temp   .VitalBar-Fill { background: var(--warn-cold); }
+
+/* ===== 右上 · 时间 + 季节 ===== */
+.Anchor-TR {
+  position: absolute;
+  top: var(--anchor-tl);
+  right: var(--anchor-tr);
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-8);
+}
+.TimeDisplay {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-24);
+  color: var(--accent);
+  text-shadow: var(--shadow-2);
+}
+.SeasonTag {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg);
+  background: var(--night-elev);
+  padding: var(--sp-8) var(--sp-16);
+  border: 1px solid var(--border-bold);
+}
+
+/* ===== 右下 · 小地图 200×200 ===== */
+.Anchor-BR {
+  position: absolute;
+  bottom: calc(var(--anchor-br) + 160px);   /* 避开底部聊天 */
+  right: var(--anchor-br);
+  width: 200px;
+  height: 200px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bold);
+  box-shadow: var(--shadow-2);
+}
+.MinimapCanvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* ===== 左下 · 快捷栏 520×60(10 格) ===== */
+.Anchor-BL {
+  position: absolute;
+  bottom: calc(var(--anchor-bl) + 160px);   /* 避开底部聊天 */
+  left: var(--anchor-bl);
+  width: 520px;
+  height: 60px;
+  display: flex;
+  gap: var(--sp-8);
+  padding: var(--sp-8);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+}
+.HotbarSlot {
+  width: 44px;
+  height: 44px;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-0);
+  position: relative;
+}
+.HotbarSlot-Active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.HotbarSlot-Key {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-family: var(--font-pixel);
+  font-size: var(--fs-10);
+  color: var(--fg-faint);
+}
+
+/* ===== 底部 · 聊天 全宽 160 高 ===== */
+.Anchor-B {
+  position: absolute;
+  bottom: var(--anchor-b);
+  left: var(--anchor-b);
+  right: var(--anchor-b);
+  height: 160px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.ChatChannel-Tab {
+  display: flex;
+  gap: var(--sp-16);
+  font-family: var(--font-pixel);
+  font-size: var(--fs-12);
+  color: var(--fg-muted);
+}
+.ChatChannel-Tab.Active {
+  color: var(--accent);
+}
+.ChatLine {
+  font-size: var(--fs-12);
+  color: var(--fg);
+  font-family: var(--font-pixel);
+}
+.ChatInput {
+  height: 32px;
+  background: var(--night-elev);
+  border: 1px solid var(--border-bold);
+  border-radius: var(--r-2);
+  color: var(--fg);
+  font-size: var(--fs-12);
+  padding: 0 var(--sp-8);
+}
+
+/* ===== 中央净空区(零弹窗) ===== */
+.PlayArea-Center {
+  /* 留出 5 锚定区,中央 880×540 区域不放置任何 UI */
+  /* 实际由父容器 .stage 限定 */
+}

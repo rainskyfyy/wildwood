@@ -1,0 +1,105 @@
+/* Wildwood UI · 8/16px 网格基础类
+ * GridMargin / GridPadding / GridSpacing —— 命名加 Grid 前缀避免与 Engine 自带 MarginContainer 混淆
+ * 所有取值锁定 8/16 整数倍
+ * 8px 主网格(步长) / 16px 组件间距
+ */
+
+/* ===== 8px 主网格容器 ===== */
+.Grid8 {
+  position: relative;
+  /* 8px 调试网格(开发期可见) */
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+.Grid16 {
+  position: relative;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+/* ===== Margin · 8/16 整数倍 ===== */
+.GridMargin-0  { margin: 0; }
+.GridMargin-8  { margin: 8px; }
+.GridMargin-16 { margin: 16px; }
+.GridMargin-24 { margin: 24px; }
+.GridMargin-32 { margin: 32px; }
+
+/* 单边 */
+.GridMargin-Top-8    { margin-top: 8px; }
+.GridMargin-Top-16   { margin-top: 16px; }
+.GridMargin-Bottom-8 { margin-bottom: 8px; }
+.GridMargin-Bottom-16{ margin-bottom: 16px; }
+.GridMargin-Left-8   { margin-left: 8px; }
+.GridMargin-Left-16  { margin-left: 16px; }
+.GridMargin-Right-8  { margin-right: 8px; }
+.GridMargin-Right-16 { margin-right: 16px; }
+
+/* 水平/垂直组合 */
+.GridMargin-X-8  { margin-left: 8px;  margin-right: 8px; }
+.GridMargin-X-16 { margin-left: 16px; margin-right: 16px; }
+.GridMargin-Y-8  { margin-top: 8px;   margin-bottom: 8px; }
+.GridMargin-Y-16 { margin-top: 16px;  margin-bottom: 16px; }
+
+/* ===== Padding · 8/16 整数倍 ===== */
+.GridPadding-0  { padding: 0; }
+.GridPadding-8  { padding: 8px; }
+.GridPadding-16 { padding: 16px; }
+.GridPadding-24 { padding: 24px; }
+.GridPadding-32 { padding: 32px; }
+
+.GridPadding-Top-8     { padding-top: 8px; }
+.GridPadding-Top-16    { padding-top: 16px; }
+.GridPadding-Bottom-8  { padding-bottom: 8px; }
+.GridPadding-Bottom-16 { padding-bottom: 16px; }
+.GridPadding-Left-8    { padding-left: 8px; }
+.GridPadding-Left-16   { padding-left: 16px; }
+.GridPadding-Right-8   { padding-right: 8px; }
+.GridPadding-Right-16  { padding-right: 16px; }
+
+.GridPadding-X-8  { padding-left: 8px;  padding-right: 8px; }
+.GridPadding-X-16 { padding-left: 16px; padding-right: 16px; }
+.GridPadding-Y-8  { padding-top: 8px;   padding-bottom: 8px; }
+.GridPadding-Y-16 { padding-top: 16px;  padding-bottom: 16px; }
+
+/* ===== Spacing · flex/grid gap,锁定 8/16 ===== */
+.GridGap-8  { gap: 8px; }
+.GridGap-16 { gap: 16px; }
+.GridGap-24 { gap: 24px; }
+.GridGap-32 { gap: 32px; }
+
+/* ===== 排版基础 ===== */
+.GridRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.GridCol {
+  display: flex;
+  flex-direction: column;
+}
+.GridCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== 像素对齐辅助 ===== */
+.Pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* ===== 文字像素感 ===== */
+.PixelText {
+  font-family: var(--font-pixel);
+  font-size: var(--fs-18);
+  letter-spacing: 1px;
+  color: var(--accent);
+  text-shadow: 2px 2px 0 var(--night-black);
+}
