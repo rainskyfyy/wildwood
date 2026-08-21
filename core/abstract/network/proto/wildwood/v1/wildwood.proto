@@ -1,0 +1,23 @@
+// =====================================================================
+// Wildwood 网络协议语义层 — 顶层描述符 (M1.5)
+//
+// 用 protoc --go_opt=paths=source_relative 编译时,本文件无业务消息,
+// 仅作为版本/包元信息的存在。运行时由传输层(M1.9+)按 message type 路由。
+//
+// 注:本文件有意不 import common.proto / c2s.proto / s2c.proto,
+// 仅为让 protoc 不会在 -I 包含整个 v1 目录时产生交叉依赖警告。
+// 业务消息见同包 c2s.proto / s2c.proto / common.proto。
+// =====================================================================
+syntax = "proto3";
+
+package wildwood.net.v1;
+
+option go_package = "github.com/wildwood/net/proto/v1;wildwoodv1";
+
+// 协议元信息(不参与编解码,只用于文档/版本协商)
+message ProtocolInfo {
+  string version       = 1;   // "1.0.0"
+  uint32 max_players   = 2;   // 4
+  uint32 tick_rate     = 3;   // 20 Hz
+  uint32 max_msg_bytes = 4;   // 4096 (4 KB/tick 预算)
+}

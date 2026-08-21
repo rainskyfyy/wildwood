@@ -1,0 +1,87 @@
+// =====================================================================
+// Wildwood 网络协议语义层 — 客户端→服务端 消息 (M1.5)
+//
+// 设计:
+//   - 房间生命周期:Handshake → RoomCreate/Join → (心跳+PlayerInput+ChatMsg)* → RoomLeave
+//   - 输入带 input_seq 用于客户端预测(M3.1 校正)
+//   - 所有时间戳:uint64 毫秒
+// =====================================================================
+syntax = "proto3";
+
+package wildwood.net.v1;
+
+import "wildwood/v1/common.proto";
+
+option go_package = "github.com/wildwood/net/proto/v1;wildwoodv1";
+
+// ---------- 连接生命周期 ----------
+
+// 客户端首条消息(M1.10 接入时校验版本)
+message C2S_Handshake {
+  string client_version = 1;       // 客户端语义版本,例如 "0.1.0"
+  string player_name    = 2;       // ≤ 24 字符(M1.x 不强制唯一)
+  string auth_token     = 3;       // 预留:M2.x 接入账号系统
+}
+
+// 双向心跳(30s 一次,M1.9 房间服务监测连通)
+message C2S_Heartbeat {
+  uint64 client_time_ms = 1;       // 客户端发送时刻
+  uint32 ping_seq       = 2;       // 自增序列,用于 RTT 计算
+}
+
+// 主动断开(优雅退出,服务器立即释放槽位)
+message C2S_Disconnect {
+  string reason = 1;               // "user_quit" / "client_crash" / ...
+}
+
+// ---------- 房间管理(M1.11) ----------
+
+message C2S_RoomCreate {
+  string room_name  = 1;           // ≤ 32 字符
+  string world_seed = 2;           // 32-bit seed 字符串形式
+  uint32 max_players = 3;          // 服务端硬上限 4,客户端 < 4 即可
+}
+
+message C2S_RoomJoin {
+  string room_id    = 1;           // 服务端分配(5 位短链)
+  string join_token = 2;           // 创建时由服务端下发,加入校验
+}
+
+message C2S_RoomLeave {
+  string room_id = 1;
+}
+
+// 房间列表查询(大厅 UI,M2.x 接入)
+message C2S_RoomList {
+  uint32 page     = 1;             // 0-based
+  uint32 page_size = 2;            // ≤ 32
+}
+
+// ---------- 玩家输入(M2.1 接入) ----------
+
+// 一次输入可以是移动/攻击/采集/建造/使用/复活/互动
+// 服务端 20Hz tick 校验(M1.9 节奏),用 input_seq 关联预测(M3.1)
+message C2S_PlayerInput {
+  uint32      input_seq     = 1;   // 客户端自增,房间内唯一
+  uint32      server_tick   = 2;   // 客户端参考的服务端 tick(可晚于真实)
+  InputAction action        = 3;
+  // === 按 action 取以下字段 ===
+  float       move_dx       = 4;   // MOVE:  [-1, 1]
+  float       move_dy       = 5;   // MOVE:  [-1, 1]
+  uint32      target_entity_id = 6; // ATTACK/GATHER/USE_ITEM/INTERACT
+  uint32      target_prefab_id = 7; // BUILD: prefab id
+  sint32      tile_x        = 8;   // BUILD: 网格坐标
+  sint32      tile_y        = 9;   // BUILD: 网格坐标
+  uint32      slot_index    = 10;  // USE_ITEM: 快捷栏 0-9
+  float       facing        = 11;  // 朝向 0-2π
+  uint64      client_time_ms = 12; // 客户端时间戳
+}
+
+// ---------- 聊天(M3.4) ----------
+
+message C2S_ChatMsg {
+  ChatChannel channel           = 1;
+  string      target_player_id  = 2;  // PRIVATE 时填写
+  string      text              = 3;  // ≤ 256 字符
+  uint64      client_time_ms    = 4;
+}

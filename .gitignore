@@ -64,13 +64,3 @@ pnpm-lock.yaml
 .env.local
 *.secret
 *.key
-
-# GUT addon(installed by tests/scripts/install_gut.sh,见 tests/README.md)
-addons/
-
-# Node (tests/e2e 用)
-tests/e2e/node_modules/
-tests/e2e/screenshots/
-tests/e2e/playwright-report/
-tests/e2e/test-results/
-tests/e2e/dist/
