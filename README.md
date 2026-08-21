@@ -5,7 +5,7 @@
 [![Engine](https://img.shields.io/badge/Godot-4.3-478cbf?logo=godotengine&logoColor=white)](https://godotengine.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Stage](https://img.shields.io/badge/stage-M1-blueviolet)](#里程碑)
-[![Status](https://img.shields.io/badge/M1.9--transport-success-brightgreen)](#里程碑)
+[![Status](https://img.shields.io/badge/M3.1--prediction-success-brightgreen)](#里程碑)
 
 ---
 
