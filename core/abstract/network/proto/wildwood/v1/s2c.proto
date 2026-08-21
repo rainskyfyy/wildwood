@@ -1,0 +1,132 @@
+// =====================================================================
+// Wildwood 网络协议语义层 — 服务端→客户端 消息 (M1.5)
+//
+// 设计:
+//   - WorldDelta 是核心节流消息:20Hz tick,含权威状态变化 + 客户端输入 ack
+//   - 房间生命周期事件以独立消息广播,便于路由
+//   - 错误/广播/聊天用最高优先级通道(不可丢弃)
+// =====================================================================
+syntax = "proto3";
+
+package wildwood.net.v1;
+
+import "wildwood/v1/common.proto";
+
+option go_package = "github.com/wildwood/net/proto/v1;wildwoodv1";
+
+// ---------- 连接生命周期 ----------
+
+// 握手确认(M1.10 接入后下发,携带会话凭证)
+message S2C_HandshakeAck {
+  string server_version  = 1;
+  string player_id       = 2;      // 服务端 UUID
+  string session_token   = 3;      // 用于后续消息鉴权
+  uint32 server_tick_rate = 4;     // 20 (Hz)
+  uint32 max_room_players = 5;     // 4
+}
+
+// 心跳回包(回显 + 服务端时间)
+message S2C_HeartbeatAck {
+  uint64 client_time_ms = 1;       // 回显
+  uint32 ping_seq       = 2;
+  uint64 server_time_ms = 3;
+}
+
+// ---------- 房间管理(M1.11) ----------
+
+message S2C_RoomCreated {
+  string room_id    = 1;
+  string join_token = 2;
+  uint32 max_players = 3;
+}
+
+// 加入成功:带初始快照,客户端用其构建世界
+message S2C_RoomJoined {
+  string         room_id       = 1;
+  string         player_id     = 2;
+  repeated PlayerState members  = 3;
+  WorldSnapshot  initial_state = 4;
+  uint32         server_tick   = 5;
+}
+
+message S2C_RoomLeft {
+  string room_id = 1;
+  string reason  = 2;
+}
+
+// 队伍槽变化(广播)
+message S2C_PlayerJoined {
+  string      room_id = 1;
+  PlayerState player  = 2;
+}
+
+message S2C_PlayerLeft {
+  string room_id   = 1;
+  string player_id = 2;
+  string reason    = 3;            // "leave" / "kicked" / "timeout" / "crash"
+}
+
+// 被踢通知(给被踢客户端;其他人只看到 PlayerLeft)
+message S2C_RoomKicked {
+  string room_id          = 1;
+  string kicked_by_id     = 2;     // 谁踢的(房主 id)
+  string reason           = 3;     // 房主留言或 "kicked_by_host"
+  uint64 server_time_ms   = 4;
+}
+
+// 房间状态变化(成员数变化时由服务端主动广播,玩家 UI 刷新槽位)
+message S2C_RoomStateChanged {
+  string room_id         = 1;
+  uint32 current_players = 2;
+  uint32 max_players     = 3;
+  string trigger         = 4;      // "join" / "leave" / "kick" / "disconnect"
+}
+
+message S2C_RoomState {
+  string room_id         = 1;
+  uint32 current_players = 2;
+  uint32 max_players     = 3;
+  bool   is_open         = 4;
+}
+
+message S2C_RoomList {
+  repeated S2C_RoomState rooms = 1;
+  uint32                 total = 2;  // 总房间数(分页用)
+}
+
+// ---------- 权威世界状态(M2.x 联机主通道) ----------
+
+// 20Hz tick 一次;包含 acked_input_seqs 用于客户端预测校正
+// 字节预算:< 4 KB/tick(4 人小队 + 200 实体/视野)
+message S2C_WorldDelta {
+  uint32              server_tick       = 1;
+  uint64              server_time_ms    = 2;
+  // 已被服务端确认的客户端输入 seq(M3.1 预测校正用)
+  repeated uint32     acked_input_seqs  = 3;
+  // 权威状态变化(增量;不在此包内的实体 = 无变化)
+  repeated EntityState  entity_updates = 4;
+  repeated uint32       removed_entity_ids = 5;
+  // 队伍槽位状态(只给条形 %)
+  repeated PlayerStatus player_status   = 6;
+  // 资源/建造/攻击/死亡事件
+  repeated WorldEvent   events          = 7;
+}
+
+// ---------- 聊天(M3.4) ----------
+
+message S2C_ChatBroadcast {
+  ChatChannel channel            = 1;
+  string      sender_id          = 2;
+  string      sender_name        = 3;
+  string      target_player_id   = 4;  // PRIVATE 收件人
+  string      text               = 5;
+  uint64      server_time_ms     = 6;
+}
+
+// ---------- 错误 / 通知 ----------
+
+message S2C_Error {
+  RoomErrorCode code    = 1;
+  string        message = 2;
+  string        context = 3;       // 关联的 room_id / player_id / ...
+}
