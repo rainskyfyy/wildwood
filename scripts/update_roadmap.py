@@ -1,250 +1,541 @@
 #!/usr/bin/env python3
 """
-update_roadmap.py — 拉 7 个子任务状态,重渲染 docs/roadmap.html,直推 GitHub main。
+update_roadmap.py — 拉父任务下所有子任务,按版本聚合,渲染 wildwood-roadmap.html,可选推 GitHub main。
+v0.7.4a · 方案A: 覆盖 v0.1-v0.7 全量子任务,v0.6.3a 的 7 个 task 升级为自动分类。
 
 调用:
-  python3 scripts/update_roadmap.py
+  python3 scripts/update_roadmap.py [--parent-task <id>] [--output <path>]
+
+参数:
+  --parent-task   父任务 ID,默认 7675923777695288529 (类饥荒游戏开发)
+  --output        HTML 输出路径,默认 ./artifacts/html/wildwood-roadmap.html
+  --push          强制推送 GitHub (默认 GH_TOKEN 存在就推)
 
 环境:
-  GH_TOKEN     — GitHub PAT (必须从环境变量传入,本脚本不内置)
-  GH_REPO      — 默认 "rainskyfyy/wildwood"
-  GH_BRANCH    — 默认 "main"
+  GH_TOKEN        — GitHub PAT,缺失则只生成本地 HTML
+  GH_REPO         — 默认 "rainskyfyy/wildwood"
+  GH_BRANCH       — 默认 "main"
+  LARK_CHAT_ID    — 失败告警目标飞书群 chat_id (oc_xxx)。空 = 走 dry-run 模式
+  SYNC_DRY_RUN    — "1" 走纯 dry-run:不真发飞书,不真推 GH,仅写本地指标
 
-依赖:
-  aily-cli     — 读 task 状态
-  python3 stdlib (json, urllib, base64, subprocess)
+数据流:
+  1. aily-cli task subtasks <parent> --page-size 50 (paginated, 自动翻页)
+  2. 从 description 提取 v0.X 或 Mx.y → 归到对应 v0.X
+  3. 按版本聚合 → 渲染 HTML
+  4. 写 ~/.aily/workspace/sync_metrics.jsonl (健康检查)
+  5. 推 GitHub Data API (blob→tree→commit→update-ref)
+  6. 失败 ≥ 3 次 → 飞书告警 (或 dry-run log)
 
-数据源: 7 个 task 的 aily-cli task get status。
-- v0.3 = 6 个 (M2.9 建造 / M2.10 资源 / M2.14 怪物 / M2.12 HUD / M2.11 图鉴 / M2.13 4屏)
-- v0.4 = 1 个已派发 (M3.11 压力测试);HTML 显示 3 个 deliverable 槽位 (联机同步/音效接入未派发)
-
-算法:
-- v0.3 进度 = done / 6
-- v0.4 进度 = done / 3 (按 HTML 槽位算,即使联机/音效未派发)
-- 整体进度 = (v0.1 + v0.2 + v0.3 + v0.4) / 4
-- 状态映射:
-    all done       → "done"   (绿)
-    any done/active → "active" (橙)
-    all pending     → "pending" (灰)
+可观测性产物:
+  ~/.aily/workspace/sync_metrics.jsonl
+  ~/.aily/workspace/lark_alert_dryrun.log
+  HTML 顶部 status badge (绿/黄/红)
 """
+import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
+import time
+import traceback
 import urllib.error
 import urllib.request
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
 
 # -------------------- config --------------------
-GH_TOKEN  = os.environ.get("GH_TOKEN")  # 必须由调用方提供,本脚本不内置凭证
-GH_REPO   = os.environ.get("GH_REPO",  "rainskyfyy/wildwood")
-GH_BRANCH = os.environ.get("GH_BRANCH", "main")
+GH_TOKEN     = os.environ.get("GH_TOKEN")
+GH_REPO      = os.environ.get("GH_REPO",  "rainskyfyy/wildwood")
+GH_BRANCH    = os.environ.get("GH_BRANCH", "main")
+LARK_CHAT_ID = os.environ.get("LARK_CHAT_ID", "")
+SYNC_DRY_RUN = os.environ.get("SYNC_DRY_RUN", "") == "1"
 
-# 7 个子任务 ID (comment 列表)
-TASKS = {
-    # v0.3
-    "7676546339936668632": {"name": "M2.9 建造系统",   "version": "v0.3", "deliverable": "建造系统"},
-    "7676546340125445076": {"name": "M2.10 资源系统",  "version": "v0.3", "deliverable": "资源系统"},
-    "7676546339919907809": {"name": "M2.14 怪物动画",  "version": "v0.3", "deliverable": "怪物动画"},
-    "7676544224770133209": {"name": "M2.12 HUD 主屏",  "version": "v0.3", "deliverable": "HUD 主屏"},
-    "7676544297337457870": {"name": "M2.11 图鉴",      "version": "v0.3", "deliverable": "图鉴系统"},
-    "7676544297604238278": {"name": "M2.13 4屏交互",   "version": "v0.3", "deliverable": "4 屏交互"},
-    # v0.4
-    "7676546340041559002": {"name": "M3.11 压力测试",  "version": "v0.4", "deliverable": "压力测试"},
-    "7676561368459250978": {"name": "v0.4 联机系统",  "version": "v0.4", "deliverable": "联机同步"},
-    "7676561368429906908": {"name": "v0.4 音效系统",  "version": "v0.4", "deliverable": "音效接入"},
+DEFAULT_PARENT_TASK = "7675923777695288529"  # 类饥荒游戏开发
+DEFAULT_OUTPUT_PATH  = str(Path.home() / ".aily" / "workspace" / "wildwood" / "wildwood-roadmap.html")
+
+# 可观测性产物路径
+WORKSPACE_DIR       = Path.home() / ".aily" / "workspace"
+SYNC_METRICS_PATH   = WORKSPACE_DIR / "sync_metrics.jsonl"
+ALERT_DRYRUN_LOG    = WORKSPACE_DIR / "lark_alert_dryrun.log"
+
+# 告警阈值
+ALERT_THRESHOLD     = 3
+
+# status badge 判定阈值
+GREEN_MAX_AGE_MIN   = 30
+YELLOW_MAX_AGE_MIN  = 60
+RED_FAIL_THRESHOLD  = 3
+YELLOW_FAIL_LOW     = 1
+
+# 版本聚合顺序(展示用,从 v0.1 到 v0.7)
+VERSION_ORDER = ["v0.1", "v0.2", "v0.3", "v0.4", "v0.5", "v0.6", "v0.7"]
+
+# 版本中文标签 + 阶段描述(用于卡片头)
+VERSION_META = {
+    "v0.1": ("美术资产",    "Art Assets · 像素素材定版"),
+    "v0.2": ("核心引擎",    "Core Engine · 可玩 Demo"),
+    "v0.3": ("游戏系统",    "Game Systems · 建造/资源/HUD/图鉴"),
+    "v0.4": ("打磨与联机",  "Polish & Multiplayer · 音效 + 同步"),
+    "v0.5": ("内容扩展",    "Content Expansion · 烹饪/怪物/UI"),
+    "v0.6": ("架构重构",    "Architecture Refactor · 服务化分层"),
+    "v0.7": ("A/B 通用层",  "A/B Universal Layer · RFC + 铁律自动化"),
 }
 
-V03_TOTAL_DELIVERABLES = 6  # 6 个 v0.3 task
-V04_TOTAL_DELIVERABLES = 3  # HTML 列 3 个 v0.4 deliverable (全部已派发)
-
-# -------------------- aily-cli 桥接 --------------------
-def get_task_status(task_id):
-    """Read aily-cli task get <id>, return status (str)."""
-    try:
-        out = subprocess.run(
-            ["aily-cli", "task", "get", task_id],
-            capture_output=True, text=True, timeout=15
-        )
-        if out.returncode != 0:
-            print(f"  WARN {task_id} exit={out.returncode}: {out.stderr.strip()}", file=sys.stderr)
-            return None
-        d = json.loads(out.stdout)
-        return d.get("task", d).get("status")
-    except Exception as e:
-        print(f"  WARN {task_id}: {e}", file=sys.stderr)
-        return None
-
-# -------------------- 算法 --------------------
-def summarize(tasks_status):
-    """Return {v03: {done,total,ratio,status}, v04: {...}, overall: int}."""
-    v03 = [t for t in tasks_status.values() if t["version"] == "v0.3"]
-    v04 = [t for t in tasks_status.values() if t["version"] == "v0.4"]
-
-    def agg(subs, total_html):
-        statuses = [t["status"] for t in subs]
-        done = sum(1 for s in statuses if s == "done")
-        active = sum(1 for s in statuses if s == "in_progress")
-        # status 映射: 全 HTML 槽位 done → done, 有任一 done/active → active, 否则 pending
-        # 必须对比 html_total,因为子任务数 < 槽位数(还有未派发的占位)
-        if done >= total_html and total_html > 0:
-            card_status = "done"
-        elif done + active > 0:
-            card_status = "active"
-        else:
-            card_status = "pending"
-        # 进度 = done / HTML 槽位数
-        ratio = done / total_html if total_html > 0 else 0
-        return {
-            "done": done,
-            "active": active,
-            "subs": len(subs),
-            "html_total": total_html,
-            "ratio": ratio,
-            "card_status": card_status,
-            "tasks": subs,
-        }
-
-    v03s = agg(v03, V03_TOTAL_DELIVERABLES)
-    v04s = agg(v04, V04_TOTAL_DELIVERABLES)
-
-    # 整体 = 4 版本平均
-    overall = (1.0 + 1.0 + v03s["ratio"] + v04s["ratio"]) / 4
-
-    # 当前阶段: 谁在跑算谁
-    if v03s["card_status"] != "pending":
-        cur = "v0.3 · 游戏系统"
-        next_m = "v0.4 · 打磨与联机"
-    elif v04s["card_status"] != "pending":
-        cur = "v0.4 · 打磨与联机"
-        next_m = "v1.0 · 正式版"
-    else:
-        cur = "v0.3 · 游戏系统"
-        next_m = "v0.4 · 打磨与联机"
-
-    return {
-        "v03": v03s, "v04": v04s,
-        "overall": overall,
-        "current_phase": cur,
-        "next_milestone": next_m,
-    }
-
-# -------------------- 渲染 --------------------
-SVG_DONE = '''<svg class="ic-done" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>'''
-SVG_ACTIVE = '''<svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg>'''
-SVG_PENDING = '''<svg class="ic-pending" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/></svg>'''
+# 兼容映射:Mx.y 旧里程碑体系 → v0.x 版本归类
+MILESTONE_TO_VERSION = {
+    "M1": "v0.1",  # M1.1-M1.14 美术/引擎基础
+    "M2": "v0.2",  # M2.1-M2.14 核心引擎
+    "M3": "v0.3",  # M3.1-M3.13 游戏系统
+    "M4": "v0.4",  # M4 联机/打磨
+}
 
 
-def render_html(summary):
-    """Render docs/roadmap.html from the in-script template.
-
-    We use a template-style approach: the full HTML is stored below as a
-    single f-string template, with the few dynamic blocks injected by
-    str.format(). Keeping the template here means the script is
-    self-contained and doesn't need to fetch the previous HTML.
-    """
-    pct = round(summary["overall"] * 100)
-    versions_done = sum(1 for k in ("v01", "v02", "v03", "v04")
-                        if k in ("v01", "v02") or summary.get(k.replace("v0", "v0"), {}).get("card_status") == "done")
-    # v0.1, v0.2 are statically "done" — never change.
-    v03_d = summary["v03"]["done"]
-    v04_d = summary["v04"]["done"]
-
-    return HTML_TEMPLATE.format(
-        overall_pct=pct,
-        v03_status=summary["v03"]["card_status"],
-        v04_status=summary["v04"]["card_status"],
-        v03_progress_pct=round(summary["v03"]["ratio"] * 100),
-        v04_progress_pct=round(summary["v04"]["ratio"] * 100),
-        v03_done_count=v03_d,
-        v04_done_count=v04_d,
-        v03_deliverables=render_v03_deliverables(summary),
-        v04_deliverables=render_v04_deliverables(summary),
-        current_phase=summary["current_phase"],
-        next_milestone=summary["next_milestone"],
-        timestamp=now_iso(),
-        v03_status_label={
-            "done": "已完成", "active": "进行中", "pending": "待启动"
-        }[summary["v03"]["card_status"]],
-        v04_status_label={
-            "done": "已完成", "active": "进行中", "pending": "待启动"
-        }[summary["v04"]["card_status"]],
-        v03_html_total=V03_TOTAL_DELIVERABLES,
-        v04_html_total=V04_TOTAL_DELIVERABLES,
-        gh_repo=GH_REPO,
-        svg_done=SVG_DONE,
-        svg_active=SVG_ACTIVE,
-        svg_pending=SVG_PENDING,
-    )
-
-
-def render_v03_deliverables(summary):
-    """Render the 6 v0.3 deliverable <li> items in their HTML-declared order.
-
-    Order matches the existing 5 in the static HTML plus the new 图鉴 entry,
-    so the new card has the same sequence as the deliverable list.
-    """
-    order = [
-        ("7676546339936668632", "建造系统",   "建造菜单、放置预览、建筑实体",        "高级开发工程师"),
-        ("7676546340125445076", "资源系统",   "采集、物品栏、合成",                  "高级开发工程师"),
-        ("7676546339919907809", "怪物动画",   "帧动画引擎、5 种怪物 AI",            "高级开发工程师"),
-        ("7676544224770133209", "HUD 主屏",   "组装组件替换 Canvas 占位",            "UI 设计师"),
-        ("7676544297337457870", "图鉴系统",   "双 Tab + 64px 插画 + 详情卡 (M2.11)",  "UI 设计师"),
-        ("7676544297604238278", "4 屏交互",   "主屏/图鉴/建造/背包切换",              "UI 设计师"),
-    ]
-    out = []
-    for tid, label, body, owner in order:
-        st = TASKS[tid]["_status"]
-        if st == "done":
-            svg = SVG_DONE
-        elif st == "in_progress":
-            svg = SVG_ACTIVE
-        else:
-            svg = SVG_PENDING
-        out.append(f'''        <li class="deliverable">
-          <span class="icon">{svg}</span>
-          <span class="text"><strong>{label}</strong>:{body}<span class="assignee">负责人 · {owner}</span></span>
-        </li>''')
-    return "\n".join(out)
-
-
-def render_v04_deliverables(summary):
-    """Render the 3 v0.4 deliverable <li> items.
-
-    All 3 have real aily tasks now (压力测试/联机同步/音效接入).
-    """
-    order = [
-        ("7676546340041559002", "压力测试",   "500×500 地图、500 实体 FPS、碰撞检测", "高级开发工程师"),
-        ("7676561368459250978", "联机同步",   "P2P/WebRTC 联机、状态同步、断线重连", "高级开发工程师"),
-        ("7676561368429906908", "音效接入",   "BGM + SFX 音效系统、Web Audio API",    "高级开发工程师"),
-    ]
-    out = []
-    for tid, label, body, owner in order:
-        if tid in TASKS:
-            st = TASKS[tid]["_status"]
-        else:
-            st = None
-        if st == "done":
-            svg, owner_disp = SVG_DONE, owner
-        elif st == "in_progress":
-            svg, owner_disp = SVG_ACTIVE, owner
-        else:
-            svg = SVG_PENDING
-            owner_disp = owner if tid in TASKS else "未派发"
-        out.append(f'''        <li class="deliverable">
-          <span class="icon">{svg}</span>
-          <span class="text"><strong>{label}</strong>:{body}<span class="assignee">负责人 · {owner_disp}</span></span>
-        </li>''')
-    return "\n".join(out)
+# -------------------- time helpers --------------------
+def now_utc():
+    return datetime.now(timezone.utc)
 
 
 def now_iso():
-    """UTC ISO-8601 with second precision (no microseconds)."""
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return now_utc().strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-# -------------------- HTML 模板 --------------------
+def _format_age(minutes):
+    if minutes < 1:
+        return "刚刚"
+    if minutes < 60:
+        return f"{int(minutes)}m 前"
+    if minutes < 60 * 24:
+        return f"{int(minutes // 60)}h 前"
+    return f"{int(minutes // (60 * 24))}d 前"
+
+
+# -------------------- 可观测性层 (沿用 v0.6.3a) --------------------
+def record_sync_metric(start_ts, status, duration_seconds, commit_count, task_count,
+                       commit_sha="", error=""):
+    record = {
+        "ts": now_iso(), "status": status,
+        "duration_seconds": round(duration_seconds, 3),
+        "commit_count": commit_count, "task_count": task_count,
+        "commit_sha": commit_sha, "error": error,
+    }
+    try:
+        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+        with SYNC_METRICS_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"  WARN: 写 sync_metrics.jsonl 失败: {e}", file=sys.stderr)
+    return record
+
+
+def read_recent_metrics(n=10):
+    if not SYNC_METRICS_PATH.exists():
+        return []
+    try:
+        raw = SYNC_METRICS_PATH.read_text(encoding="utf-8", errors="ignore")
+    except Exception as e:
+        print(f"  WARN: 读 sync_metrics.jsonl 失败: {e}", file=sys.stderr)
+        return []
+    cleaned = raw.replace("\x00", "").strip()
+    lines = [ln for ln in cleaned.splitlines() if ln.strip()]
+    lines = lines[-n:] if len(lines) > n else lines
+    out = []
+    for ln in lines:
+        try:
+            out.append(json.loads(ln))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def compute_consecutive_failures():
+    recent = read_recent_metrics(n=20)
+    n = 0
+    for rec in reversed(recent):
+        if rec.get("status") == "fail":
+            n += 1
+        else:
+            break
+    return n
+
+
+def compute_last_successful_commit():
+    recent = read_recent_metrics(n=50)
+    for rec in reversed(recent):
+        if rec.get("status") == "ok" and rec.get("commit_sha"):
+            return rec.get("ts"), rec.get("commit_sha")
+    return None, None
+
+
+def compute_status_badge():
+    recent = read_recent_metrics(n=50)
+    if not recent:
+        return {
+            "status": "red", "label": "无同步记录",
+            "last_sync_age": "无记录", "last_sync_iso": "",
+            "consecutive_failures": 0,
+            "last_commit_age": "无", "last_commit_iso": "",
+        }
+    last = recent[-1]
+    last_ts = last.get("ts", "")
+    try:
+        last_dt = datetime.strptime(last_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        last_dt = now_utc()
+    last_sync_age_min = (now_utc() - last_dt).total_seconds() / 60.0
+    last_sync_age = _format_age(last_sync_age_min)
+    consecutive_failures = compute_consecutive_failures()
+    last_commit_iso, _ = compute_last_successful_commit()
+    if last_commit_iso:
+        try:
+            lc_dt = datetime.strptime(last_commit_iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            last_commit_age = _format_age((now_utc() - lc_dt).total_seconds() / 60.0)
+        except ValueError:
+            last_commit_age = "无"
+    else:
+        last_commit_age = "无"
+    if last_sync_age_min > YELLOW_MAX_AGE_MIN or consecutive_failures >= RED_FAIL_THRESHOLD:
+        status, label = "red", "看板同步异常"
+    elif last_sync_age_min > GREEN_MAX_AGE_MIN or consecutive_failures >= YELLOW_FAIL_LOW:
+        status, label = "yellow", "看板同步滞后"
+    else:
+        status, label = "green", "看板同步正常"
+    return {
+        "status": status, "label": label,
+        "last_sync_age": last_sync_age, "last_sync_iso": last_ts,
+        "consecutive_failures": consecutive_failures,
+        "last_commit_age": last_commit_age, "last_commit_iso": last_commit_iso or "",
+    }
+
+
+# -------------------- 飞书告警 --------------------
+def send_lark_alert(consecutive_failures, recent_errors):
+    err_text = "\n".join(f"  - {e}" for e in recent_errors[-3:] if e) or "  (no error msg captured)"
+    msg = (
+        f"🚨 Wildwood 看板同步连续失败 {consecutive_failures} 次\n\n"
+        f"目标仓库:{GH_REPO}@{GH_BRANCH}\n"
+        f"触发时间:{now_iso()}\n"
+        f"最近错误:\n{err_text}\n\n"
+        f"请检查 GH_TOKEN / aily-cli / 网络。\n"
+        f"查看完整指标:~/.aily/workspace/sync_metrics.jsonl"
+    )
+    if not LARK_CHAT_ID or SYNC_DRY_RUN:
+        try:
+            WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+            with ALERT_DRYRUN_LOG.open("a", encoding="utf-8") as f:
+                f.write(f"--- {now_iso()} dry-run alert (consecutive_failures={consecutive_failures}) ---\n")
+                f.write(msg + "\n")
+        except Exception as e:
+            print(f"  WARN: 写 lark_alert_dryrun.log 失败: {e}", file=sys.stderr)
+        print(f"\n[DRY-RUN ALERT] LARK_CHAT_ID 缺失或 SYNC_DRY_RUN=1,告警未真发")
+        return {"sent": False, "mode": "dry-run", "msg_len": len(msg)}
+    try:
+        out = subprocess.run(
+            ["lark-cli", "im", "+messages-send",
+             "--chat-id", LARK_CHAT_ID, "--msg-type", "text",
+             "--content", json.dumps({"text": msg}, ensure_ascii=False)],
+            capture_output=True, text=True, timeout=20,
+        )
+        if out.returncode != 0:
+            return {"sent": False, "mode": "real", "error": out.stderr.strip()}
+        return {"sent": True, "mode": "real"}
+    except Exception as e:
+        return {"sent": False, "mode": "real", "error": str(e)}
+
+
+# -------------------- aily-cli 桥接:拉所有子任务 --------------------
+def fetch_all_subtasks(parent_task_id):
+    """Paginated `aily-cli task subtasks <parent>`,返回所有 task dict list。"""
+    all_tasks = []
+    page_token = None
+    page_no = 0
+    while True:
+        page_no += 1
+        cmd = ["aily-cli", "task", "subtasks", parent_task_id, "--page-size", "50"]
+        if page_token:
+            cmd += ["--page-token", page_token]
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            if out.returncode != 0:
+                print(f"  WARN aily-cli subtasks page={page_no} exit={out.returncode}: {out.stderr.strip()}", file=sys.stderr)
+                return all_tasks
+            d = json.loads(out.stdout)
+        except Exception as e:
+            print(f"  WARN aily-cli subtasks page={page_no}: {e}", file=sys.stderr)
+            return all_tasks
+        tasks = d.get("tasks", [])
+        all_tasks.extend(tasks)
+        print(f"  page {page_no}: +{len(tasks)} tasks (累计 {len(all_tasks)})")
+        if not d.get("hasMore"):
+            break
+        page_token = d.get("nextPageToken")
+        if not page_token:
+            break
+    return all_tasks
+
+
+# -------------------- 版本归类 --------------------
+def extract_version(task):
+    """从 description 提取版本标签: v0.7.1a / v0.5.3 / M2.10 / 等。返回原始字符串。
+
+    优先级:
+      1. branch: feat/v0.7.0b-... (最可靠,在子任务元数据里)
+      2. commit_message_template: v0.7.0b: ... (同上)
+      3. 【M1.11】 标题格式
+      4. ## v0.7.1a xxx 标题格式
+      5. description body 第一个 v0.X.Y
+      6. Mx.y 里程碑
+    """
+    desc = task.get("description", "") or ""
+    first_line = desc.split("\n")[0] if desc else ""
+
+    # 1. branch: feat/v0.X.Y-xxx
+    m = re.search(r'branch:\s*feat/(v0\.[0-9]+\.[0-9]+[a-z]?)', desc)
+    if m:
+        return m.group(1)
+    # 2. commit_message_template: v0.X.Y: ...
+    m = re.search(r'commit_message_template:\s*(v0\.[0-9]+\.[0-9]+[a-z]?):', desc)
+    if m:
+        return m.group(1)
+    # 3. 【M1.11】 标题格式
+    m = re.search(r'【(M[0-9]+(?:\.[0-9]+)?)】', first_line)
+    if m:
+        return m.group(1)
+    # 4. ## v0.7.1a xxx 标题格式
+    m = re.search(r'^##\s*(v0\.[0-9]+\.[0-9]+[a-z]?)', first_line)
+    if m:
+        return m.group(1)
+    # 5. v0.7.1a 完整 (含 a 后缀) in body
+    m = re.search(r'(v0\.[0-9]+\.[0-9]+[a-z]?)', desc)
+    if m:
+        return m.group(1)
+    # 6. v0.X (短) in body
+    m = re.search(r'(v0\.[0-9]+)\b', desc)
+    if m:
+        return m.group(1)
+    # 7. Mx.y
+    m = re.search(r'(M[0-9]+(?:\.[0-9]+)?)', desc)
+    if m:
+        return m.group(1)
+    return "?"
+
+
+def bucket_version(raw_ver):
+    """把 raw_ver 归到 v0.1-v0.7 桶。"""
+    if raw_ver == "?":
+        return None
+    # v0.5.3 → v0.5
+    m = re.match(r'(v0\.[0-9]+)', raw_ver)
+    if m:
+        v = m.group(1)
+        return v if v in VERSION_ORDER else None
+    # M1 → v0.1, M2 → v0.2, M3 → v0.3, M4 → v0.4
+    m = re.match(r'(M[0-9]+)', raw_ver)
+    if m:
+        return MILESTONE_TO_VERSION.get(m.group(1))
+    return None
+
+
+def extract_title(task):
+    """从 description 提取短标题(去掉 '目标：' '【M1.1】' '## v0.6.1a' 等前缀)。"""
+    desc = task.get("description", "") or ""
+    first_line = desc.split("\n")[0] if desc else ""
+    # 依次去除:目标:、任务:、【Mx.y】、## v0.X.Y 标题、## 目标
+    title = re.sub(
+        r'^(目标[：:]?|任务[：:]?|##\s*目标\s*|【[^】]+】\s*|##\s+\S+\s+)',
+        '', first_line).strip()
+    if len(title) > 100:
+        title = title[:100] + "…"
+    return title or "(无标题)"
+
+
+# -------------------- 聚合 --------------------
+def aggregate(tasks):
+    """返回:
+    {
+      'buckets': { 'v0.1': [task, ...], ... },
+      'all_count': int,
+      'all_done': int,
+      'all_active': int,
+      'unknown_count': int,
+    }
+    """
+    buckets = defaultdict(list)
+    unknown = []
+    for t in tasks:
+        raw_ver = extract_version(t)
+        b = bucket_version(raw_ver)
+        if b is None:
+            unknown.append(t)
+            continue
+        t["_ver_raw"] = raw_ver
+        t["_title"]   = extract_title(t)
+        t["_bucket"]  = b
+        buckets[b].append(t)
+    return {
+        "buckets": dict(buckets),
+        "all_count": len(tasks),
+        "all_done":  sum(1 for t in tasks if t.get("status") == "done"),
+        "all_active": sum(1 for t in tasks if t.get("status") == "in_progress"),
+        "unknown_count": len(unknown),
+    }
+
+
+# -------------------- 渲染 --------------------
+SVG_DONE   = '<svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>'
+SVG_ACTIVE = '<svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg>'
+SVG_PEND   = '<svg class="ic-pend"   width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/></svg>'
+
+
+def status_label(s):
+    return {"done": "已完成", "in_progress": "进行中", "pending": "未开始", "cancelled": "已取消"}.get(s, s or "未知")
+
+
+def card_status_of(version_done, version_total, version_active):
+    if version_total == 0:
+        return "pending"
+    if version_done >= version_total:
+        return "done"
+    if version_active > 0 or version_done > 0:
+        return "active"
+    return "pending"
+
+
+def render_tasks_html(tasks):
+    """Render the per-version task list (with status icon + title + raw ver)."""
+    rows = []
+    for t in sorted(tasks, key=lambda x: (x.get("status") != "in_progress", x.get("status") != "done", x.get("_ver_raw", ""), x.get("_title", ""))):
+        s = t.get("status", "pending")
+        if s == "done":
+            svg = SVG_DONE
+        elif s == "in_progress":
+            svg = SVG_ACTIVE
+        elif s == "cancelled":
+            svg = SVG_PEND
+        else:
+            svg = SVG_PEND
+        ver = t.get("_ver_raw", "?")
+        title = t.get("_title", "") or "(无标题)"
+        # html escape minimal
+        title_h = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        rows.append(
+            f'        <li class="deliverable" data-status="{s}">'
+            f'<span class="icon">{svg}</span>'
+            f'<span class="text"><strong class="ver-tag">{ver}</strong> {title_h}'
+            f'<span class="assignee">状态 · {status_label(s)}</span>'
+            f'</span></li>'
+        )
+    return "\n".join(rows)
+
+
+def render_version_cards(agg, badge):
+    """生成 v0.1-v0.7 全部 7 个卡片(可能空)。"""
+    buckets = agg["buckets"]
+    cards = []
+    for v in VERSION_ORDER:
+        subs = buckets.get(v, [])
+        total = len(subs)
+        done  = sum(1 for t in subs if t.get("status") == "done")
+        active = sum(1 for t in subs if t.get("status") == "in_progress")
+        card_status = card_status_of(done, total, active)
+        if total == 0:
+            pct = 0
+            body = f'        <li class="deliverable empty"><span class="icon">{SVG_PEND}</span><span class="text"><em>本版本无子任务</em></span></li>'
+            progress_label = "0 / 0"
+        else:
+            pct = int(round(done * 100 / total))
+            body = render_tasks_html(subs)
+            progress_label = f"{done} / {total}"
+
+        title_zh, sub_zh = VERSION_META.get(v, (v, ""))
+
+        # tasks list collapse via data-attr; cap shown items at first 8, fold rest
+        sub_html = render_version_section(v, title_zh, sub_zh, card_status, pct, total, done, active, body)
+        cards.append(sub_html)
+    return "\n".join(cards)
+
+
+def render_version_section(v, title_zh, sub_zh, card_status, pct, total, done, active, tasks_html):
+    """单版本 section:含卡片头 + 进度条 + 任务列表。"""
+    if total == 0:
+        task_list_html = (
+            '      <ul class="deliverables">\n'
+            f'{tasks_html}\n'
+            '      </ul>'
+        )
+    else:
+        task_list_html = (
+            f'      <ul class="deliverables" data-count="{total}">\n'
+            f'{tasks_html}\n'
+            '      </ul>'
+        )
+    return f'''
+    <article class="card" data-status="{card_status}" id="card-{v}">
+      <span class="card-corner tl"></span><span class="card-corner tr"></span>
+      <span class="card-corner bl"></span><span class="card-corner br"></span>
+      <div class="card-head">
+        <div class="version">{v}</div>
+        <span class="status-badge"><span class="status-dot"></span>{status_label({"done":"done","active":"进行中","pending":"未启动"}.get(card_status, "active"))}</span>
+      </div>
+      <h2 class="card-title">{title_zh}</h2>
+      <p class="card-sub">{sub_zh} · {done} / {total} 完成 · 进行中 {active}</p>
+{task_list_html}
+      <div class="card-progress">
+        <div class="card-progress-label"><span>完成率</span><span>{pct}%</span></div>
+        <div class="card-progress-bar"><div class="card-progress-fill" data-target="{pct}"></div></div>
+      </div>
+    </article>'''
+
+
+def render_overall_block(agg):
+    total = agg["all_count"]
+    done  = agg["all_done"]
+    pct = int(round(done * 100 / total)) if total else 0
+    active = agg["all_active"]
+    unknown = agg["unknown_count"]
+    versions_done = sum(1 for v in VERSION_ORDER if agg["buckets"].get(v) and all(t.get("status") == "done" for t in agg["buckets"][v]))
+    versions_total = sum(1 for v in VERSION_ORDER if agg["buckets"].get(v))
+    versions_pct = int(round(versions_done * 100 / versions_total)) if versions_total else 0
+    return {
+        "pct": pct,
+        "active": active,
+        "unknown": unknown,
+        "total": total,
+        "done": done,
+        "versions_done": versions_done,
+        "versions_total": versions_total,
+        "versions_pct": versions_pct,
+    }
+
+
+def render_html(agg, badge):
+    overall = render_overall_block(agg)
+    version_cards = render_version_cards(agg, badge)
+    return HTML_TEMPLATE.format(
+        overall_pct=overall["pct"],
+        overall_total=overall["total"],
+        overall_done=overall["done"],
+        overall_active=overall["active"],
+        overall_unknown=overall["unknown"],
+        versions_done=overall["versions_done"],
+        versions_total=overall["versions_total"],
+        versions_pct=overall["versions_pct"],
+        version_cards=version_cards,
+        timestamp=now_iso(),
+        gh_repo=GH_REPO,
+        # status badge (v0.6.3a 沿用)
+        badge_status=badge["status"],
+        badge_label=badge["label"],
+        badge_last_sync_age=badge["last_sync_age"],
+        badge_last_sync_iso=badge["last_sync_iso"],
+        badge_consecutive_failures=badge["consecutive_failures"],
+        badge_last_commit_age=badge["last_commit_age"],
+        badge_last_commit_iso=badge["last_commit_iso"],
+    )
+
+
 HTML_TEMPLATE = '''<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -269,6 +560,12 @@ HTML_TEMPLATE = '''<!doctype html>
     --ember: #d97824;
     --ember-glow: #f59e3a;
     --cinder: #4a4f5a;
+    --badge-green: #4a7a4e;
+    --badge-green-glow: #6fa972;
+    --badge-yellow: #b8923d;
+    --badge-yellow-glow: #d8a64a;
+    --badge-red: #8b1e2d;
+    --badge-red-glow: #c9374c;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   html, body {{
@@ -295,7 +592,6 @@ HTML_TEMPLATE = '''<!doctype html>
   }}
   .container {{ max-width: 1480px; margin: 0 auto; position: relative; z-index: 1; }}
 
-  /* Header */
   header {{ text-align: center; margin-bottom: 56px; position: relative; }}
   .crest {{ display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 18px; }}
   .crest-line {{ width: 80px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: 0.6; }}
@@ -309,11 +605,32 @@ HTML_TEMPLATE = '''<!doctype html>
   }}
   h1.title .accent {{ color: var(--gold); font-style: italic; }}
   .subtitle {{ font-size: 13px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ash-soft); margin-bottom: 8px; }}
-  .meta {{ font-size: 12px; color: var(--ash); letter-spacing: 0.2em; font-family: ui-monospace, "SF Mono", Menlo, monospace; }}
+  .meta {{ font-size: 12px; color: var(--ash); letter-spacing: 0.2em; font-family: ui-monospace, "SF Mono", Menlo, monospace; margin-top: 4px; }}
 
-  /* Progress block */
+  .sync-badge {{
+    display: inline-flex; align-items: center; gap: 14px;
+    margin: 8px auto 18px; padding: 10px 18px;
+    border: 1px solid currentColor; border-radius: 999px;
+    background: rgba(16, 24, 32, 0.6);
+    font-size: 12px; letter-spacing: 0.05em;
+    transition: all 0.3s ease;
+  }}
+  .sync-badge[data-status="green"]  {{ color: var(--badge-green-glow);  box-shadow: 0 0 16px rgba(111, 169, 114, 0.25); }}
+  .sync-badge[data-status="yellow"] {{ color: var(--badge-yellow-glow); box-shadow: 0 0 16px rgba(216, 166, 74, 0.30); }}
+  .sync-badge[data-status="red"]    {{ color: var(--badge-red-glow);    box-shadow: 0 0 16px rgba(201, 55, 76, 0.35);  animation: pulse 2.4s ease-in-out infinite; }}
+  .sync-badge .badge-dot {{ width: 8px; height: 8px; background: currentColor; border-radius: 50%; box-shadow: 0 0 8px currentColor; }}
+  .sync-badge[data-status="green"]  .badge-dot {{ animation: spin 4s linear infinite; }}
+  .sync-badge .badge-label {{ font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; }}
+  .sync-badge .badge-detail {{ color: var(--ash-soft); font-size: 11px; letter-spacing: 0.04em; font-family: ui-monospace, "SF Mono", Menlo, monospace; }}
+  .sync-badge .badge-detail b {{ color: var(--bone); font-weight: 500; }}
+  @keyframes pulse {{
+    0%, 100% {{ box-shadow: 0 0 16px rgba(201, 55, 76, 0.35); }}
+    50%      {{ box-shadow: 0 0 24px rgba(201, 55, 76, 0.65); }}
+  }}
+  @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+
   .progress-block {{
-    max-width: 720px; margin: 0 auto 72px; padding: 28px 36px;
+    max-width: 720px; margin: 0 auto 56px; padding: 28px 36px;
     background: linear-gradient(180deg, rgba(26, 34, 48, 0.6), rgba(16, 24, 32, 0.6));
     border: 1px solid var(--night-line); position: relative;
   }}
@@ -345,16 +662,18 @@ HTML_TEMPLATE = '''<!doctype html>
     font-size: 12px; color: var(--ash-soft); letter-spacing: 0.15em;
   }}
   .progress-detail .num {{ color: var(--bone); font-weight: 500; }}
+  .progress-detail span {{ display: inline-flex; gap: 6px; align-items: center; }}
 
-  /* Grid + cards */
-  .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }}
+  /* v0.7.4a: 3-col grid 容纳 7 卡片 */
+  .grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }}
   @media (max-width: 1100px) {{ .grid {{ grid-template-columns: repeat(2, 1fr); }} }}
-  @media (max-width: 640px) {{ .grid {{ grid-template-columns: 1fr; }} body {{ padding: 32px 16px 60px; }} }}
+  @media (max-width: 640px)  {{ .grid {{ grid-template-columns: 1fr; }} body {{ padding: 32px 16px 60px; }} }}
+
   .card {{
     position: relative;
     background: linear-gradient(180deg, var(--night-elev), var(--night-black));
     border: 1px solid var(--night-line);
-    padding: 28px 24px 24px; display: flex; flex-direction: column; min-height: 460px;
+    padding: 26px 22px 22px; display: flex; flex-direction: column;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
   }}
   .card:hover {{ transform: translateY(-3px); }}
@@ -383,21 +702,37 @@ HTML_TEMPLATE = '''<!doctype html>
   .card[data-status="active"]  .status-badge {{ color: var(--ember-glow); }}
   .card[data-status="pending"] .status-badge {{ color: var(--ash); }}
   .status-dot {{ width: 6px; height: 6px; background: currentColor; border-radius: 50%; }}
-  .card-title {{ font-size: 18px; color: var(--bone); margin: 14px 0 6px; font-weight: 500; letter-spacing: 0.05em; }}
-  .card-sub {{ font-size: 12px; color: var(--ash-soft); letter-spacing: 0.12em; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--night-line); }}
-  .deliverables {{ list-style: none; display: flex; flex-direction: column; gap: 10px; flex: 1; }}
-  .deliverable {{ display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; color: var(--ash-soft); padding: 6px 0; }}
-  .deliverable .icon {{ flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }}
-  .deliverable .text {{ flex: 1; }}
+  .card-title {{ font-size: 18px; color: var(--bone); margin: 14px 0 4px; font-weight: 500; letter-spacing: 0.05em; }}
+  .card-sub {{ font-size: 11px; color: var(--ash-soft); letter-spacing: 0.12em; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--night-line); }}
+
+  .deliverables {{ list-style: none; display: flex; flex-direction: column; gap: 4px; flex: 1; max-height: 360px; overflow-y: auto; padding-right: 4px; }}
+  .deliverables::-webkit-scrollbar {{ width: 6px; }}
+  .deliverables::-webkit-scrollbar-track {{ background: var(--night-deep); }}
+  .deliverables::-webkit-scrollbar-thumb {{ background: var(--night-line); border-radius: 3px; }}
+  .deliverables::-webkit-scrollbar-thumb:hover {{ background: var(--ash); }}
+
+  .deliverable {{ display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.45; color: var(--ash-soft); padding: 4px 0; border-bottom: 1px dashed transparent; }}
+  .deliverable .icon {{ flex-shrink: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }}
+  .deliverable .text {{ flex: 1; min-width: 0; }}
   .deliverable .text strong {{ color: var(--bone); font-weight: 500; }}
-  .deliverable .assignee {{ display: block; font-size: 11px; color: var(--ash); letter-spacing: 0.08em; margin-top: 2px; font-style: italic; }}
+  .deliverable .ver-tag {{
+    display: inline-block; padding: 1px 6px; margin-right: 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 10px; letter-spacing: 0.05em;
+    color: var(--gold); background: rgba(201, 161, 74, 0.08);
+    border: 1px solid rgba(201, 161, 74, 0.2); border-radius: 2px;
+  }}
+  .deliverable .assignee {{ display: block; font-size: 10px; color: var(--ash); letter-spacing: 0.05em; margin-top: 2px; font-style: italic; }}
+  .deliverable[data-status="in_progress"] .ver-tag {{ color: var(--ember-glow); background: rgba(217, 120, 36, 0.1); border-color: rgba(217, 120, 36, 0.3); }}
+  .deliverable[data-status="done"] .ver-tag {{ color: var(--moss-glow); background: rgba(74, 122, 78, 0.1); border-color: rgba(74, 122, 78, 0.3); }}
+  .deliverable.empty {{ opacity: 0.5; }}
+  .deliverable.empty em {{ font-style: italic; color: var(--ash); }}
 
-  .ic-done {{ color: var(--moss-glow); }}
+  .ic-done   {{ color: var(--moss-glow); }}
   .ic-active {{ color: var(--ember-glow); animation: spin 2.4s linear infinite; }}
-  .ic-pending {{ color: var(--cinder); }}
-  @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+  .ic-pend   {{ color: var(--cinder); }}
 
-  .card-progress {{ margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--night-line); }}
+  .card-progress {{ margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--night-line); }}
   .card-progress-label {{ display: flex; justify-content: space-between; font-size: 11px; color: var(--ash); letter-spacing: 0.15em; margin-bottom: 8px; }}
   .card-progress-bar {{ height: 4px; background: var(--night-deep); border: 1px solid var(--night-line); position: relative; overflow: hidden; }}
   .card-progress-fill {{ position: absolute; inset: 0; width: 0; background: currentColor; transition: width 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.6s; }}
@@ -405,11 +740,6 @@ HTML_TEMPLATE = '''<!doctype html>
   .card[data-status="active"]  .card-progress-fill {{ background: var(--ember); }}
   .card[data-status="pending"] .card-progress-fill {{ background: var(--cinder); }}
 
-  .milestone {{ margin-top: 14px; padding: 10px 12px; background: rgba(201, 161, 74, 0.05); border-left: 2px solid var(--gold); font-size: 12px; color: var(--parchment); letter-spacing: 0.05em; }}
-  .card[data-status="pending"] .milestone {{ display: none; }}
-  .milestone-label {{ font-size: 10px; color: var(--gold); letter-spacing: 0.25em; text-transform: uppercase; display: block; margin-bottom: 2px; }}
-
-  /* Footer */
   footer {{ margin-top: 72px; text-align: center; padding-top: 32px; border-top: 1px solid var(--night-line); position: relative; }}
   .footer-line {{ display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 14px; }}
   .footer-line::before, .footer-line::after {{ content: ""; width: 60px; height: 1px; background: linear-gradient(90deg, transparent, var(--night-line), transparent); }}
@@ -427,9 +757,9 @@ HTML_TEMPLATE = '''<!doctype html>
   .github-link svg {{ width: 18px; height: 18px; fill: currentColor; }}
   .footer-meta {{ margin-top: 18px; font-size: 11px; color: var(--ash); letter-spacing: 0.2em; }}
 
-  @media (max-width: 1100px) {{ .card {{ min-height: auto; }} }}
   @media (prefers-reduced-motion: reduce) {{
-    .ic-active {{ animation: none; }}
+    .ic-active, .sync-badge[data-status="green"] .badge-dot {{ animation: none; }}
+    .sync-badge[data-status="red"] {{ animation: none; }}
     .progress-fill, .card-progress-fill {{ transition: none; }}
     .card {{ transition: none; }}
   }}
@@ -438,7 +768,6 @@ HTML_TEMPLATE = '''<!doctype html>
 <body>
 <div class="container">
 
-  <!-- HEADER -->
   <header>
     <div class="crest">
       <span class="crest-line"></span>
@@ -447,10 +776,18 @@ HTML_TEMPLATE = '''<!doctype html>
     </div>
     <p class="subtitle">Development Roadmap</p>
     <h1 class="title">Wild<span class="accent">wood</span></h1>
-    <p class="meta">V0.1 — V0.4 · 整体 {overall_pct}% · 自动同步于 {timestamp}</p>
+
+    <div class="sync-badge" data-status="{badge_status}" role="status" aria-live="polite" aria-label="同步状态:{badge_label}">
+      <span class="badge-dot"></span>
+      <span class="badge-label">{badge_label}</span>
+      <span class="badge-detail">
+        上次同步 <b>{badge_last_sync_age}</b> · 连续失败 <b>{badge_consecutive_failures}</b> 次 · 最近 commit <b>{badge_last_commit_age}</b>
+      </span>
+    </div>
+
+    <p class="meta">V0.1 — V0.7 · 整体 {overall_pct}% · 共 {overall_total} 子任务 · 完成 {overall_done} · 进行中 {overall_active} · 同步于 {timestamp}</p>
   </header>
 
-  <!-- PROGRESS -->
   <section class="progress-block" aria-label="整体进度">
     <div class="progress-head">
       <div class="progress-label">整体进度 · Overall Progress</div>
@@ -460,105 +797,16 @@ HTML_TEMPLATE = '''<!doctype html>
       <div class="progress-fill" data-target="{overall_pct}"></div>
     </div>
     <div class="progress-detail">
-      <span>已完成 <span class="num">2</span> / 4 版本</span>
-      <span>当前阶段 <span class="num">{current_phase}</span></span>
-      <span>下一里程碑 <span class="num">{next_milestone}</span></span>
+      <span>已完成 <span class="num">{versions_done}</span> / {versions_total} 版本 ({versions_pct}%)</span>
+      <span>当前阶段 <span class="num">v0.7 · A/B 通用层</span></span>
+      <span>下一里程碑 <span class="num">v1.0 · 正式版</span></span>
     </div>
   </section>
 
-  <!-- VERSION CARDS -->
   <section class="grid" aria-label="版本路线图">
-
-    <!-- v0.1 -->
-    <article class="card" data-status="done">
-      <span class="card-corner tl"></span><span class="card-corner tr"></span>
-      <span class="card-corner bl"></span><span class="card-corner br"></span>
-      <div class="card-head">
-        <div class="version">v0.1</div>
-        <span class="status-badge"><span class="status-dot"></span>已完成</span>
-      </div>
-      <h2 class="card-title">美术资产</h2>
-      <p class="card-sub">Art Assets · 78 PNG</p>
-      <ul class="deliverables">
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>帧动画</strong>:hero 29 帧 + 5 怪物各 20 帧(129 PNG)</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>4 群系</strong>:5 tiles + 5 elements × 4 = 40 PNG</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>过渡带</strong>:6 对 × 3 步 = 18 PNG</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>装饰元素</strong>:4 群系 × 4 = 16 PNG</span></li>
-      </ul>
-      <div class="milestone"><span class="milestone-label">产出 · Output</span>129 个 PNG,覆盖 4 群系全部美术需求</div>
-      <div class="card-progress">
-        <div class="card-progress-label"><span>交付项</span><span>4 / 4</span></div>
-        <div class="card-progress-bar"><div class="card-progress-fill" data-target="100"></div></div>
-      </div>
-    </article>
-
-    <!-- v0.2 -->
-    <article class="card" data-status="done">
-      <span class="card-corner tl"></span><span class="card-corner tr"></span>
-      <span class="card-corner bl"></span><span class="card-corner br"></span>
-      <div class="card-head">
-        <div class="version">v0.2</div>
-        <span class="status-badge"><span class="status-dot"></span>已完成</span>
-      </div>
-      <h2 class="card-title">核心引擎</h2>
-      <p class="card-sub">Core Engine · Playable Demo</p>
-      <ul class="deliverables">
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>世界生成</strong>:Perlin noise + 4 群系分布</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>玩家控制器</strong>:WASD + 摄像机跟随 + 碰撞</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>基础 HUD</strong>:三围条 + 快捷栏 + 小地图</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>美术接入</strong>:41 张真实 PNG 替换程序绘制</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>UI 布局</strong>:1440×900 暗黑哥特 + 5 锚定区</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>UI 组件库</strong>:6 类 × 3 变体 CSS</span></li>
-        <li class="deliverable"><span class="icon">{svg_done}</span><span class="text"><strong>图鉴 + 建造</strong>:双 Tab + 径向菜单</span></li>
-      </ul>
-      <div class="milestone"><span class="milestone-label">产出 · Output</span>可运行的 HTML5 Canvas 游戏 Demo + 完整 UI 框架</div>
-      <div class="card-progress">
-        <div class="card-progress-label"><span>交付项</span><span>7 / 7</span></div>
-        <div class="card-progress-bar"><div class="card-progress-fill" data-target="100"></div></div>
-      </div>
-    </article>
-
-    <!-- v0.3 (auto) -->
-    <article class="card" data-status="{v03_status}">
-      <span class="card-corner tl"></span><span class="card-corner tr"></span>
-      <span class="card-corner bl"></span><span class="card-corner br"></span>
-      <div class="card-head">
-        <div class="version">v0.3</div>
-        <span class="status-badge"><span class="status-dot"></span>{v03_status_label}</span>
-      </div>
-      <h2 class="card-title">游戏系统</h2>
-      <p class="card-sub">Game Systems · {v03_done_count} / {v03_html_total} 完成</p>
-      <ul class="deliverables">
-{v03_deliverables}
-      </ul>
-      <div class="card-progress">
-        <div class="card-progress-label"><span>交付项</span><span>{v03_done_count} / {v03_html_total}</span></div>
-        <div class="card-progress-bar"><div class="card-progress-fill" data-target="{v03_progress_pct}"></div></div>
-      </div>
-    </article>
-
-    <!-- v0.4 (auto) -->
-    <article class="card" data-status="{v04_status}">
-      <span class="card-corner tl"></span><span class="card-corner tr"></span>
-      <span class="card-corner bl"></span><span class="card-corner br"></span>
-      <div class="card-head">
-        <div class="version">v0.4</div>
-        <span class="status-badge"><span class="status-dot"></span>{v04_status_label}</span>
-      </div>
-      <h2 class="card-title">打磨与联机</h2>
-      <p class="card-sub">Polish &amp; Multiplayer · {v04_done_count} / {v04_html_total} 完成</p>
-      <ul class="deliverables">
-{v04_deliverables}
-      </ul>
-      <div class="card-progress">
-        <div class="card-progress-label"><span>交付项</span><span>{v04_done_count} / {v04_html_total}</span></div>
-        <div class="card-progress-bar"><div class="card-progress-fill" data-target="{v04_progress_pct}"></div></div>
-      </div>
-    </article>
-
+{version_cards}
   </section>
 
-  <!-- FOOTER -->
   <footer>
     <div class="footer-line"><span class="footer-mark">Repository</span></div>
     <a class="github-link" href="https://github.com/{gh_repo}" target="_blank" rel="noopener noreferrer">
@@ -567,13 +815,12 @@ HTML_TEMPLATE = '''<!doctype html>
       </svg>
       <span>github.com/<strong>{gh_repo}</strong></span>
     </a>
-    <p class="footer-meta">自托管看板 · 自动同步源:aily task 平台 · 每 30 分钟刷新</p>
+    <p class="footer-meta">自托管看板 · 自动同步源:aily task 平台 · v0.7.4a 全量版本</p>
   </footer>
 
 </div>
 
 <script>
-  // Animate progress bars on load
   window.addEventListener('DOMContentLoaded', () => {{
     requestAnimationFrame(() => {{
       document.querySelectorAll('.progress-fill, .card-progress-fill').forEach(el => {{
@@ -586,9 +833,6 @@ HTML_TEMPLATE = '''<!doctype html>
 </body>
 </html>
 '''
-
-# render_html() already does single-pass .format() with all template keys,
-# so it returns the final HTML. No second pass needed.
 
 
 # -------------------- GitHub push --------------------
@@ -609,67 +853,132 @@ def api(path, method="GET", body=None):
         return json.loads(resp.read().decode("utf-8"))
 
 
-def push_html(html_content):
-    """Update docs/roadmap.html on main via Git Data API.
+def get_repo_commit_count():
+    try:
+        result = api("commits?per_page=100&page=1")
+        return len(result) if isinstance(result, list) else 0
+    except Exception:
+        return 0
 
-    Returns (new_commit_sha, file_sha).
-    """
-    # 1. Read current main HEAD.
+
+def push_html(html_content, target_path="docs/roadmap.html"):
+    """Update docs/roadmap.html on main via Git Data API."""
     head = api(f"git/ref/heads/{GH_BRANCH}")["object"]["sha"]
     base_commit = api(f"git/commits/{head}")
     base_tree = base_commit["tree"]["sha"]
-    # 2. Get existing file blob sha (so we can avoid bumping it on no-op).
     file_blob = None
     try:
-        file_meta = api("contents/docs/roadmap.html?ref=" + GH_BRANCH)
+        file_meta = api(f"contents/{target_path}?ref={GH_BRANCH}")
         file_blob = file_meta["sha"]
     except urllib.error.HTTPError:
         pass
-
-    # 3. Create new blob.
     b64 = base64.b64encode(html_content.encode("utf-8")).decode("ascii")
     new_blob = api("git/blobs", "POST", {"content": b64, "encoding": "base64"})["sha"]
     if new_blob == file_blob:
-        return head, file_blob  # No change.
-    # 4. New tree.
+        return head, file_blob, get_repo_commit_count()
     new_tree = api("git/trees", "POST", {
         "base_tree": base_tree,
-        "tree": [{"path": "docs/roadmap.html", "mode": "100644", "type": "blob", "sha": new_blob}],
+        "tree": [{"path": target_path, "mode": "100644", "type": "blob", "sha": new_blob}],
     })["sha"]
-    # 5. New commit.
-    msg = f"roadmap auto-sync · {now_iso()}\n\n更新自 aily task 平台:7 个子任务实时状态"
+    msg = f"v0.7.4a: 路线图覆盖 v0.1-v0.7 全量子任务 (方案A)\n\n自动同步自 aily task 平台 · 时间 {now_iso()}"
     new_commit = api("git/commits", "POST", {
         "message": msg, "tree": new_tree, "parents": [head]
     })["sha"]
-    # 6. Patch ref.
     api(f"git/refs/heads/{GH_BRANCH}", "PATCH", {"sha": new_commit, "force": False})
-    return new_commit, new_blob
+    return new_commit, new_blob, get_repo_commit_count()
 
 
 # -------------------- main --------------------
 def main():
-    print("Reading 7 task statuses from aily-cli...")
-    statuses = {}
-    for tid in TASKS:
-        s = get_task_status(tid)
-        statuses[tid] = s
-        TASKS[tid]["_status"] = s
-        print(f"  {tid}  {s}")
+    parser = argparse.ArgumentParser(description="Wildwood 路线图同步器 v0.7.4a")
+    parser.add_argument("--parent-task", default=DEFAULT_PARENT_TASK, help="父任务 ID (默认: %(default)s)")
+    parser.add_argument("--output", default=DEFAULT_OUTPUT_PATH, help="HTML 输出路径 (默认: %(default)s)")
+    parser.add_argument("--push", action="store_true", help="强制推 GitHub (默认 GH_TOKEN 存在就推)")
+    args = parser.parse_args()
 
-    summary = summarize({tid: {**TASKS[tid], "status": s} for tid, s in statuses.items()})
-    print(f"\nSummary: overall={summary['overall']:.0%}  v0.3={summary['v03']['card_status']}({summary['v03']['done']}/{V03_TOTAL_DELIVERABLES})  v0.4={summary['v04']['card_status']}({summary['v04']['done']}/{V04_TOTAL_DELIVERABLES})")
+    parent_task_id = args.parent_task
+    output_path = args.output
 
-    html = render_html(summary)
-    print(f"\nRendered HTML: {len(html)} bytes")
+    print(f"=== Wildwood Roadmap Sync v0.7.4a ===")
+    print(f"父任务:{parent_task_id}")
+    print(f"输出:{output_path}")
+    print(f"GH_TOKEN:{'已设置' if GH_TOKEN else '未设置(GH_TOKEN 缺失时只生成本地)'}")
+    print(f"LARK_CHAT_ID:{'已设置' if LARK_CHAT_ID else '未设置(dry-run)'}")
+    print()
 
-    print("\nPushing to GitHub...")
-    commit, blob = push_html(html)
-    if commit:
-        print(f"  Done. new HEAD = {commit[:12]}")
-        print(f"  https://github.com/{GH_REPO}/commit/{commit}")
-    else:
-        print("  No change.")
+    start_ts = now_utc()
+    error_msg = ""
+    status = "ok"
+    commit_sha = ""
+    commit_count = 0
+    task_count = 0
+    html = ""
+
+    try:
+        print(f"[1/4] 拉所有子任务 (父 {parent_task_id})...")
+        tasks = fetch_all_subtasks(parent_task_id)
+        task_count = len(tasks)
+        print(f"  共 {task_count} 个子任务\n")
+
+        print(f"[2/4] 归类版本...")
+        agg = aggregate(tasks)
+        for v in VERSION_ORDER:
+            subs = agg["buckets"].get(v, [])
+            done = sum(1 for t in subs if t.get("status") == "done")
+            print(f"  {v}: {done} / {len(subs)} done")
+        if agg["unknown_count"] > 0:
+            print(f"  ?: {agg['unknown_count']} 个无法归类")
+        print()
+
+        print(f"[3/4] 渲染 HTML...")
+        badge = compute_status_badge()
+        html = render_html(agg, badge)
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html, encoding="utf-8")
+        print(f"  写入 {out} ({len(html)} bytes)\n")
+
+        should_push = (args.push or GH_TOKEN) and not SYNC_DRY_RUN
+        if SYNC_DRY_RUN:
+            print("[4/4] SYNC_DRY_RUN=1, 跳过 push")
+        elif not GH_TOKEN:
+            print("[4/4] GH_TOKEN 缺失, 跳过 push, 只保留本地 HTML")
+            status = "fail"
+            error_msg = "GH_TOKEN missing (kept local HTML only)"
+        elif should_push:
+            print("[4/4] Pushing to GitHub...")
+            commit_sha, _, commit_count = push_html(html)
+            if commit_sha:
+                print(f"  Done. new HEAD = {commit_sha[:12]}")
+                print(f"  https://github.com/{GH_REPO}/commit/{commit_sha}")
+            else:
+                status = "fail"
+                error_msg = "push returned no commit"
+        else:
+            print("[4/4] 未启用 push")
+    except Exception as e:
+        tb = traceback.format_exc()
+        error_msg = f"{type(e).__name__}: {e}"
+        print(f"\n[FAIL] {error_msg}\n{tb}", file=sys.stderr)
+        status = "fail"
+
+    duration = (now_utc() - start_ts).total_seconds()
+    record_sync_metric(
+        start_ts=start_ts, status=status,
+        duration_seconds=duration, commit_count=commit_count,
+        task_count=task_count, commit_sha=commit_sha, error=error_msg,
+    )
+
+    consecutive_failures_after = compute_consecutive_failures()
+    if consecutive_failures_after >= ALERT_THRESHOLD:
+        recent = read_recent_metrics(n=consecutive_failures_after)
+        recent_errors = [r.get("error", "") for r in recent if r.get("status") == "fail"]
+        send_lark_alert(consecutive_failures_after, recent_errors)
+
+    print()
+    print(f"=== 完成 · {status.upper()} · 耗时 {duration:.2f}s · 任务 {task_count} · {'已推送 ' + commit_sha[:12] if commit_sha else '未推送'} ===")
+    return 0 if status == "ok" else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
