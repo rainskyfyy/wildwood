@@ -47,7 +47,6 @@
     z-index: 0;
   }
   .container { max-width: 1480px; margin: 0 auto; position: relative; z-index: 1; }
-
   /* Header */
   header { text-align: center; margin-bottom: 56px; position: relative; }
   .crest { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 18px; }
@@ -63,7 +62,6 @@
   h1.title .accent { color: var(--gold); font-style: italic; }
   .subtitle { font-size: 13px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ash-soft); margin-bottom: 8px; }
   .meta { font-size: 12px; color: var(--ash); letter-spacing: 0.2em; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
-
   /* Progress block */
   .progress-block {
     max-width: 720px; margin: 0 auto 72px; padding: 28px 36px;
@@ -98,7 +96,6 @@
     font-size: 12px; color: var(--ash-soft); letter-spacing: 0.15em;
   }
   .progress-detail .num { color: var(--bone); font-weight: 500; }
-
   /* Grid + cards */
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
   @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
@@ -116,6 +113,7 @@
     background: var(--card-accent, var(--cinder));
     box-shadow: 0 0 16px var(--card-glow, transparent);
   }
+
   .card[data-status="done"]    { --card-accent: var(--moss);   --card-glow: rgba(74, 122, 78, 0.5); }
   .card[data-status="active"]  { --card-accent: var(--ember);  --card-glow: rgba(217, 120, 36, 0.5); }
   .card[data-status="pending"] { --card-accent: var(--cinder); --card-glow: transparent; }
@@ -144,12 +142,10 @@
   .deliverable .text { flex: 1; }
   .deliverable .text strong { color: var(--bone); font-weight: 500; }
   .deliverable .assignee { display: block; font-size: 11px; color: var(--ash); letter-spacing: 0.08em; margin-top: 2px; font-style: italic; }
-
   .ic-done { color: var(--moss-glow); }
   .ic-active { color: var(--ember-glow); animation: spin 2.4s linear infinite; }
   .ic-pending { color: var(--cinder); }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .card-progress { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--night-line); }
   .card-progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--ash); letter-spacing: 0.15em; margin-bottom: 8px; }
   .card-progress-bar { height: 4px; background: var(--night-deep); border: 1px solid var(--night-line); position: relative; overflow: hidden; }
@@ -157,11 +153,9 @@
   .card[data-status="done"]    .card-progress-fill { background: var(--moss); }
   .card[data-status="active"]  .card-progress-fill { background: var(--ember); }
   .card[data-status="pending"] .card-progress-fill { background: var(--cinder); }
-
   .milestone { margin-top: 14px; padding: 10px 12px; background: rgba(201, 161, 74, 0.05); border-left: 2px solid var(--gold); font-size: 12px; color: var(--parchment); letter-spacing: 0.05em; }
   .card[data-status="pending"] .milestone { display: none; }
   .milestone-label { font-size: 10px; color: var(--gold); letter-spacing: 0.25em; text-transform: uppercase; display: block; margin-bottom: 2px; }
-
   /* Footer */
   footer { margin-top: 72px; text-align: center; padding-top: 32px; border-top: 1px solid var(--night-line); position: relative; }
   .footer-line { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 14px; }
@@ -179,7 +173,6 @@
   .github-link:hover { color: var(--gold); border-color: var(--gold-soft); background: rgba(201, 161, 74, 0.06); box-shadow: 0 0 18px rgba(201, 161, 74, 0.15); }
   .github-link svg { width: 18px; height: 18px; fill: currentColor; }
   .footer-meta { margin-top: 18px; font-size: 11px; color: var(--ash); letter-spacing: 0.2em; }
-
   @media (max-width: 1100px) { .card { min-height: auto; } }
   @media (prefers-reduced-motion: reduce) {
     .ic-active { animation: none; }
@@ -190,7 +183,6 @@
 </head>
 <body>
 <div class="container">
-
   <!-- HEADER -->
   <header>
     <div class="crest">
@@ -200,28 +192,25 @@
     </div>
     <p class="subtitle">Development Roadmap</p>
     <h1 class="title">Wild<span class="accent">wood</span></h1>
-    <p class="meta">V0.1 — V0.4 · 整体 96% · 自动同步于 2026-08-22T02:27:58Z</p>
+    <p class="meta">V0.1 — V0.5 · 整体 85% · 自动同步于 2026-08-22T02:46:59Z</p>
   </header>
-
   <!-- PROGRESS -->
   <section class="progress-block" aria-label="整体进度">
     <div class="progress-head">
       <div class="progress-label">整体进度 · Overall Progress</div>
-      <div class="progress-pct">96<span class="small">%</span></div>
+      <div class="progress-pct">85<span class="small">%</span></div>
     </div>
-    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="96">
-      <div class="progress-fill" data-target="96"></div>
+    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="85">
+      <div class="progress-fill" data-target="85"></div>
     </div>
     <div class="progress-detail">
-      <span>已完成 <span class="num">2</span> / 4 版本</span>
-      <span>当前阶段 <span class="num">v0.3 · 游戏系统</span></span>
-      <span>下一里程碑 <span class="num">v0.4 · 打磨与联机</span></span>
+      <span>已完成 <span class="num">3</span> / 5 版本</span>
+      <span>当前阶段 <span class="num">v0.5 · 世界深化</span></span>
+      <span>下一里程碑 <span class="num">v1.0 · 正式版</span></span>
     </div>
   </section>
-
   <!-- VERSION CARDS -->
   <section class="grid" aria-label="版本路线图">
-
     <!-- v0.1 -->
     <article class="card" data-status="done">
       <span class="card-corner tl"></span><span class="card-corner tr"></span>
@@ -244,7 +233,6 @@
         <div class="card-progress-bar"><div class="card-progress-fill" data-target="100"></div></div>
       </div>
     </article>
-
     <!-- v0.2 -->
     <article class="card" data-status="done">
       <span class="card-corner tl"></span><span class="card-corner tr"></span>
@@ -270,7 +258,6 @@
         <div class="card-progress-bar"><div class="card-progress-fill" data-target="100"></div></div>
       </div>
     </article>
-
     <!-- v0.3 (auto) -->
     <article class="card" data-status="active">
       <span class="card-corner tl"></span><span class="card-corner tr"></span>
@@ -287,7 +274,7 @@
           <span class="text"><strong>建造系统</strong>:建造菜单、放置预览、建筑实体<span class="assignee">负责人 · 高级开发工程师</span></span>
         </li>
         <li class="deliverable">
-          <span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span>
+          <span class="icon"><svg class="ic-pending" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/></svg></span>
           <span class="text"><strong>资源系统</strong>:采集、物品栏、合成<span class="assignee">负责人 · 高级开发工程师</span></span>
         </li>
         <li class="deliverable">
@@ -312,7 +299,6 @@
         <div class="card-progress-bar"><div class="card-progress-fill" data-target="83"></div></div>
       </div>
     </article>
-
     <!-- v0.4 (auto) -->
     <article class="card" data-status="done">
       <span class="card-corner tl"></span><span class="card-corner tr"></span>
@@ -342,9 +328,40 @@
         <div class="card-progress-bar"><div class="card-progress-fill" data-target="100"></div></div>
       </div>
     </article>
-
+    <!-- v0.5 (auto) -->
+    <article class="card" data-status="active">
+      <span class="card-corner tl"></span><span class="card-corner tr"></span>
+      <span class="card-corner bl"></span><span class="card-corner br"></span>
+      <div class="card-head">
+        <div class="version">v0.5</div>
+        <span class="status-badge"><span class="status-dot"></span>进行中</span>
+      </div>
+      <h2 class="card-title">世界深化</h2>
+      <p class="card-sub">World Deepening · 3 / 7 子任务完成</p>
+      <ul class="deliverables">
+        <li class="deliverable">
+          <span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span>
+          <span class="text"><strong>新群系</strong>:森林+草原群系、生态链、6 群系世界生成<span class="assignee">负责人 · 高级开发工程师</span></span>
+        </li>
+        <li class="deliverable">
+          <span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span>
+          <span class="text"><strong>Boss 事件</strong>:4 只季节 Boss + 阶段切换 + 随机事件<span class="assignee">负责人 · 高级开发工程师</span></span>
+        </li>
+        <li class="deliverable">
+          <span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span>
+          <span class="text"><strong>农耕烹饪</strong>:耕地播种、8 种作物、30 食谱、加工站<span class="assignee">负责人 · 高级开发工程师</span></span>
+        </li>
+        <li class="deliverable">
+          <span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span>
+          <span class="text"><strong>NPC 村落</strong>:猪人村落、以物易物、随从招募<span class="assignee">负责人 · 高级开发工程师</span></span>
+        </li>
+      </ul>
+      <div class="card-progress">
+        <div class="card-progress-label"><span>交付项</span><span>3 / 7</span></div>
+        <div class="card-progress-bar"><div class="card-progress-fill" data-target="43"></div></div>
+      </div>
+    </article>
   </section>
-
   <!-- FOOTER -->
   <footer>
     <div class="footer-line"><span class="footer-mark">Repository</span></div>
@@ -356,9 +373,7 @@
     </a>
     <p class="footer-meta">自托管看板 · 自动同步源:aily task 平台 · 每 30 分钟刷新</p>
   </footer>
-
 </div>
-
 <script>
   // Animate progress bars on load
   window.addEventListener('DOMContentLoaded', () => {
