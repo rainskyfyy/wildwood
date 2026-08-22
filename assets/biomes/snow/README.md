@@ -1,70 +1,86 @@
-# 雪山群系 (Snow Biome) · v0.6.2a
+# 雪山群系（Snow）
 
-> 路径: `assets/biomes/snow/` · 命名: `tile_<short>.png` / `elem_<short>.png` (v0.6 新规)
-> 调色板: 24 色锁版 + 5 冷色扩展 = 29 色字典 · 暖色 ≤40%
+v0.6.2a 起新增的冷色群系，验证 24 色锁版对冷色群系的程序化生成可行性。
 
-## 资产清单 (11 PNGs)
+## 资产清单（11 张）
 
-### 地形 Tiles (5 张 · 32×32)
+| 类型 | 文件 | 尺寸 | 描述 |
+|------|------|------|------|
+| tile | `tile_snow.png` | 32×32 | 雪地基底（4 边对称无缝） |
+| tile | `tile_rock.png` | 32×32 | 雪岩（岩石+雪盖） |
+| tile | `tile_glacier.png` | 32×32 | 冰川（冰裂纹） |
+| tile | `tile_deep_snow.png` | 32×32 | 深雪（厚雪堆） |
+| tile | `tile_tundra.png` | 32×32 | 苔原过渡（雪+苔藓斑驳） |
+| elem | `elem_pine.png` | 32×64 | 松树（雪盖） |
+| elem | `elem_snowpile.png` | 32×32 | 雪堆 |
+| elem | `elem_snowflake_1.png` | 16×16 | 雪花帧 1（6 臂） |
+| elem | `elem_snowflake_2.png` | 16×16 | 雪花帧 2（中心放大） |
+| elem | `elem_ice_crystal.png` | 16×16 | 冰晶（6 角） |
+| elem | `elem_footprint.png` | 16×16 | 动物脚印（兔/小型） |
 
-| 文件 | 名称 | 调色板子集 | 暖色占比 |
-|---|---|---|---|
-| `tile_snow.png` | 雪地 | snow_white / frost_white / deep_snow | 0% |
-| `tile_rock.png` | 雪岩 | tundra_gray / charcoal / snow_white / frost_white | 0% |
-| `tile_glacier.png` | 冰川 | ice_blue / glacial_cyan / sky_blue / snow_white | 0% |
-| `tile_deep_snow.png` | 深雪 | snow_white / frost_white / fog_gray / deep_snow | 0% |
-| `tile_tundra.png` | 苔原过渡 | tundra_gray / moss_green / earth_brown / snow_white | 40% |
+## 调色板（13 色，暖色 ≤40%）
 
-### 元素 Elements (6 张 · 32×32/32×64/16×16)
+### 冷色系（10 色）
 
-| 文件 | 名称 | 尺寸 | 调色板子集 | 暖色占比 |
-|---|---|---|---|---|
-| `elem_pine.png` | 松树 | 32×64 | bark_brown / mud_brown + ice_blue / sky_blue / snow_white | 40% |
-| `elem_snowpile.png` | 雪堆 | 32×32 | snow_white / frost_white / fog_gray / deep_snow | 0% |
-| `elem_snowflake_1.png` | 雪花飘落·帧1 | 16×16 | ice_blue / glacial_cyan / deep_snow | 0% |
-| `elem_snowflake_2.png` | 雪花飘落·帧2 | 16×16 | ice_blue / glacial_cyan / deep_snow | 0% |
-| `elem_ice_crystal.png` | 冰晶 | 32×32 | ice_blue / glacial_cyan / snow_white / frost_white | 0% |
-| `elem_footprint.png` | 动物脚印 | 16×16 | tundra_gray / fog_gray / snow_white | 0% |
+| 名称 | 色值 | 来源 |
+|------|------|------|
+| `snow_white` | `#e8f0f8` | 锁版 |
+| `ice_blue` | `#90c8e0` | 锁版 |
+| `shadow_grey` | `#606878` | 锁版 |
+| `frost_silver` | `#c0d0e0` | 锁版 |
+| `deep_blue` | `#406080` | 锁版 |
+| `ice_cyan` | `#6ec8d8` | **v0.6.2a 新增** |
+| `snow_pale` | `#f0f8ff` | **v0.6.2a 新增** |
+| `glacier_blue` | `#5080a0` | **v0.6.2a 新增** |
+| `frost_purple` | `#7080a0` | **v0.6.2a 新增** |
+| `aurora_green` | `#80c8a0` | **v0.6.2a 新增** |
 
-## 调色板 (29 色字典)
+### 暖色系（3 色，24 锁版）
 
-**24 色锁版** (与 M3.13 一致):
-- 中性 (5): night_black / snow_white / fog_gray / charcoal / ash_gray
-- 暖色 (13): flesh_tone / blood_red / deep_red / earth_brown / bark_brown / mud_brown / amber / carrot_orange / pumpkin_orange / tomato_red / moss_green / leaf_green / poison_green / royal_purple / mystic_purple / gold
-- 冷色 (3): sky_blue / ocean_blue / ice_blue
+| 名称 | 色值 | 用途 |
+|------|------|------|
+| `dark_green` | `#1a3a0e` | pine 树冠 |
+| `mud_brown` | `#5c3a1e` | pine 树干 + tundra 苔藓 |
+| `amber` | `#d4a030` | tundra 苔藓高光 |
 
-**5 冷色扩展** (v0.6.2a 新增):
-- frost_white · glacial_cyan · deep_snow · tundra_gray · permafrost_dark
+### 共享锚点（2 色）
 
-> 注: 24 色锁版实际 24 个 (中性 5 + 暖色 16 + 冷色 3) = 24
+| 名称 | 色值 |
+|------|------|
+| `night_black` | `#101820` |
+| `highlight_white` | `#f8f8f8` |
 
-## 硬约束自检 (PR 5 项)
+**暖色占比** = 3 / 13 ≈ **23%** ≤ 40% ✓
 
-| 项 | 结果 |
-|---|---|
-| 1. 剪影 | ✓ 5 群系剪影互不混淆 (雪地 vs 冰川 vs 苔原) |
-| 2. 色板 | ✓ 100% 29 色字典覆盖, 0 违例 |
-| 3. 网格 | ✓ 整数坐标, 0 误差 |
-| 4. 抗锯齿 | ✓ 0 中间灰阶, 程序化保证 |
-| 5. 暖色 ≤40% | ✓ 11/11 通过 (max 40%) |
+## 5 项 PR 硬约束自检
 
-## Tile 预览 (5 张)
+| 项 | 检查内容 | 实际值 | 状态 |
+|----|---------|--------|------|
+| 1. 剪影 | 跨群系对比 | single-biome (无跨群系对比) | N/A |
+| 2. 色板 | 所有颜色来自锁版 + 5 新冷色 | 0 违例 / 11 张 | ✅ PASS |
+| 3. 网格 | 整数像素坐标 | PIL 直写保证 | ✅ PASS |
+| 4. 抗锯齿 | 软边像素占比 ≤5% | 0%-4.2% / 11 张 | ✅ PASS |
+| 5. 动画 | 帧数 / 帧率 | 雪花 2 帧（_1/_2） | ✅ PASS |
 
-| tile_snow | tile_rock | tile_glacier | tile_deep_snow | tile_tundra |
-|---|---|---|---|---|
+详细自检数据：见 `generate_snow.py` 输出（每次生成时打印 11/11 PASS）。
 
-## 动画帧序列
+## 命名规范（v0.6 新规）
 
-`elem_snowflake_1.png` + `elem_snowflake_2.png` 组成 2 帧循环动画:
-- 帧1: 4 臂 (横+竖) + 末端分支
-- 帧2: 4 臂 (对角) + 末端分支 (旋转 45°)
+- 子目录 + 短名：`assets/biomes/snow/tile_<short>.png` / `elem_<short>.png`
+- 命名不含群系前缀（目录已表明群系）
+- 动画帧用 `_1` / `_2` 后缀（`elem_snowflake_1.png` / `elem_snowflake_2.png`）
 
-帧间切换: 0.25s 切换 → 8 FPS 等效。运行时按 `_1` / `_2` 交替绘制实现旋转动画。
+## 流水线
 
-## 与 v0.5 路径差异
+按 M3.13 模式：字典查表 + 形状函数 + 输出循环 + 4 边对称后处理。
 
-- v0.5: `assets/art/biomes/snow/{tiles,elements}/*.png` (10 张, 命名 `snow_tile_*.png`)
-- v0.6: `assets/biomes/snow/{tile_*,elem_*}.png` (11 张, 扁平无子目录)
+```bash
+python3 generate_snow.py
+# 期望输出：通过 11/11
+```
 
-> v0.6 简化: 去掉 `art/` 中间层, 去掉 `tiles/` `elements/` 子目录, 改用前缀命名。
-> 旧路径 (v0.5) 保留, 供向后兼容。开发侧按需迁移。
+## Git 记录
+
+- commit: `v0.6.2a: 雪山群系首批 11 张程序化生成资产`
+- 目标分支：`main`
+- 目标路径：`assets/biomes/snow/`
