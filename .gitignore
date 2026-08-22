@@ -1,0 +1,135 @@
+# Wildwood root .gitignore
+# 目标: 防止开发工具产物、临时文件、编辑器残留进入仓库
+# 维护: v0.8.0c palette gitignore CI (tools/check-palette-gitignore.py) 强制校验
+
+# =========================================================================
+# Python (调色板生成器、看板同步等脚本)
+# =========================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+.env/
+.envrc
+
+# =========================================================================
+# 操作系统残留
+# =========================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =========================================================================
+# 编辑器 / IDE
+# =========================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+nbproject/
+nbbuild/
+nbdist/
+
+# =========================================================================
+# Node.js (零依赖仅 dev 工具, v0.6 inventory-svc 残留)
+# =========================================================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-store/
+
+# =========================================================================
+# 测试 / 覆盖率
+# =========================================================================
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+junit*.xml
+test-results/
+
+# =========================================================================
+# Wildwood 特定: 程序化生成 / 临时工作区
+# =========================================================================
+# PIL 程序化调色板 / sprite 生成时的临时目录(工作流入口在 scripts/)
+artifacts/
+# Aseprite 自动备份(美术资产阶段)
+*.ase.bak
+*.aseprite-backup
+# 临时调色板调试输出
+/tmp_palette_*.png
+# 看板同步的本地状态(不提交, 每次 push 重新生成)
+.scripts-state/
+.roadmap-cache/
+
+# =========================================================================
+# 密钥 / 凭证 (绝不入库)
+# =========================================================================
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.gh-token
+.ghp_*
+.github_token
+
+# =========================================================================
+# 系统意外产物 (CI 防御性兜底)
+# =========================================================================
+*.tmp
+*.bak
+*.orig
+*.rej
+*.swp
+nul
+core
+core.*
+!.gitkeep
