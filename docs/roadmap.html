@@ -239,27 +239,27 @@
     <p class="subtitle">Development Roadmap</p>
     <h1 class="title">Wild<span class="accent">wood</span></h1>
 
-    <div class="sync-badge" data-status="red" role="status" aria-live="polite" aria-label="同步状态:看板同步异常">
+    <div class="sync-badge" data-status="yellow" role="status" aria-live="polite" aria-label="同步状态:看板同步滞后">
       <span class="badge-dot"></span>
-      <span class="badge-label">看板同步异常</span>
+      <span class="badge-label">看板同步滞后</span>
       <span class="badge-detail">
-        上次同步 <b>刚刚</b> · 连续失败 <b>7</b> 次 · 最近 commit <b>无</b>
+        上次同步 <b>刚刚</b> · 连续失败 <b>1</b> 次 · 最近 commit <b>无</b>
       </span>
     </div>
 
-    <p class="meta">V0.1 — V0.7 · 整体 97% · 共 73 子任务 · 完成 71 · 进行中 2 · 同步于 2026-08-22T07:18:04Z</p>
+    <p class="meta">V0.1 — V0.7 · 整体 100% · 共 73 子任务 · 完成 73 · 进行中 0 · 同步于 2026-08-22T07:58:22Z</p>
   </header>
 
   <section class="progress-block" aria-label="整体进度">
     <div class="progress-head">
       <div class="progress-label">整体进度 · Overall Progress</div>
-      <div class="progress-pct">97<span class="small">%</span></div>
+      <div class="progress-pct">100<span class="small">%</span></div>
     </div>
-    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="97">
-      <div class="progress-fill" data-target="97"></div>
+    <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+      <div class="progress-fill" data-target="100"></div>
     </div>
     <div class="progress-detail">
-      <span>已完成 <span class="num">6</span> / 7 版本 (86%)</span>
+      <span>已完成 <span class="num">7</span> / 7 版本 (100%)</span>
       <span>当前阶段 <span class="num">v0.7 · A/B 通用层</span></span>
       <span>下一里程碑 <span class="num">v1.0 · 正式版</span></span>
     </div>
@@ -436,26 +436,26 @@
       </div>
     </article>
 
-    <article class="card" data-status="active" id="card-v0.7">
+    <article class="card" data-status="done" id="card-v0.7">
       <span class="card-corner tl"></span><span class="card-corner tr"></span>
       <span class="card-corner bl"></span><span class="card-corner br"></span>
       <div class="card-head">
         <div class="version">v0.7</div>
-        <span class="status-badge"><span class="status-dot"></span>进行中</span>
+        <span class="status-badge"><span class="status-dot"></span>已完成</span>
       </div>
       <h2 class="card-title">A/B 通用层</h2>
-      <p class="card-sub">A/B Universal Layer · RFC + 铁律自动化 · 4 / 6 完成 · 进行中 2</p>
+      <p class="card-sub">A/B Universal Layer · RFC + 铁律自动化 · 6 / 6 完成 · 进行中 0</p>
       <ul class="deliverables" data-count="6">
-        <li class="deliverable" data-status="in_progress"><span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span><span class="text"><strong class="ver-tag">v0.7.1a</strong> 升级 24 色锁版调色板字典，加 warm/cold 显式标签和 biome_affinity 字段，让 generate 阶段就能预算暖色占比。<span class="assignee">状态 · 进行中</span></span></li>
-        <li class="deliverable" data-status="in_progress"><span class="icon"><svg class="ic-active" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg></span><span class="text"><strong class="ver-tag">v0.7.3a</strong> 在 GH_TOKEN 重新签发后，将 v0.6.3a 的沙箱脚本升级为生产级 GitHub Actions 自动化运维。<span class="assignee">状态 · 进行中</span></span></li>
         <li class="deliverable" data-status="done"><span class="icon"><svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><span class="text"><strong class="ver-tag">v0.7.0a</strong> 推广 InventoryService 单向接口模式到 EventService / BuildingService / MonsterService 三个领域，为 v0.7 联机层 WorldSta…<span class="assignee">状态 · 已完成</span></span></li>
         <li class="deliverable" data-status="done"><span class="icon"><svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><span class="text"><strong class="ver-tag">v0.7.0b</strong> 在 v0.6.1a RFC 基础上补全 A/B 三层 interface signature，产出 RFC v0.2。<span class="assignee">状态 · 已完成</span></span></li>
         <li class="deliverable" data-status="done"><span class="icon"><svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><span class="text"><strong class="ver-tag">v0.7.0c</strong> 让 fixture 抗漂移铁律从"spec 文档"升级为"自动化 enforce"，并修复 push script base_sha 竞态。<span class="assignee">状态 · 已完成</span></span></li>
+        <li class="deliverable" data-status="done"><span class="icon"><svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><span class="text"><strong class="ver-tag">v0.7.1a</strong> 升级 24 色锁版调色板字典，加 warm/cold 显式标签和 biome_affinity 字段，让 generate 阶段就能预算暖色占比。<span class="assignee">状态 · 已完成</span></span></li>
         <li class="deliverable" data-status="done"><span class="icon"><svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><span class="text"><strong class="ver-tag">v0.7.2a</strong> 明确 tickState 基座 vs 桥接边界，干掉 hudBus forward，旧模块迁移到 subscribe；同时 UI 端落地 fixture 抗漂移铁律。<span class="assignee">状态 · 已完成</span></span></li>
+        <li class="deliverable" data-status="done"><span class="icon"><svg class="ic-done"   width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l3.5 3.5L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></span><span class="text"><strong class="ver-tag">v0.7.3a</strong> 在 GH_TOKEN 重新签发后，将 v0.6.3a 的沙箱脚本升级为生产级 GitHub Actions 自动化运维。<span class="assignee">状态 · 已完成</span></span></li>
       </ul>
       <div class="card-progress">
-        <div class="card-progress-label"><span>完成率</span><span>67%</span></div>
-        <div class="card-progress-bar"><div class="card-progress-fill" data-target="67"></div></div>
+        <div class="card-progress-label"><span>完成率</span><span>100%</span></div>
+        <div class="card-progress-bar"><div class="card-progress-fill" data-target="100"></div></div>
       </div>
     </article>
   </section>
