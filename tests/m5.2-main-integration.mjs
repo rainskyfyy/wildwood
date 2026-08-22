@@ -1,22 +1,26 @@
 #!/usr/bin/env node
 /**
- * m5.2-main-integration.mjs — Source-level smoke test for main.js v0.5.2 wiring.
+ * m5.2-main-integration.mjs — Source-level smoke test for v0.6.0a wiring.
  *
- * Verifies the main.js source code contains the expected v0.5.2 wiring
- * calls (imports, manager construction, frame loop tick, key handlers,
- * render branches). The actual bootGame runtime requires a full DOM
- * (HUD uses querySelector etc.) and is exercised manually via
- * demo.html in the browser.
+ * v0.6.0a 把 main.js 拆为 assembly.js + runtime.js + main.js。
+ * 测试改为读这三个文件并检查 wiring 字符串(union across the three files)。
+ * 实际 bootGame 运行时需要完整 DOM,浏览器手动跑 demo.html。
  */
 'use strict';
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const mainPath = join(__dirname, '..', 'src', 'main.js');
-const src = readFileSync(mainPath, 'utf8');
+const srcDir = join(__dirname, '..', 'src');
+
+let src = readFileSync(join(srcDir, 'main.js'), 'utf8');
+// v0.6.0a: wiring 分散在 main.js / assembly.js / runtime.js
+for (const f of ['assembly.js', 'runtime.js']) {
+  const p = join(srcDir, f);
+  if (existsSync(p)) src += '\n' + readFileSync(p, 'utf8');
+}
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -78,6 +82,12 @@ ok('bootGame sets _bossBarDraw = ...', src.includes('_bossBarDraw = ('));
 ok('bootGame sets _eventBannerDraw = ...', src.includes('_eventBannerDraw = ('));
 ok('BossConfig.forBiome / all() fallback', src.includes('BossConfig.forBiome') && src.includes('BossConfig.all'));
 ok('EventRegistry.all() for random event', src.includes('EventRegistry.all()'));
+
+section('v0.6.0a split sanity');
+ok('assembly.js exports assembleGame', /export function assembleGame/.test(src));
+ok('runtime.js exports startRuntime', /export function startRuntime/.test(src));
+ok('main.js exports bootGame', /export function bootGame/.test(src));
+ok('main.js is thin (< 50 lines)', readFileSync(join(srcDir, 'main.js'), 'utf8').split('\n').length < 50);
 
 console.log(`\nm5.2 main-integration smoke: ${pass} pass, ${fail} fail`);
 if (fail > 0) process.exit(1);

@@ -221,6 +221,10 @@
   <script src="./src/ui/hud.js"></script>
   <!-- M2.13: 4 屏 subtab 路由 + 拖拽 4 状态机(订阅 hudBus) -->
   <script src="./src/ui/screens/screens.js"></script>
+  <!-- v0.6.0a: 装配层 / 运行时层 / 入口 三段式 -->
+  <script type="module" src="./src/assembly.js"></script>
+  <script type="module" src="./src/runtime.js"></script>
+  <script type="module" src="./src/main.js"></script>
   <!-- v0.4 联机:主菜单(单人/创建房间/加入房间)→ bootGame 注入联机参数 -->
   <script type="module">
     import { bootGame } from './src/main.js';
