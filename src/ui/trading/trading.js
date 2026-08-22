@@ -309,6 +309,7 @@
 
   // ============================================================================
   // 头部(标题 + 好感度)
+  // v0.6.4a: 集成 NPCAffinityBar 组件,降级用 buildAffinityDisplay
   // ============================================================================
   function buildHeader(pig, state) {
     var header = el('div', { class: 'TradeDialog-Header' });
@@ -318,7 +319,12 @@
       el('span', { class: 'TradeDialog-PigName' }, pig.name)
     ]);
     var aff = el('div', { class: 'TradeDialog-Affinity' });
-    aff.appendChild(buildAffinityDisplay(pig.affinity, /* clickable */ false));
+    // v0.6.4a: 优先用 NPCAffinityBar 组件,降级 buildAffinityDisplay
+    if (window.NPCAffinityBar && typeof window.NPCAffinityBar.create === 'function') {
+      aff.appendChild(window.NPCAffinityBar.create(pig, { theme: 'trade', showHint: false }));
+    } else {
+      aff.appendChild(buildAffinityDisplay(pig.affinity, /* clickable */ false));
+    }
     var close = el('button', { class: 'Dialog-Close', 'aria-label': '关闭', onclick: function () {
       showPigReaction(state, pickLine(PIG_LINES.cancel), 'neutral');
       setTimeout(function () {
@@ -380,6 +386,17 @@
     if (!currentDialog) return;
     var old = $('.TradeDialog-Affinity', currentDialog.root);
     if (!old) return;
+    // v0.6.4a: 优先用 NPCAffinityBar.update 节流更新(只改差异部分)
+    // 降级: 完整重建(原 buildAffinityDisplay 路径)
+    if (window.NPCAffinityBar && typeof window.NPCAffinityBar.update === 'function') {
+      var pig = currentDialog.state.pig;
+      // NPCAffinityBar 顶层就是 display 容器,直接 update 它
+      var bar = old.querySelector('.NPCAffinityBar');
+      if (bar) {
+        window.NPCAffinityBar.update(bar, pig);
+        return;
+      }
+    }
     var fresh = buildAffinityDisplay(currentDialog.state.pig.affinity, true);
     old.parentNode.replaceChild(fresh, old);
   }

@@ -1,0 +1,197 @@
+/* Wildwood UI · v0.6.4a NPC 好感度 HUD 组件样式
+ *
+ * 依赖:
+ *   - src/ui/layout/tokens.css       (颜色/间距/字号 CSS 变量)
+ *   - src/ui/npc/npc.css             (共享 .AffinityHeart / .AffinityDisplay 样式)
+ *   - src/ui/components/components.css (可选,共享 .Dialog / .Panel)
+ *
+ * 主题变体(由 .NPCAffinityBar-Theme-* 切换):
+ *   - top-hud:  HUD 顶部栏(默认),左浮卡片,72×56 头像+名+心
+ *   - trade:    交易窗口头部(精简),内联横向,只显示心+提示
+ *   - bubble:   对话气泡(迷你),圆角胶囊,头像+心
+ *
+ * 暗黑哥特 + 明亮卡通:
+ *   - 主色: --accent (琥珀 #d4a64a)
+ *   - 锚点: --night-black / --night-elev
+ *   - 字体: --font-pixel (M1.7 tokens.css 定义)
+ *   - 圆角: 0/2px 硬阴影
+ *   - 间距: 8/16 倍数
+ */
+
+.NPCAffinityBar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8, 8px);
+  padding: var(--sp-8, 8px) var(--sp-12, 12px);
+  background: var(--night-elev, #1a1a2a);
+  border: 1px solid var(--border-bold, #3a3a52);
+  box-shadow: 2px 2px 0 var(--night-black, #0d0d18);
+  font-family: var(--font-pixel, monospace);
+  color: var(--fg, #f0f0f0);
+  font-size: var(--fs-12, 12px);
+  letter-spacing: 0.5px;
+  user-select: none;
+  pointer-events: auto;
+  transition: box-shadow 120ms ease-out, transform 120ms ease-out;
+}
+
+.NPCAffinityBar.is-full {
+  border-color: var(--accent, #d4a64a);
+  box-shadow: 2px 2px 0 var(--night-black, #0d0d18),
+              0 0 0 1px var(--accent, #d4a64a);
+}
+
+/* 头像:16×16 像素块,带头像字符 */
+.NPCAffinityBar-Avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--night-black, #0d0d18);
+  border: 1px solid var(--border-bold, #3a3a52);
+  font-size: var(--fs-18, 18px);
+  color: var(--accent, #d4a64a);
+  line-height: 1;
+  text-shadow: 1px 1px 0 var(--night-deep, #0d0d18);
+}
+
+/* 主体:姓名 + 0-3 心 */
+.NPCAffinityBar-Body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.NPCAffinityBar-Name {
+  font-size: var(--fs-12, 12px);
+  color: var(--fg, #f0f0f0);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 96px;
+}
+
+.NPCAffinityBar-Display {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: var(--fs-14, 14px);
+  line-height: 1;
+}
+
+/* 互动热提示 */
+.NPCAffinityBar-Hint {
+  font-size: var(--fs-10, 10px);
+  color: var(--fg-muted, #aaa);
+  padding: 2px var(--sp-8, 8px);
+  background: var(--night-black, #0d0d18);
+  border: 1px solid var(--border-bold, #3a3a52);
+  border-radius: 2px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.NPCAffinityBar.is-full .NPCAffinityBar-Hint {
+  color: var(--accent, #d4a64a);
+  border-color: var(--accent, #d4a64a);
+  animation: hint-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* ===================== 主题变体 ===================== */
+
+/* 顶部 HUD:卡片,适合玩家身边 */
+.NPCAffinityBar-Theme-top-hud {
+  /* 默认值已在基础类 */
+}
+
+/* 交易窗口:精简,内联横向 */
+.NPCAffinityBar-Theme-trade {
+  padding: var(--sp-4, 4px) var(--sp-8, 8px);
+  background: transparent;
+  border: 1px dashed var(--border-bold, #3a3a52);
+  box-shadow: none;
+  gap: var(--sp-4, 4px);
+}
+
+.NPCAffinityBar-Theme-trade .NPCAffinityBar-Avatar {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  font-size: var(--fs-12, 12px);
+}
+
+/* 对话气泡:迷你胶囊 */
+.NPCAffinityBar-Theme-bubble {
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--night-deep, #0d0d18);
+  border-color: var(--accent, #d4a64a);
+  box-shadow: 1px 1px 0 var(--night-black, #101820);
+  gap: 4px;
+}
+
+.NPCAffinityBar-Theme-bubble .NPCAffinityBar-Avatar {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  font-size: 10px;
+}
+
+.NPCAffinityBar-Theme-bubble .NPCAffinityBar-Name {
+  display: none; /* 气泡内空间紧,只显心 */
+}
+
+.NPCAffinityBar-Theme-bubble .NPCAffinityBar-Display {
+  font-size: var(--fs-12, 12px);
+}
+
+.NPCAffinityBar-Theme-bubble .NPCAffinityBar-Hint {
+  display: none;
+}
+
+/* ===================== 可点击态 ===================== */
+
+.NPCAffinityBar.is-clickable {
+  cursor: pointer;
+}
+
+.NPCAffinityBar.is-clickable:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--night-black, #0d0d18);
+}
+
+.NPCAffinityBar.is-clickable:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--night-black, #0d0d18);
+}
+
+/* ===================== 隐藏(无 NPC 时) ===================== */
+
+.NPCAffinityBar.is-hidden {
+  display: none;
+}
+
+/* ===================== 无障碍降级 ===================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .NPCAffinityBar {
+    transition: none;
+  }
+  .NPCAffinityBar.is-clickable:hover,
+  .NPCAffinityBar.is-clickable:active {
+    transform: none;
+  }
+  .NPCAffinityBar.is-full .NPCAffinityBar-Hint {
+    animation: none;
+  }
+}

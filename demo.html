@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
- <title>Wildwood · v0.4 联机 — 2-4 人合作 · 类饥荒 × 星露谷</title>
+ <title>Wildwood · v0.6.4a NPC 好感度 HUD 组件 + 5Hz 同步</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- M1.7 UI 基础布局(tokens 必须先于其他) -->
   <link rel="stylesheet" href="./src/ui/layout/tokens.css">
@@ -10,6 +10,10 @@
   <link rel="stylesheet" href="./src/ui/layout/anchors.css">
   <!-- M1.8 UI 组件库(6 类 × 3 变体) -->
   <link rel="stylesheet" href="./src/ui/components/components.css">
+  <!-- v0.6.4a: NPC 好感度 HUD 组件样式 -->
+  <link rel="stylesheet" href="./src/ui/components/NPCAffinityBar.css">
+  <!-- v0.5.4: NPC 村落 / 交易系统(npc.css 共享 .AffinityHeart) -->
+  <link rel="stylesheet" href="./src/ui/npc/npc.css">
   <!-- M2.13 4 屏样式 -->
   <link rel="stylesheet" href="./src/ui/screens/inventory.css">
   <link rel="stylesheet" href="./src/ui/screens/crafting.css">
@@ -91,11 +95,51 @@
       color: var(--fg-faint);
       line-height: 1;
     }
+    /* v0.6.4a: NPC 演示区(右上,Anchor-TR 下) */
+    .Anchor-NPC {
+      position: absolute;
+      top: 56px;          /* Anchor-TR 下方 */
+      right: var(--sp-8, 8px);
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+      z-index: 50;
+    }
+    .Anchor-NPC-Pigs {
+      display: flex; flex-direction: column; gap: 6px;
+      align-items: flex-end;
+    }
+    .Anchor-NPC-Actions {
+      display: flex; gap: 6px;
+      font-size: 10px;
+    }
+    .Anchor-NPC-Actions button {
+      font-family: var(--font-pixel, monospace);
+      font-size: 10px;
+      padding: 2px 8px;
+      background: var(--night-elev, #1a1a2a);
+      border: 1px solid var(--accent, #d4a64a);
+      color: var(--accent, #d4a64a);
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }
+    .Anchor-NPC-Actions button:hover {
+      background: var(--accent, #d4a64a);
+      color: var(--night-black, #0d0d18);
+    }
+    .Anchor-NPC-Status {
+      font-family: var(--font-pixel, monospace);
+      font-size: 10px;
+      color: var(--fg-muted, #aaa);
+      padding: 2px 6px;
+      background: var(--night-black, #0d0d18);
+      border: 1px solid var(--border-bold, #3a3a52);
+      min-width: 120px;
+      text-align: right;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Wildwood · v0.4 联机 (M4 + M2.9 + M2.13) — 2-4 人合作</h1>
+    <h1>Wildwood · v0.6.4a NPC 好感度 HUD 组件 + 5Hz 同步抽象</h1>
     <div class="stage">
       <canvas id="game" width="1440" height="900"></canvas>
       <!-- M1.7 + M1.8 + M2.12: 5 锚定区填上实际组件实例 + 队伍槽 + 三围条/小地图/快捷栏/聊天 -->
@@ -127,6 +171,17 @@
         <div class="Anchor-TR">
           <div class="TimeDisplay">Day 12 · 14:32</div>
           <div class="SeasonTag">AUTUMN</div>
+        </div>
+
+        <!-- v0.6.4a: NPC 演示区(右上)· 视野内 NPC 好感度 HUD + 喂食/切换按钮 -->
+        <div class="Anchor-NPC" id="npc-demo">
+          <div class="Anchor-NPC-Pigs" id="npc-demo-pigs"></div>
+          <div class="Anchor-NPC-Status" id="npc-demo-status">5Hz tick: 0 · 当前 NPC: -</div>
+          <div class="Anchor-NPC-Actions">
+            <button id="npc-demo-feed" type="button">喂食 +1 心 (F)</button>
+            <button id="npc-demo-next" type="button">切换 NPC (N)</button>
+            <button id="npc-demo-trade" type="button">交易 (T)</button>
+          </div>
         </div>
 
         <!-- 右下 · 小地图 200×200 -->
@@ -212,19 +267,99 @@
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / <kbd>↑↓←→</kbd> 移动</span>
       <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
       <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>M</kbd> 地图 · <kbd>Q</kbd> 任务 · <kbd>Esc</kbd> 关闭</span>
-      <span><kbd>B</kbd> 建造(5 楔菜单)· <kbd>1</kbd>~<kbd>5</kbd> 选建筑 · <kbd>RMB</kbd> 取消/拆除</span>
-      <span>v0.4 · 单人/联机菜单 · WebSocket relay · 2-4 人 · 30s 断线重连</span>
+      <span><kbd>B</kbd> 建造 · <kbd>N</kbd> 切换 NPC · <kbd>F</kbd> 喂食 · <kbd>T</kbd> 交易</span>
+      <span>v0.6.4a · NPC 好感度 HUD 组件 + 5Hz 同步抽象 (tickState.js 基座)</span>
     </div>
   </div>
 
+  <!-- v0.6.4a: 5Hz 同步抽象(基座,必须在 hud.js 之前) -->
+  <script src="./src/ui/sync/tickState.js"></script>
   <!-- M2.12: 顶层 HUD 状态机(EventTarget 总线 + 5Hz tick + 4 队伍槽 mock) -->
   <script src="./src/ui/hud.js"></script>
   <!-- M2.13: 4 屏 subtab 路由 + 拖拽 4 状态机(订阅 hudBus) -->
   <script src="./src/ui/screens/screens.js"></script>
-  <!-- v0.6.0a: 装配层 / 运行时层 / 入口 三段式 -->
-  <script type="module" src="./src/assembly.js"></script>
-  <script type="module" src="./src/runtime.js"></script>
-  <script type="module" src="./src/main.js"></script>
+  <!-- v0.6.4a: NPC 好感度 HUD 组件(跨屏复用:HUD 顶部栏/交易/对话气泡) -->
+  <script src="./src/ui/components/NPCAffinityBar.js"></script>
+  <!-- v0.5.4: NPC 系统(对话气泡 + 好感度动画 + 随从 HUD + 村落交易中心) -->
+  <script src="./src/ui/npc/npc.js"></script>
+  <!-- v0.5.4: 交易系统(交易窗口 + 价格模型 + 好感度门) -->
+  <script src="./src/ui/trading/trading.js"></script>
+
+  <!-- v0.6.4a: NPC 演示脚本(mount 当前视野 NPC + 快捷键 + 喂食) -->
+  <script>
+    (function () {
+      'use strict';
+      // 视野内 3 只 NPC
+      var pigs = [
+        { id: 'pig-1', name: '猪长老',   affinity: 0, portrait: '🐷', preferences: { likes: ['food', 'plant'], dislikes: ['mineral', 'tool'] } },
+        { id: 'pig-2', name: '猪阿花',   affinity: 1, portrait: '🐖', preferences: { likes: ['plant'],         dislikes: ['meat'] } },
+        { id: 'pig-3', name: '猪小七',   affinity: 2, portrait: '🐽', preferences: { likes: ['food'],          dislikes: ['tool'] } }
+      ];
+      var currentIdx = 0;
+      var container = document.getElementById('npc-demo-pigs');
+      var statusEl  = document.getElementById('npc-demo-status');
+
+      // 用 NPCAffinityBar.mount 挂载,自动 5Hz 同步
+      var unmount = window.NPCAffinityBar.mount(function () { return pigs[currentIdx]; }, container, { theme: 'top-hud' });
+
+      // 5Hz tick 状态显示
+      window.__tickState.subscribe(function (detail) {
+        if (statusEl) {
+          statusEl.textContent = '5Hz tick: ' + detail.n + ' · 当前 NPC: ' + pigs[currentIdx].name + ' (' + pigs[currentIdx].affinity + '/3)';
+        }
+      });
+
+      // 喂食 +1 心
+      function feedPig() {
+        var pig = pigs[currentIdx];
+        if (pig.affinity >= 3) return;
+        pig.affinity = Math.min(3, pig.affinity + 1);
+        // emit 模拟 v0.5.4 hudBus 事件
+        if (window.__hudBus) {
+          window.__hudBus.emit('npc:affinity-up', { pigId: pig.id, affinity: pig.affinity });
+        }
+        // 触发 +1 动画(从 npc.js affinityUp 拿)
+        var bar = container.querySelector('.NPCAffinityBar');
+        if (bar) {
+          var heart = bar.querySelector('.AffinityHeart[data-heart-idx="' + (pig.affinity - 1) + '"]');
+          if (heart && window.NPC && typeof window.NPC.affinityUp === 'function') {
+            window.NPC.affinityUp(heart, pig.affinity);
+          }
+        }
+      }
+      // 切换 NPC
+      function nextPig() {
+        currentIdx = (currentIdx + 1) % pigs.length;
+      }
+      // 交易演示(用 v0.5.4 trading.js)
+      function openTrade() {
+        var pig = pigs[currentIdx];
+        if (window.Trading && typeof window.Trading.open === 'function') {
+          window.Trading.open(pig, undefined, { onClose: function () { /* demo */ } });
+        } else {
+          alert('Trading 模块未加载');
+        }
+      }
+
+      // 按钮绑定
+      document.getElementById('npc-demo-feed').addEventListener('click', feedPig);
+      document.getElementById('npc-demo-next').addEventListener('click', nextPig);
+      document.getElementById('npc-demo-trade').addEventListener('click', openTrade);
+
+      // 快捷键
+      document.addEventListener('keydown', function (e) {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        var k = e.key.toLowerCase();
+        if (k === 'f') { feedPig(); e.preventDefault(); }
+        else if (k === 'n') { nextPig(); e.preventDefault(); }
+        else if (k === 't') { openTrade(); e.preventDefault(); }
+      });
+
+      // 暴露给调试
+      window.__npcDemo = { pigs: pigs, feedPig: feedPig, nextPig: nextPig, openTrade: openTrade, unmount: unmount };
+    })();
+  </script>
+
   <!-- v0.4 联机:主菜单(单人/创建房间/加入房间)→ bootGame 注入联机参数 -->
   <script type="module">
     import { bootGame } from './src/main.js';
