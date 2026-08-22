@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Wildwood · v0.8.2a tickState 桥接边界 PoC</title>
+  <style>
+    :root {
+      --bg: #181410;
+      --bg-card: #211c17;
+      --bg-input: #2a241d;
+      --border: #3a3128;
+      --text: #d8c9a3;
+      --text-dim: #8a7d65;
+      --amber: #d4a64a;
+      --amber-dim: #8a6d2c;
+      --green: #7bb661;
+      --red: #c4654e;
+      --red-dim: #823e2c;
+    }
+    body {
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      margin: 0;
+      line-height: 1.5;
+    }
+    h1 {
+      color: var(--amber);
+      margin: 0 0 8px 0;
+      font-size: 20px;
+    }
+    .ver {
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-bottom: 24px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 1080px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 14px;
+      margin: 0 0 4px 0;
+      color: var(--amber);
+    }
+    .card .sub {
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: 13px;
+    }
+    .row:last-child { border-bottom: none; }
+    .key { color: var(--text-dim); }
+    .val { color: var(--amber); font-weight: 600; }
+    .val.off { color: var(--red-dim); }
+    .val.on  { color: var(--green); }
+
+    button {
+      background: var(--bg-input);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      margin: 2px;
+    }
+    button:hover { border-color: var(--amber); }
+    button.write { color: var(--amber); border-color: var(--amber-dim); }
+    button.read  { color: var(--green); }
+    button.broken { color: var(--red); border-color: var(--red-dim); }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .log {
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 12px;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #0d0a07;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      margin-top: 12px;
+    }
+    .log .line { padding: 2px 0; }
+    .log .ts { color: var(--text-dim); margin-right: 8px; }
+    .log .tag-svc { color: var(--amber); }
+    .log .tag-view { color: var(--green); }
+    .log .tag-bus { color: var(--text-dim); }
+    .log .tag-err { color: var(--red); }
+
+    .diag {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .diag code {
+      background: #0d0a07;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: var(--amber);
+    }
+  </style>
+</head>
+<body>
+  <h1>Wildwood · v0.8.2a tickState 桥接边界 PoC</h1>
+  <div class="ver">svc 写 + pass-through 读 · 装配层字段级 freeze 验证 · fixture 抗漂移</div>
+
+  <div class="layout">
+    <!-- 左:装配后状态(模拟 game.tickStateSvc / tickStateView) -->
+    <div class="card">
+      <h2>① 装配后 game 对象状态</h2>
+      <div class="sub">game.tickStateSvc / game.tickStateView(模拟,已 freeze)</div>
+      <div class="row"><span class="key">tickStateSvc === realSvc</span><span class="val" id="r-svc-bound">—</span></div>
+      <div class="row"><span class="key">tickStateView === view</span><span class="val" id="r-view-bound">—</span></div>
+      <div class="row"><span class="key">window.__tickState.__service() === realSvc</span><span class="val" id="r-window-bound">—</span></div>
+      <div class="row"><span class="key">game.X = newX(尝试换引用)</span><span class="val" id="r-freeze-test">—</span></div>
+      <div class="diag">
+        <code>freezePassThroughs</code> 后,
+        <code>game.tickStateSvc = newSvc()</code> 抛 <code>TypeError</code>(v0.8.0a 字段级 freeze)。
+      </div>
+    </div>
+
+    <!-- 右:实时状态(走 view 读) -->
+    <div class="card">
+      <h2>② view.getState() 实时快照(pass-through 读)</h2>
+      <div class="sub">每 100ms 自动从 view 读,UI 不持有 mutation 入口</div>
+      <div class="row"><span class="key">rate (ms)</span><span class="val" id="r-rate">200</span></div>
+      <div class="row"><span class="key">paused</span><span class="val" id="r-paused">false</span></div>
+      <div class="row"><span class="key">running</span><span class="val" id="r-running">false</span></div>
+      <div class="row"><span class="key">tickCount</span><span class="val" id="r-tickcount">0</span></div>
+      <div class="row"><span class="key">subscribers</span><span class="val" id="r-subscribers">0</span></div>
+      <div class="row"><span class="key">uptime (ms)</span><span class="val" id="r-uptime">0</span></div>
+    </div>
+  </div>
+
+  <div class="layout" style="margin-top:16px; grid-template-columns: 1fr 1fr;">
+    <!-- 左:svc 写按钮(单 mutation 入口) -->
+    <div class="card">
+      <h2>③ svc 写(单 mutation 入口)</h2>
+      <div class="sub">只有 <code>game.tickStateSvc</code> 能改状态。view 任何写方法都抛错。</div>
+      <div class="controls">
+        <button class="write" id="b-rate-100">svc.setRate(100)</button>
+        <button class="write" id="b-rate-50">svc.setRate(50)</button>
+        <button class="write" id="b-rate-200">svc.setRate(200)</button>
+        <button class="write" id="b-pause">svc.pause()</button>
+        <button class="write" id="b-resume">svc.resume()</button>
+        <button class="write" id="b-fire">svc.fireOnce()</button>
+        <button class="write" id="b-stop">svc.stop()</button>
+        <button class="write" id="b-start">svc.start()</button>
+      </div>
+      <div class="diag">
+        点击日志会显示 <code>[svc]</code> 标记,确认走的是 svc 路径。
+      </div>
+    </div>
+
+    <!-- 右:view 写(应抛错) -->
+    <div class="card">
+      <h2>④ view 写(应抛 <code>ReadOnlyViewError</code>)</h2>
+      <div class="sub">view 是 pass-through 只读。任何写方法都会抛错(双保险)。</div>
+      <div class="controls">
+        <button class="broken" id="b-view-rate">view.setRate(50)</button>
+        <button class="broken" id="b-view-pause">view.pause()</button>
+        <button class="broken" id="b-view-resume">view.resume()</button>
+        <button class="broken" id="b-view-start">view.start()</button>
+        <button class="broken" id="b-view-stop">view.stop()</button>
+        <button class="broken" id="b-view-fire">view.fireOnce()</button>
+      </div>
+      <div class="diag">
+        点击后日志会显示 <code>[err]</code>,抛 <code>ReadOnlyViewError: TickStateView.setRate() is read-only; ...</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- 装配层 freeze 验证 -->
+  <div class="card" style="max-width: 1080px; margin-top: 16px;">
+    <h2>⑤ 装配层 freeze 验证(v0.8.0a 字段级 freeze)</h2>
+    <div class="sub">
+      <code>game.tickStateSvc = newSvc()</code> / <code>delete game.tickStateSvc</code> / <code>Object.defineProperty(game, 'tickStateSvc', ...)</code>
+    </div>
+    <div class="controls">
+      <button id="b-freeze-reassign">game.tickStateSvc = newSvc()</button>
+      <button id="b-freeze-delete">delete game.tickStateSvc</button>
+      <button id="b-freeze-redefine">Object.defineProperty(game, 'tickStateSvc', ...)</button>
+      <button id="b-freeze-fresh">重置装配(refresh)</button>
+    </div>
+    <div class="row" style="margin-top: 12px;"><span class="key">最近一次 freeze 尝试结果</span><span class="val" id="r-freeze-result">未尝试</span></div>
+  </div>
+
+  <!-- 事件日志 -->
+  <div class="card" style="max-width: 1080px; margin-top: 16px;">
+    <h2>⑥ 事件日志</h2>
+    <div class="sub">svc 写、view 读订阅、hudBus 转发、错误 — 全部上墙</div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script src="./src/ui/sync/tickState.js"></script>
+  <script type="module">
+    // ESM 导入 svc / view / freeze 工具
+    import { createTickStateService } from './src/services/TickStateService.js';
+    import { createTickStateView } from './src/ui/sync/tickStateView.js';
+    import { freezePassThroughs } from './src/util/freeze-passthrough.js';
+
+    // ─── 模拟装配层(assembleGame 的 v0.8.2a 段落)──────────
+    const tickStateSvc = createTickStateService({ defaultMs: 200, minMs: 16 });
+    const tickStateView = createTickStateView(tickStateSvc);
+
+    // tickState.js IIFE 已加载,window.__tickState 已是占位 svc
+    // 装配层调用 __bindService 把占位 svc 切换为真实 svc
+    window.__tickState.__bindService(tickStateSvc, { migrateSubscribers: true, restart: false });
+    tickStateSvc.start();
+
+    // 模拟 game 对象(装配层 return 的对象)
+    const game = {
+      tickStateSvc,
+      tickStateView,
+      inventory: { slots: [] },
+    };
+    freezePassThroughs(game, ['tickStateSvc', 'tickStateView', 'inventory']);
+
+    // ─── 日志工具 ──────────────────────────────────────────
+    const logEl = document.getElementById('log');
+    function log(tag, msg) {
+      const line = document.createElement('div');
+      line.className = 'line';
+      const ts = new Date().toISOString().slice(11, 23);
+      line.innerHTML = `<span class="ts">${ts}</span><span class="tag-${tag}">[${tag}]</span> ${msg}`;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+      // 限 200 行
+      while (logEl.children.length > 200) logEl.removeChild(logEl.firstChild);
+    }
+
+    // ─── ② view 实时快照(每 100ms 读一次,UI 端只读 view)──
+    setInterval(() => {
+      const s = game.tickStateView.getState();
+      document.getElementById('r-rate').textContent = s.rate;
+      document.getElementById('r-paused').textContent = s.paused;
+      document.getElementById('r-paused').className = 'val ' + (s.paused ? 'off' : 'on');
+      document.getElementById('r-running').textContent = s.running;
+      document.getElementById('r-running').className = 'val ' + (s.running ? 'on' : 'off');
+      document.getElementById('r-tickcount').textContent = s.tickCount;
+      document.getElementById('r-subscribers').textContent = s.subscribers;
+      document.getElementById('r-uptime').textContent = Math.round(s.uptime);
+    }, 100);
+
+    // ─── ③ svc 写按钮 ─────────────────────────────────────
+    const onWrite = (label, fn) => {
+      const btn = document.getElementById(label);
+      const id = label.replace('b-', '');
+      btn.addEventListener('click', () => {
+        try {
+          fn();
+          log('svc', `${id}()  ok`);
+        } catch (e) {
+          log('err', `${id}()  ${e.message}`);
+        }
+      });
+    };
+    onWrite('b-rate-100', () => game.tickStateSvc.setRate(100));
+    onWrite('b-rate-50',  () => game.tickStateSvc.setRate(50));
+    onWrite('b-rate-200', () => game.tickStateSvc.setRate(200));
+    onWrite('b-pause',   () => game.tickStateSvc.pause());
+    onWrite('b-resume',  () => game.tickStateSvc.resume());
+    onWrite('b-fire',    () => game.tickStateSvc.fireOnce());
+    onWrite('b-stop',    () => game.tickStateSvc.stop());
+    onWrite('b-start',   () => game.tickStateSvc.start());
+
+    // ─── ④ view 写按钮(应抛错) ───────────────────────────
+    const onViewWrite = (label, fn) => {
+      const btn = document.getElementById(label);
+      const id = label.replace('b-view-', 'view.');
+      btn.addEventListener('click', () => {
+        try {
+          fn();
+          log('err', `${id}()  居然没抛错?!`);
+        } catch (e) {
+          log('err', `${id}()  抛 ${e.constructor.name}: ${e.message}`);
+        }
+      });
+    };
+    onViewWrite('b-view-rate',   () => game.tickStateView.setRate(50));
+    onViewWrite('b-view-pause',  () => game.tickStateView.pause());
+    onViewWrite('b-view-resume', () => game.tickStateView.resume());
+    onViewWrite('b-view-start',  () => game.tickStateView.start());
+    onViewWrite('b-view-stop',   () => game.tickStateView.stop());
+    onViewWrite('b-view-fire',   () => game.tickStateView.fireOnce());
+
+    // ─── ⑤ 装配层 freeze 验证 ─────────────────────────────
+    const freezeResultEl = document.getElementById('r-freeze-result');
+    document.getElementById('b-freeze-reassign').addEventListener('click', () => {
+      try {
+        game.tickStateSvc = createTickStateService();
+        freezeResultEl.textContent = '没抛错?(bug!)';
+        freezeResultEl.className = 'val off';
+      } catch (e) {
+        freezeResultEl.textContent = `抛 ${e.constructor.name} ✓`;
+        freezeResultEl.className = 'val on';
+        log('err', `game.tickStateSvc = newSvc()  ${e.constructor.name}: ${e.message}`);
+      }
+    });
+    document.getElementById('b-freeze-delete').addEventListener('click', () => {
+      try {
+        delete game.tickStateSvc;
+        freezeResultEl.textContent = '没抛错?(bug!)';
+        freezeResultEl.className = 'val off';
+      } catch (e) {
+        freezeResultEl.textContent = `抛 ${e.constructor.name} ✓`;
+        freezeResultEl.className = 'val on';
+        log('err', `delete game.tickStateSvc  ${e.constructor.name}: ${e.message}`);
+      }
+    });
+    document.getElementById('b-freeze-redefine').addEventListener('click', () => {
+      try {
+        Object.defineProperty(game, 'tickStateSvc', { value: { leak: true } });
+        freezeResultEl.textContent = '没抛错?(bug!)';
+        freezeResultEl.className = 'val off';
+      } catch (e) {
+        freezeResultEl.textContent = `抛 ${e.constructor.name} ✓`;
+        freezeResultEl.className = 'val on';
+        log('err', `Object.defineProperty(game, 'tickStateSvc', ...)  ${e.constructor.name}: ${e.message}`);
+      }
+    });
+    document.getElementById('b-freeze-fresh').addEventListener('click', () => {
+      location.reload();
+    });
+
+    // ─── ① 装配后状态校验(只跑一次) ──────────────────────
+    document.getElementById('r-svc-bound').textContent =
+      game.tickStateSvc === tickStateSvc ? 'true ✓' : 'false';
+    document.getElementById('r-view-bound').textContent =
+      game.tickStateView === tickStateView ? 'true ✓' : 'false';
+    document.getElementById('r-window-bound').textContent =
+      window.__tickState.__service() === tickStateSvc ? 'true ✓(占位 svc 已切换到 realSvc)' : 'false';
+    // 提前 try 一次换引用,避免污染主流程
+    try {
+      game.tickStateSvc = createTickStateService();
+      document.getElementById('r-freeze-test').textContent = '未冻结(漏!)';
+      document.getElementById('r-freeze-test').className = 'val off';
+    } catch (e) {
+      document.getElementById('r-freeze-test').textContent = 'TypeError ✓';
+      document.getElementById('r-freeze-test').className = 'val on';
+    }
+    // 关键:上面那次换引用失败了,但实例 _tickMs 仍正常,因为 Object.freeze
+    // 是字段级,不是实例级。验证:换完后再读 svc.rate 应该还是 200
+    log('view', `view.getState()  → ${JSON.stringify(game.tickStateView.getState())}`);
+
+    // ─── 演示用:订阅 tick,展示 svc 写 → view 读 端到端 ─────
+    game.tickStateView.subscribe((d) => {
+      // 不要每个 tick 都打印,太吵。每 5 个 tick 一次
+      if (d.n % 5 === 0) log('view', `subscribe 收到 tick #${d.n} (t=${Math.round(d.t)}ms, rate=${d.ms}ms)`);
+    });
+    // 监听 window.__hudBus('tick') 的转发(由 svc 内部 emit,验证兼容)
+    if (window.__hudBus && window.__hudBus.on) {
+      let lastBusTickN = -1;
+      window.__hudBus.on('tick', (d) => {
+        if (d.n !== lastBusTickN && d.n % 5 === 0) {
+          lastBusTickN = d.n;
+          log('bus', `__hudBus emit('tick')  #${d.n} (v0.5.x trading/npc 兼容路径)`);
+        }
+      });
+    }
+
+    // 首条日志
+    log('svc', `assembleGame v0.8.2a 完成。game.tickStateSvc / tickStateView 已 freeze,svc 已 start`);
+  </script>
+</body>
+</html>
