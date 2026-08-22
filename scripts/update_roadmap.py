@@ -12,11 +12,14 @@ v0.7.4a · 方案A: 覆盖 v0.1-v0.7 全量子任务,v0.6.3a 的 7 个 task 升�
   --push          强制推送 GitHub (默认 GH_TOKEN 存在就推)
 
 环境:
-  GH_TOKEN        — GitHub PAT,缺失则只生成本地 HTML
-  GH_REPO         — 默认 "rainskyfyy/wildwood"
-  GH_BRANCH       — 默认 "main"
-  LARK_CHAT_ID    — 失败告警目标飞书群 chat_id (oc_xxx)。空 = 走 dry-run 模式
-  SYNC_DRY_RUN    — "1" 走纯 dry-run:不真发飞书,不真推 GH,仅写本地指标
+  GH_TOKEN          — GitHub PAT,缺失则只生成本地 HTML
+  GH_REPO           — 默认 "rainskyfyy/wildwood"
+  GH_BRANCH         — 默认 "main"
+  SYNC_DRY_RUN      — "1" 走纯 dry-run:不真发飞书,不真推 GH,仅写本地指标
+  BOSS_OPEN_ID      — 失败告警推送目标 (个人 open_id,默认 ou_10541f3f158808c43cbb7a1f0a6a48cc)
+  LARK_WEBHOOK_URL  — 飞书自定义机器人 webhook URL(长期方案,群就位后启用)
+  LARK_BOT_TOKEN    — 飞书自定义机器人 token(若 webhook 需鉴权)
+  ALERT_DRY_RUN     — "1" 告警只写本地 dry-run 日志,不真发
 
 数据流:
   1. aily-cli task subtasks <parent> --page-size 50 (paginated, 自动翻页)
@@ -24,15 +27,17 @@ v0.7.4a · 方案A: 覆盖 v0.1-v0.7 全量子任务,v0.6.3a 的 7 个 task 升�
   3. 按版本聚合 → 渲染 HTML
   4. 写 ~/.aily/workspace/sync_metrics.jsonl (健康检查)
   5. 推 GitHub Data API (blob→tree→commit→update-ref)
-  6. 失败 ≥ 3 次 → 飞书告警 (或 dry-run log)
+  6. 失败 ≥ 3 次 → 飞书告警 (走 lark_alert_stub.send_lark_alert,优先级 webhook > 个人私聊 > dry-run log)
 
 可观测性产物:
   ~/.aily/workspace/sync_metrics.jsonl
   ~/.aily/workspace/lark_alert_dryrun.log
+  ~/.aily/workspace/lark_alert.log
   HTML 顶部 status badge (绿/黄/红)
 """
 import argparse
 import base64
+import importlib.util
 import json
 import os
 import re
@@ -47,11 +52,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # -------------------- config --------------------
-GH_TOKEN     = os.environ.get("GH_TOKEN")
-GH_REPO      = os.environ.get("GH_REPO",  "rainskyfyy/wildwood")
-GH_BRANCH    = os.environ.get("GH_BRANCH", "main")
-LARK_CHAT_ID = os.environ.get("LARK_CHAT_ID", "")
-SYNC_DRY_RUN = os.environ.get("SYNC_DRY_RUN", "") == "1"
+GH_TOKEN          = os.environ.get("GH_TOKEN")
+GH_REPO           = os.environ.get("GH_REPO",  "rainskyfyy/wildwood")
+GH_BRANCH         = os.environ.get("GH_BRANCH", "main")
+SYNC_DRY_RUN      = os.environ.get("SYNC_DRY_RUN", "") == "1"
+BOSS_OPEN_ID      = os.environ.get("BOSS_OPEN_ID", "ou_10541f3f158808c43cbb7a1f0a6a48cc")  # 范颜岩(老板)
+LARK_WEBHOOK_URL  = os.environ.get("LARK_WEBHOOK_URL", "")
+LARK_BOT_TOKEN    = os.environ.get("LARK_BOT_TOKEN", "")
+ALERT_DRY_RUN     = os.environ.get("ALERT_DRY_RUN", "") == "1"
 
 DEFAULT_PARENT_TASK = "7675923777695288529"  # 类饥荒游戏开发
 DEFAULT_OUTPUT_PATH  = str(Path.home() / ".aily" / "workspace" / "wildwood" / "wildwood-roadmap.html")
@@ -211,38 +219,74 @@ def compute_status_badge():
 
 
 # -------------------- 飞书告警 --------------------
+def _load_alert_stub():
+    """动态加载 lark_alert_stub.py(同目录或 ~/.aily/workspace/wildwood/),失败返回 None。"""
+    candidates = [
+        Path(__file__).resolve().parent / "lark_alert_stub.py",
+        Path.home() / ".aily" / "workspace" / "wildwood" / "lark_alert_stub.py",
+    ]
+    for p in candidates:
+        if not p.exists():
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location("lark_alert_stub", p)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+        except Exception as e:
+            print(f"  WARN 加载 {p} 失败: {e}", file=sys.stderr)
+    return None
+
+
+def _fallback_dryrun_log(level, kind, title, detail):
+    """stub 加载失败时,直接把告警写到本地 dry-run 日志。"""
+    try:
+        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+        with ALERT_DRYRUN_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"--- {now_iso()} fallback-dry-run alert (level={level} kind={kind}) ---\n")
+            f.write(f"title: {title}\n")
+            f.write(f"detail: {detail}\n")
+    except Exception as e:
+        print(f"  WARN 写 lark_alert_dryrun.log 失败: {e}", file=sys.stderr)
+
+
 def send_lark_alert(consecutive_failures, recent_errors):
+    """
+    失败告警入口 — 委托给 lark_alert_stub.send_lark_alert。
+    stub 会按 webhook > lark-cli 个人私聊 > dry-run 优先级尝试,自带 1h 限流。
+    """
     err_text = "\n".join(f"  - {e}" for e in recent_errors[-3:] if e) or "  (no error msg captured)"
-    msg = (
-        f"🚨 Wildwood 看板同步连续失败 {consecutive_failures} 次\n\n"
+    title = f"Wildwood 看板同步连续失败 {consecutive_failures} 次"
+    detail = (
         f"目标仓库:{GH_REPO}@{GH_BRANCH}\n"
         f"触发时间:{now_iso()}\n"
         f"最近错误:\n{err_text}\n\n"
         f"请检查 GH_TOKEN / aily-cli / 网络。\n"
         f"查看完整指标:~/.aily/workspace/sync_metrics.jsonl"
     )
-    if not LARK_CHAT_ID or SYNC_DRY_RUN:
-        try:
-            WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-            with ALERT_DRYRUN_LOG.open("a", encoding="utf-8") as f:
-                f.write(f"--- {now_iso()} dry-run alert (consecutive_failures={consecutive_failures}) ---\n")
-                f.write(msg + "\n")
-        except Exception as e:
-            print(f"  WARN: 写 lark_alert_dryrun.log 失败: {e}", file=sys.stderr)
-        print(f"\n[DRY-RUN ALERT] LARK_CHAT_ID 缺失或 SYNC_DRY_RUN=1,告警未真发")
-        return {"sent": False, "mode": "dry-run", "msg_len": len(msg)}
+
+    stub = _load_alert_stub()
+    if stub is None:
+        print(f"\n[STUB MISSING] lark_alert_stub.py 加载失败,告警走 fallback dry-run 日志")
+        _fallback_dryrun_log("error", "sync_fail", title, detail)
+        return {"sent": False, "mode": "fallback-dry-run", "msg_len": len(detail)}
+
     try:
-        out = subprocess.run(
-            ["lark-cli", "im", "+messages-send",
-             "--chat-id", LARK_CHAT_ID, "--msg-type", "text",
-             "--content", json.dumps({"text": msg}, ensure_ascii=False)],
-            capture_output=True, text=True, timeout=20,
-        )
-        if out.returncode != 0:
-            return {"sent": False, "mode": "real", "error": out.stderr.strip()}
-        return {"sent": True, "mode": "real"}
+        result = stub.send_lark_alert(consecutive_failures, recent_errors)
+        # stub.send_lark_alert 返回 bool;同步按推送路径还原 mode
+        webhook_set = bool(LARK_WEBHOOK_URL)
+        if isinstance(result, bool):
+            mode = "webhook" if webhook_set else ("lark-cli-p2p" if BOSS_OPEN_ID else "dry-run")
+            sent = result
+            out = {"sent": sent, "mode": mode, "msg_len": len(detail)}
+        else:
+            out = dict(result) if isinstance(result, dict) else {"sent": bool(result), "mode": "unknown"}
+        print(f"\n[LARK ALERT] consecutive_failures={consecutive_failures} → mode={out.get('mode')} sent={out.get('sent')}")
+        return out
     except Exception as e:
-        return {"sent": False, "mode": "real", "error": str(e)}
+        print(f"\n[STUB ERROR] lark_alert_stub.send_lark_alert 异常: {e}", file=sys.stderr)
+        _fallback_dryrun_log("error", "sync_fail", title, detail)
+        return {"sent": False, "mode": "fallback-dry-run", "error": str(e)}
 
 
 # -------------------- aily-cli 桥接:拉所有子任务 --------------------
@@ -903,7 +947,10 @@ def main():
     print(f"父任务:{parent_task_id}")
     print(f"输出:{output_path}")
     print(f"GH_TOKEN:{'已设置' if GH_TOKEN else '未设置(GH_TOKEN 缺失时只生成本地)'}")
-    print(f"LARK_CHAT_ID:{'已设置' if LARK_CHAT_ID else '未设置(dry-run)'}")
+    print(f"BOSS_OPEN_ID:{BOSS_OPEN_ID}")
+    print(f"LARK_WEBHOOK_URL:{'已设置' if LARK_WEBHOOK_URL else '未设置(走个人私聊)'}")
+    print(f"ALERT_DRY_RUN:{'开启(只写本地日志)' if ALERT_DRY_RUN else '关闭(真发)'}")
+    print(f"SYNC_DRY_RUN:{'开启' if SYNC_DRY_RUN else '关闭'}")
     print()
 
     start_ts = now_utc()
