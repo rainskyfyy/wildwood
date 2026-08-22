@@ -1,0 +1,52 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "schema": "wildwood-piglins-v1",
+    "note": "猪人属性表 — 友好 NPC,森林群系聚居,通过喂食招募"
+  },
+  "piglin": {
+    "id": "piglin",
+    "name": "猪人",
+    "preferredBiome": "forest",
+    "hp": 6,
+    "walkSpeed": 2.2,
+    "color": "#c87a8a",
+    "size": 0.7,
+    "houseWidth": 2,
+    "houseHeight": 2,
+    "greetingLines": [
+      "哼唧~",
+      "欢迎来到猪村",
+      "今天天气不错",
+      "想换点什么?",
+      "肚子饿了吗?",
+      "好香的食物味道",
+      "需要帮忙吗?",
+      "欢迎,旅人"
+    ],
+    "tradeRejection": [
+      "这个不收",
+      "换点别的?",
+      "我不要这个",
+      "没意思的东西"
+    ],
+    "feedingThanks": [
+      "好吃!",
+      "多谢款待~",
+      "你真好!",
+      "吃饱啦!",
+      "感觉好多了"
+    ],
+    "followAccept": [
+      "跟着你走!",
+      "我愿意跟随",
+      "我会帮你的",
+      "让我陪你一起冒险"
+    ],
+    "deathShouts": [
+      "啊——",
+      "不……",
+      "可恶……"
+    ]
+  }
+}
