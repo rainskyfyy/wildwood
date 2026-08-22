@@ -62,12 +62,12 @@ function ensureStyles() {
 export class TradeUI {
   /**
    * @param {Object} ctx
-   * @param {import('../resources/inventory.js').Inventory} ctx.inventory
+   * @param {import('../services/InventoryService.js').InventoryService} ctx.invSvc
    * @param {Object} ctx.state — TradeState
    * @param {Function} [ctx.onTrade] — called with the trade result
    */
-  constructor({ inventory, state, onTrade = null }) {
-    this.inventory = inventory;
+  constructor({ invSvc, state, onTrade = null }) {
+    this.invSvc = invSvc;
     this.state = state;
     this.onTrade = onTrade;
     this.visible = false;
@@ -124,7 +124,7 @@ export class TradeUI {
 
   _tryTrade(sellItem, count) {
     const r = execute(sellItem, count, {
-      inventory: this.inventory,
+      invSvc: this.invSvc,
       state: this.state
     });
     if (this.onTrade) this.onTrade(r);
@@ -135,17 +135,17 @@ export class TradeUI {
     if (!this._el) return;
     const body = this._el.querySelector('[data-role="body"]');
     if (!body) return;
-    const offers = availableOffers(this.inventory);
+    const offers = availableOffers(this.invSvc);
     if (offers.length === 0) {
       body.innerHTML = `<div class="trade-empty">背包里没有可交易物品。<br>把木头/石头/食物带来给猪人吧。</div>`;
       return;
     }
     const rows = offers.map(sellId => {
-      const q = preview(sellId, 1, { inventory: this.inventory, state: this.state });
+      const q = preview(sellId, 1, { invSvc: this.invSvc, state: this.state });
       if (!q || q.reason) return null;
       const sellMeta = getItem(sellId);
       const buyMeta = getItem(q.buyItem);
-      const sellHave = this.inventory.countOf(sellId);
+      const sellHave = this.invSvc.countOf(sellId);
       return `<tr class="trade-row" data-sell="${sellId}" data-count="1">
         <td>${sellMeta.name} ×1</td>
         <td>→ ${buyMeta.name} ×${q.buyCount}</td>

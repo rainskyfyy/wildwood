@@ -22,7 +22,13 @@
  *       input   = ["meat", "water", "salt", "egg"] ✗ 多了 egg
  *       input   = ["meat", "water"]               ✗ 缺 salt
  *
- * v1.0.0
+ * v0.6.0b — InventoryService:
+ *   - `CookingPot` and `findCookableRecipes` now take an InventoryService
+ *     instead of the raw Inventory. All mutations (countOf / addItem /
+ *     consumeByItem) go through the service.
+ *   - This fixes a latent bug from earlier versions: `cooking.js` was
+ *     calling `inventory.consume(itemId, n)` which never existed on the
+ *     Inventory class. The service supplies the correct method.
  */
 'use strict';
 
@@ -41,14 +47,14 @@ export const COOKING_STATION = 'cooking';
 export class CookingPot {
   /**
    * @param {Object} opts
-   * @param {Object} opts.inventory - Inventory instance
+   * @param {Object} opts.invSvc - InventoryService instance
    * @param {Function} [opts.onEvent] - (name, payload) => void
    *   events: 'put' / 'removed' / 'cleared' / 'cooked' / 'unlocked' / 'no_match'
    * @param {Function} [opts.onUnlock] - (recipeId) => void  解锁新食谱时回调
    */
-  constructor({ inventory, onEvent, onUnlock } = {}) {
-    if (!inventory) throw new Error('CookingPot requires inventory');
-    this.inventory = inventory;
+  constructor({ invSvc, onEvent, onUnlock } = {}) {
+    if (!invSvc) throw new Error('CookingPot requires invSvc');
+    this.invSvc = invSvc;
     this.onEvent = onEvent || (() => {});
     this.onUnlock = onUnlock || (() => {});
     this.slots = new Array(COOKING_SLOTS).fill('');
@@ -145,12 +151,6 @@ export class CookingPot {
    *      vegetable_stew recipe, not the 1-cell cooked_carrot. When two
    *      recipes share the same pattern size, declaration order in
    *      recipes.json is the tiebreaker.
-   *
-   *   pattern = ["potato", "", "", ""]   (1 cell)
-   *   input   = ["potato", "water"]       ✓ → roasted_potato
-   *   pattern = ["carrot","potato","water","salt"]  (4 cells)
-   *   input   = ["carrot","potato","water","salt"]   ✓ → vegetable_stew
-   *   input   = ["gold","flint","dirt","petals"]     ✗ no pattern ⊆ input
    */
   findRecipe() {
     const inputMs = this._slotMultiset();
@@ -179,11 +179,6 @@ export class CookingPot {
   /**
    * Compute preview: { recipe, quality, foodValue, foodCount, slots }.
    * Returns null if slots are empty.
-   *
-   * If no recipe matches but slots are non-empty, we still compute a
-   * tentative quality based on the input cells themselves (using the
-   * input as a virtual pattern) so the UI can show "would be GOOD if a
-   * recipe existed".
    */
   preview(inventoryStats) {
     const slots = [...this.slots];
@@ -200,8 +195,7 @@ export class CookingPot {
       const foodCount = qualityBonus(quality, baseCount);
       return { recipe, quality, foodValue, foodCount, slots };
     }
-    // No recipe matched — compute a tentative quality from the input cells
-    // (using the input as a virtual pattern, so patternLen === input size).
+    // No recipe matched — compute a tentative quality from the input cells.
     const quality = computeQuality(slots, slots, inventoryStats);
     return { recipe: null, quality, foodValue: 0, foodCount: 0, slots };
   }
@@ -212,16 +206,6 @@ export class CookingPot {
    * Cook the current slots. Returns:
    *   { ok: true, recipe, output: {itemId, count, quality}, consumed: [...] }
    *   { ok: false, reason: 'no_match' | 'insufficient_items' | 'inventory_full' }
-   *
-   * Algorithm:
-   *   1. Find recipe; abort if no_match
-   *   2. Verify inventory has enough of each input
-   *   3. Simulate add of output (testAdd); if leftover > 0, abort inventory_full
-   *      and roll back the simulation by consuming what was tentatively added
-   *   4. Consume inputs
-   *   5. Add output (now guaranteed to fit)
-   *   6. Clear slots
-   *   7. Unlock recipe
    */
   cook(inventoryStats) {
     const recipe = this.findRecipe();
@@ -232,7 +216,7 @@ export class CookingPot {
 
     const needed = CookingPot.patternMultiset(recipe.pattern);
     for (const [itemId, n] of needed) {
-      if (this.inventory.countOf(itemId) < n) {
+      if (this.invSvc.countOf(itemId) < n) {
         return { ok: false, reason: 'insufficient_items', missing: itemId };
       }
     }
@@ -241,20 +225,20 @@ export class CookingPot {
     const outCount = qualityBonus(quality, recipe.output.count);
 
     // Simulate add (roll back if it overflows)
-    const testAdd = this.inventory.add(recipe.output.itemId, outCount);
+    const testAdd = this.invSvc.addItem(recipe.output.itemId, outCount);
     if (testAdd.leftover > 0) {
-      // Roll back what was tentatively added
+      // Roll back what was tentatively added.
       if (testAdd.added > 0) {
-        this.inventory.consume(recipe.output.itemId, testAdd.added);
+        this.invSvc.consumeByItem(recipe.output.itemId, testAdd.added);
       }
       return { ok: false, reason: 'inventory_full' };
     }
 
-    // Consume inputs
+    // Consume inputs through the service.
     const consumed = [];
     for (const [itemId, n] of needed) {
-      const r = this.inventory.consume(itemId, n);
-      consumed.push({ itemId, count: n });
+      const removed = this.invSvc.consumeByItem(itemId, n);
+      consumed.push({ itemId, count: n, removed });
     }
 
     this.clear();
@@ -298,14 +282,14 @@ export class CookingPot {
 /**
  * Find all currently-cookable recipes (inventory has all inputs).
  */
-export function findCookableRecipes(pot, inventory, station = COOKING_STATION) {
+export function findCookableRecipes(pot, invSvc, station = COOKING_STATION) {
   const out = [];
   for (const r of recipesForStation(station)) {
     if (pot.unlocked.has(r.id)) continue;
     const needed = CookingPot.patternMultiset(r.pattern);
     let canCook = true;
     for (const [itemId, n] of needed) {
-      if (inventory.countOf(itemId) < n) { canCook = false; break; }
+      if (invSvc.countOf(itemId) < n) { canCook = false; break; }
     }
     if (canCook) out.push(r);
   }
@@ -316,6 +300,6 @@ export function findCookableRecipes(pot, inventory, station = COOKING_STATION) {
  * Compute inventory stats for cooking quality: { avgFreshness } in [0, 1].
  * Currently a constant 1.0 — placeholder for per-stack freshness integration.
  */
-export function computeInventoryStats(inventory) {
+export function computeInventoryStats(invSvc) {
   return { avgFreshness: 1.0 };
 }
