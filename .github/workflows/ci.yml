@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci
+  cancel-in-progress: true
+
+jobs:
+  fixture-drift:
+    name: fixture-drift check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run fixture-drift detector
+        run: node tools/check-fixture-drift.mjs --verbose
+
+      - name: Self-test
+        run: node tools/check-fixture-drift.mjs --self-test
+
+  smoke:
+    name: smoke tests (${{ matrix.test }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - m04-audio-smoke.mjs
+          - m2.14-smoke.mjs
+          - m2.9-smoke.mjs
+          - m210-node-smoke.mjs
+          - m210b-regrow-durability.mjs
+          - m210c-shovel-resources.mjs
+          - m210d-depletion.mjs
+          - m210e-growth.mjs
+          - m3.0-protocol-smoke.mjs
+          - m3.0-relay-smoke.mjs
+          - m4-node-smoke.mjs
+          - m5.2-boss-event-smoke.mjs
+          - m5.2-main-integration.mjs
+          - m5.3-catalog-smoke.mjs
+          - m5.3-cooking-smoke.mjs
+          - m5.3-farming-smoke.mjs
+          - m5.3-processing-smoke.mjs
+          - m6.0b-integration.mjs
+          - m6.0b-inventory-svc.mjs
+          - v051-ecology-smoke.mjs
+          - v054-smoke.mjs
+          - v060c-spawner-fixture.mjs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run ${{ matrix.test }}
+        run: node tests/${{ matrix.test }}
