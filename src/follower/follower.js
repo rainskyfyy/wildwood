@@ -11,6 +11,15 @@
  * The follower borrows the same `Piglin` class for hp/affection/feed
  * logic and the same `Monster` A* walking style. We compose, not
  * inherit — `Follower` wraps a `Piglin` instance and adds combat.
+ *
+ * v0.6.0b — InventoryService:
+ *   - Accepts `invSvc` (optional). On death, if a service is
+ *     available, the queued `_deathLoot` is deposited into the
+ *     inventory via `invSvc.addMany`. Previously the loot was
+ *     returned to the caller and silently lost (no one picked it up).
+ *   - If no `invSvc` is provided, the old behavior is preserved: the
+ *     loot list is returned for the caller to deal with. This keeps
+ *     the unit-test path lightweight.
  */
 'use strict';
 import { findPath, chebyshev } from '../monster/pathfinding.js';
@@ -28,13 +37,15 @@ const MOVE_SPEED = 5.0;        // tiles/sec (a bit faster than player for catch-
  * @param {Object} opts.player — { x, y } (will be updated each frame)
  * @param {Object} opts.world  — WorldGrid
  * @param {Object} [opts.getMonsters] — () => Monster[] (or null)
+ * @param {import('../services/InventoryService.js').InventoryService} [opts.invSvc]
  */
 export class Follower {
-  constructor({ piglin, player, world, getMonsters = null }) {
+  constructor({ piglin, player, world, getMonsters = null, invSvc = null }) {
     this.piglin = piglin;
     this.player = player;
     this.world = world;
     this.getMonsters = getMonsters;
+    this.invSvc = invSvc;
     this.x = piglin.x;
     this.y = piglin.y;
     this.facing = piglin.facing || 'down';
@@ -199,8 +210,9 @@ export class Follower {
 
   /**
    * Apply damage to the follower. If hp drops to 0, dies — affection
-   * resets and a small loot drop is queued (caller should spawn the
-   * world drop orbs). Returns the loot list, or [].
+   * resets and a small loot drop is queued. If an InventoryService was
+   * wired in, the loot is deposited into the inventory immediately;
+   * otherwise the caller receives the loot list (legacy behavior).
    */
   damage(by = 1) {
     if (!this.alive) return [];
@@ -215,6 +227,11 @@ export class Follower {
       if (this.piglin) {
         this.piglin.affection = 0;
         this.piglin.hp = this.piglin.maxHp;
+      }
+      // v0.6.0b: drop loot into inventory via the service so the
+      // player actually gets the items (previously this was a leak).
+      if (this.invSvc && Array.isArray(this._deathLoot)) {
+        this.invSvc.addMany(this._deathLoot);
       }
     }
     return this._deathLoot || [];

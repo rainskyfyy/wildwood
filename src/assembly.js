@@ -14,6 +14,10 @@
  *
  * 拆分前历史(以便回溯):
  *   v0.5.4 — be97ee86ada2dba1ee1556aa5e3e24d87bf0dc0b — 单 main.js 918 行
+ *   v0.6.0a — 7631552a5aeb9ed5d9d33c99009be0db26aa810c — 拆分为 assembly.js + runtime.js
+ *   v0.6.0b — InventoryService 单向接口,所有库存操作收敛到
+ *     services/InventoryService.js。本文件装配时构造 invSvc,5 个领域模块
+ *     (gather / crafting / cooking / trading / follower) 全部走 invSvc。
  *   拆分前所有"装配"逻辑都堆在 main.js 顶部,4-5 个 agent 并行推必冲突。
  *   本文件只读不动,集成新模块应改自己的领域目录 + 更新本文件 import 列表。
  *
@@ -38,9 +42,9 @@ import { getTileSprite, drawDecoration, drawPlayer } from './render/tile-rendere
 import { drawResource } from './render/resource-renderer.js';
 import { screenToWorld } from './render/picker.js';
 import { spawnResources } from './resources/spawner.js';
-import { Inventory } from './resources/inventory.js';
+// v0.6.0b: 走 InventoryService,不再直接 import Inventory 类。
+import { InventoryService, TOTAL_SLOTS } from './services/InventoryService.js';
 import { Gather } from './resources/gather.js';
-import { TOTAL_SLOTS } from './resources/inventory.js';
 import { BuildingManager } from './buildings/placer.js';
 import { BuildingMenu } from './buildings/building-menu.js';
 import { drawBuilding, drawPlacementPreview } from './buildings/building-renderer.js';
@@ -77,15 +81,17 @@ const EVENT_COOLDOWN_S = 8.0;
 const BOSS_COOLDOWN_S  = 12.0;
 
 // ── 持久化辅助 ───────────────────────────────────────────────────
+// v0.6.0b: 返回 InventoryService 而非原始 Inventory。
 function loadInventory() {
   try {
     const raw = localStorage.getItem(INV_KEY);
     if (!raw) return null;
-    const inv = new Inventory();
-    inv.loadSnapshot(JSON.parse(raw));
-    return inv;
+    const svc = new InventoryService();
+    svc.loadSnapshot(JSON.parse(raw));
+    return svc;
   } catch (_) { return null; }
 }
+// inv 现在是 InventoryService(委托到 Inventory.serialize())
 function saveInventory(inv) {
   try { localStorage.setItem(INV_KEY, JSON.stringify(inv.serialize())); }
   catch (_) { /* quota / private mode — ignore */ }
@@ -376,13 +382,15 @@ export function assembleGame(canvas, opts = {}) {
   const transitions = computeTransitions(world, 2);
   const resources = spawnResources(world, { seed: SEED + 53 });
 
-  // 2. Inventory + gather.
-  const inventory = loadInventory() || new Inventory();
+  // 2. Inventory + gather. v0.6.0b: invSvc 是唯一可变入口;`inventory` 是
+  // UI 只读 pass-through(runtime.js / HUD 通过它读 slots / selected)。
+  const invSvc = loadInventory() || new InventoryService();
+  const inventory = invSvc.inventory;
   if (inventory.slots.every(s => s == null)) {
-    inventory.add('log', 8);
-    inventory.add('twine', 4);
-    inventory.add('stone', 6);
-    inventory.add('berries', 3);
+    invSvc.addItem('log', 8);
+    invSvc.addItem('twine', 4);
+    invSvc.addItem('stone', 6);
+    invSvc.addItem('berries', 3);
   }
   // loot banner mutable state — 由 gather.onEvent 写入
   const loot = { lastBanner: null, until: 0 };
@@ -390,7 +398,7 @@ export function assembleGame(canvas, opts = {}) {
   let mp = null;
   const gather = new Gather({
     entities: resources,
-    inventory,
+    invSvc,
     onEvent: (name, payload) => {
       if (name === 'complete') {
         const lootStr = (payload.loot || []).map(l => `${l.itemId}×${l.count}`).join(' ');
@@ -426,7 +434,7 @@ export function assembleGame(canvas, opts = {}) {
     world,
     monsterManager: monsterMgr,
     player,
-    inventory,
+    invSvc,
     onDrop: (itemId, count) => {
       loot.lastBanner = `${itemId}×${count}`;
       loot.until = performance.now() + 2200;
@@ -475,17 +483,18 @@ export function assembleGame(canvas, opts = {}) {
   };
   const tradeState = newTradeState();
   for (const id of traderStock()) {
-    tradeState.scarcity[id] = inventory.countOf(id);
+    tradeState.scarcity[id] = invSvc.countOf(id);
   }
   // 闭包用 chat / mp 引用,在它们定义后重写 onTrade
   const tradeUI = new TradeUI({
-    inventory,
+    invSvc,
     state: tradeState,
     onTrade: (_r) => { /* 重写见下 */ }
   });
   const followerMgr = new FollowerManager({
     world,
     player,
+    invSvc,
     getMonsters: () => (monsterMgr ? monsterMgr.monsters : [])
   });
 
@@ -623,9 +632,10 @@ export function assembleGame(canvas, opts = {}) {
       return;
     }
     if (p.feed(itemId)) {
+      // v0.6.0b: 喂食走 invSvc.consumeSlot
       for (let i = 0; i < inventory.slots.length; i++) {
         const s = inventory.slots[i];
-        if (s && s.itemId === itemId) { inventory.remove(i, 1); break; }
+        if (s && s.itemId === itemId) { invSvc.consumeSlot(i, 1); break; }
       }
       pushChat(`[系统] 猪人收到 ${getItem(itemId).name},好感 +1(目前 ${p.affection}/3)`);
     } else if (p.affection >= 3) {
@@ -696,3 +706,4 @@ export function assembleGame(canvas, opts = {}) {
     saveInventory,
   };
 }
+

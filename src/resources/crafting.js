@@ -1,5 +1,11 @@
 /**
  * Crafting — exact-position recipe matcher + executor.
+ *
+ * v0.6.0b — InventoryService:
+ *   `craft(grid, station, invSvc)` now takes an InventoryService instead
+ *   of a raw Inventory. Inputs are removed via `consumeByItem`, output
+ *   is granted via `addItem`, and sufficiency is checked via `countOf`.
+ *   No more direct access to `inventory.slots` from this module.
  */
 'use strict';
 
@@ -21,7 +27,7 @@ export function matchRecipe(grid, station) {
   return null;
 }
 
-export function craft(grid, station, inventory) {
+export function craft(grid, station, invSvc) {
   const recipe = matchRecipe(grid, station);
   if (!recipe) return { ok: false, reason: 'no_match' };
 
@@ -31,29 +37,31 @@ export function craft(grid, station, inventory) {
   }
 
   for (const [itemId, n] of needed) {
-    if (inventory.countOf(itemId) < n) {
+    if (invSvc.countOf(itemId) < n) {
       return { ok: false, reason: 'insufficient_items' };
     }
   }
 
+  // Consume via the service (handles the "drain across slots" loop
+  // internally — the old code reached into inventory.slots directly,
+  // which is exactly the coupling InventoryService is meant to remove).
   const consumed = [];
   for (const [itemId, n] of needed) {
-    let left = n;
-    for (let i = 0; i < inventory.slots.length && left > 0; i++) {
-      const s = inventory.slots[i];
-      if (s && s.itemId === itemId) {
-        const take = Math.min(left, s.count);
-        s.count -= take;
-        if (s.count <= 0) inventory.slots[i] = null;
-        left -= take;
-      }
+    const removed = invSvc.consumeByItem(itemId, n);
+    if (removed < n) {
+      // Race-y: someone else removed the rest. Roll back what we did
+      // and surface the failure.
+      invSvc.addItem(itemId, n - removed);
+      for (const c of consumed) invSvc.addItem(c.itemId, c.count);
+      return { ok: false, reason: 'insufficient_items' };
     }
     consumed.push({ itemId, count: n });
   }
 
-  const r = inventory.add(recipe.output.itemId, recipe.output.count);
+  const r = invSvc.addItem(recipe.output.itemId, recipe.output.count);
   if (r.leftover > 0) {
-    for (const c of consumed) inventory.add(c.itemId, c.count);
+    // Roll back the consume — return the inputs to the player.
+    for (const c of consumed) invSvc.addItem(c.itemId, c.count);
     return { ok: false, reason: 'output_full' };
   }
 

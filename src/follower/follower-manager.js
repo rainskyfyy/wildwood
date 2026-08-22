@@ -9,6 +9,14 @@
  *
  * On death, the underlying piglin is "un-recruited" (affection → 0,
  * hp reset) so the player can re-feed and recruit it again later.
+ * The death loot is deposited into the player's inventory via the
+ * InventoryService (replaces the previous silent-drop behavior).
+ *
+ * v0.6.0b — InventoryService:
+ *   - Constructor takes `invSvc` and threads it into the Follower so
+ *     death loot ends up in the inventory instead of being dropped on
+ *     the floor (the prior version returned the loot list but no one
+ *     ever picked it up).
  */
 'use strict';
 import { Follower, MAX_FOLLOWERS } from './follower.js';
@@ -19,11 +27,13 @@ export class FollowerManager {
    * @param {import('../world/generator.js').WorldGrid} opts.world
    * @param {Object} opts.player
    * @param {Function} [opts.getMonsters]
+   * @param {import('../services/InventoryService.js').InventoryService} opts.invSvc
    */
-  constructor({ world, player, getMonsters = null } = {}) {
+  constructor({ world, player, getMonsters = null, invSvc = null } = {}) {
     this.world = world;
     this.player = player;
     this.getMonsters = getMonsters;
+    this.invSvc = invSvc;
     /** @type {Follower|null} */
     this.follower = null;
   }
@@ -39,7 +49,8 @@ export class FollowerManager {
       piglin,
       player: this.player,
       world: this.world,
-      getMonsters: this.getMonsters
+      getMonsters: this.getMonsters,
+      invSvc: this.invSvc
     });
     // Park the piglin's "home" near the player so it doesn't try
     // to walk back to the village every tick.
@@ -71,7 +82,8 @@ export class FollowerManager {
 
   /**
    * Apply damage to the follower. Returns the loot list if the
-   * follower died (caller spawns world drop orbs). Empty list otherwise.
+   * follower died (and was deposited into the inventory by the
+   * Follower itself via the InventoryService).
    */
   damageFollower(by = 1) {
     if (!this.follower) return [];

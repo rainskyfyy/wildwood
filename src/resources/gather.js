@@ -9,6 +9,14 @@
  *     durability is decremented by 1. The event payload now also
  *     includes `toolUsed: itemId | null` and `toolStatus: 'compatible'
  *     | 'wrong_tool' | 'no_tool_required' | 'tool_required' | 'na'`.
+ *
+ * v0.6.0b — InventoryService:
+ *   - Constructor takes `invSvc` (InventoryService) instead of raw
+ *     Inventory. Tool durability is now `invSvc.damageToolById(id, 1)`
+ *     (looks up the slot by itemId) instead of findIndex + damageTool.
+ *   - The entity's `harvest(invSvc, now)` callback is responsible for
+ *     using the service to grant loot; gather itself only mutates the
+ *     tool stack.
  */
 'use strict';
 
@@ -20,10 +28,10 @@ export const GATHER_GATHERING  = 'gathering';
 export const GATHER_JUST_DONE  = 'just_done';
 
 export class Gather {
-  constructor({ entities, inventory, range = DEFAULT_RANGE, onEvent = null,
+  constructor({ entities, invSvc, range = DEFAULT_RANGE, onEvent = null,
                 selectedItemProvider = null } = {}) {
     this.entities  = entities;
-    this.inventory = inventory;
+    this.invSvc    = invSvc;
     this.range     = range;
     this.onEvent   = onEvent;
     this.selectedItemProvider = selectedItemProvider || (() => null);
@@ -78,21 +86,16 @@ export class Gather {
       const selectedId = this.selectedItemProvider();
       const toolStatus = checkTool(this.target.id, selectedId);
       this.lastToolStatus = toolStatus;
-      const loot = this.target.harvest(this.inventory, now);
+      const loot = this.target.harvest(this.invSvc, now);
       this.lastLoot = loot.granted;
       // Damage the equipped tool if one is in use and a tool is appropriate.
       // 'compatible' or 'no_tool_required' both pass; 'wrong_tool' / 'tool_required' do not consume durability.
       let toolUsed = null;
       if ((toolStatus === 'compatible' || toolStatus === 'no_tool_required')
-          && selectedId != null) {
-        // Find a hotbar slot holding this item to damage.
-        const slotIdx = this.inventory.slots.findIndex(s => s && s.itemId === selectedId);
-        if (slotIdx >= 0) {
-          const before = this.inventory.slots[slotIdx];
-          this.inventory.damageTool(slotIdx, 1);
-          toolUsed = selectedId;
-          // If the tool broke, the slot is now null; that's fine.
-        }
+          && selectedId != null
+          && this.invSvc.findSlotByItem(selectedId) >= 0) {
+        this.invSvc.damageToolById(selectedId, 1);
+        toolUsed = selectedId;
       }
       this._emit('complete', {
         entity: this.target,
