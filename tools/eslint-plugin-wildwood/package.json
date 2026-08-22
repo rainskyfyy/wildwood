@@ -1,0 +1,23 @@
+{
+  "name": "eslint-plugin-wildwood",
+  "version": "0.1.0",
+  "description": "Wildwood-specific ESLint rules. Enforces test fixture stability (no find-then-index) and other project invariants derived from production incidents.",
+  "main": "index.js",
+  "type": "commonjs",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "wildwood",
+    "fixture",
+    "spawner"
+  ],
+  "author": "Wildwood team",
+  "license": "MIT",
+  "peerDependencies": {
+    "eslint": "^9.0.0"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "wildwood",
+  "version": "0.7.0c",
+  "private": true,
+  "description": "Wildwood — 2D co-op survival game (M2 milestone). This package.json exists to wire ESLint + the in-repo custom plugin; runtime game code stays in src/ as plain ES modules loaded by demo.html.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "lint": "eslint src tests",
+    "lint:rule-test": "node tests/v070c-eslint-enforce.mjs",
+    "lint:ci": "npm run lint:rule-test && npm run lint"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0"
+  }
+}

@@ -3,6 +3,15 @@
 push_to_github.py — Direct push to GitHub via Git Data API (no git credentials).
 
 Usage: python3 push_to_github.py <repo> <branch> <path_to_files> [commit_msg]
+
+v0.7.0c change: adds a second-time base_sha recheck between building the
+new tree and creating the new commit. The original flow had a TOCTOU
+race: between GET ref and PATCH ref, a teammate (or the `roadmap
+auto-sync` cron — see MEMORY.md) could push a new commit. Without
+recheck, we'd still POST a commit with `parents: [old_head_sha]`,
+creating a non-fast-forward commit, and PATCH ref would silently
+succeed (or fail with 422, depending on GitHub's mood). The new
+recheck explicitly aborts and asks the caller to re-run.
 """
 import sys
 import os
@@ -45,11 +54,16 @@ def req(method, url, data=None):
         raise
 
 
+def get_ref_sha():
+    """GET /git/ref/heads/<BRANCH> and return the current head sha."""
+    ref = req("GET", f"{API}/git/ref/heads/{BRANCH}")
+    return ref["object"]["sha"]
+
+
 def main():
     print(f"Pushing to {REPO}@{BRANCH} from {ROOT}")
     # 1. Get current HEAD
-    ref = req("GET", f"{API}/git/ref/heads/{BRANCH}")
-    head_sha = ref["object"]["sha"]
+    head_sha = get_ref_sha()
     print(f"Current HEAD: {head_sha}")
     commit = req("GET", f"{API}/git/commits/{head_sha}")
     base_tree = commit["tree"]["sha"]
@@ -94,7 +108,27 @@ def main():
     })
     print(f"New tree: {new_tree['sha']}")
 
-    # 4. Create commit
+    # 4. (v0.7.0c) Re-check base_sha before creating the commit. If a
+    #    teammate (or roadmap auto-sync) pushed between step 1 and now,
+    #    the ref has moved; building a commit on top of the old head_sha
+    #    would create a non-fast-forward commit, and PATCH ref would
+    #    silently overwrite their work. Abort instead.
+    current_head = get_ref_sha()
+    if current_head != head_sha:
+        print(
+            f"\n!! ABORT: base_sha drift detected.\n"
+            f"   expected: {head_sha}\n"
+            f"   actual:   {current_head}\n"
+            f"   A teammate (or the roadmap auto-sync cron) pushed to "
+            f"{BRANCH} between step 1 and step 4.\n"
+            f"   Re-run the script to pick up the new base_sha; "
+            f"do NOT force-push or git-push to repair the chain.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    print(f"Base sha verified: {head_sha[:12]} still HEAD of {BRANCH}")
+
+    # 5. Create commit
     new_commit = req("POST", f"{API}/git/commits", {
         "message": MSG,
         "tree": new_tree["sha"],
@@ -102,7 +136,7 @@ def main():
     })
     print(f"New commit: {new_commit['sha']}")
 
-    # 5. Update ref
+    # 6. Update ref
     req("PATCH", f"{API}/git/refs/heads/{BRANCH}", {
         "sha": new_commit["sha"]
     })
