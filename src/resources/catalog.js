@@ -10,6 +10,12 @@
  * v1.0.2 — shovel wired to diggable resources (dirt_mound, sapling, carrot,
  *   mushroom). New 'dig' resource category is metadata-only (no behavior
  *   difference from 'harvest' today, but lets future systems filter on it).
+ *
+ * v1.0.3 — resource depletion system:
+ *   isDepletable(id)           true if the resource has finite harvests
+ *   getMaxHarvests(id)         the max harvest count, or Infinity
+ *   getDepletedTransformsTo(id)  resource id the entity becomes when depleted
+ *                              (null = no transform, stays depleted forever)
  */
 'use strict';
 
@@ -75,6 +81,9 @@ export function getMaxDurability(itemId) {
  * Shovel is required for dig-category resources (dirt_mound / sapling /
  * carrot) and accelerates mushroom collection. berry_bush / grass_tuft /
  * ice_shard / flower_patch are bare-handed.
+ *
+ * v1.0.3 — 4 new mine-only depletable resources (coal / gold_ore /
+ * gem_vein / tin_ore) all require pickaxe.
  */
 const _TOOL_COMPAT = {
   // axe
@@ -84,6 +93,11 @@ const _TOOL_COMPAT = {
   rock:                ['pickaxe'],
   boulder:             ['pickaxe'],
   iron_ore:            ['pickaxe'],
+  // v1.0.3 — depletable mines-only resources
+  coal:                ['pickaxe'],
+  gold_ore:            ['pickaxe'],
+  gem_vein:            ['pickaxe'],
+  tin_ore:             ['pickaxe'],
   // shovel
   dirt_mound:          ['shovel'],
   sapling:             ['shovel'],
@@ -132,8 +146,39 @@ export function allowedTools(resourceId) {
   return allowed.slice();
 }
 
+/**
+ * v1.0.3 — resource depletion.
+ *
+ * A resource is "depletable" if it has a finite maxHarvests. Once a node
+ * has been harvested that many times, it transitions to a permanent
+ * depleted state (regrowAt = 0 forever). If depletedTransformsTo is set,
+ * the entity mutates in place into the target resource id (e.g. gold_ore
+ * becomes rock after 2 harvests, so the spot is still useful for stone).
+ *
+ * Resources without maxHarvests (or with Infinity) never deplete; they
+ * behave as before (regrow after regrowTime).
+ */
+export function isDepletable(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return false;
+  return Number.isFinite(r.maxHarvests) && r.maxHarvests > 0;
+}
+
+export function getMaxHarvests(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r || !Number.isFinite(r.maxHarvests)) return Infinity;
+  return r.maxHarvests;
+}
+
+export function getDepletedTransformsTo(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return null;
+  return r.depletedTransformsTo || null;
+}
+
 export function validateCatalog() {
   const itemIds = new Set(Object.keys(_ITEMS));
+  const resourceIds = new Set(Object.keys(_RESOURCES));
   for (const r of Object.values(_RESOURCES)) {
     for (const d of r.drops || []) {
       if (!itemIds.has(d.itemId)) {
@@ -143,6 +188,18 @@ export function validateCatalog() {
     // regrowTime is optional; if present must be a non-negative number
     if (r.regrowTime != null && (typeof r.regrowTime !== 'number' || r.regrowTime < 0)) {
       throw new Error(`Resource "${r.id}" regrowTime must be a non-negative number`);
+    }
+    // v1.0.3 — maxHarvests is optional; if present must be a positive integer
+    if (r.maxHarvests != null) {
+      if (!Number.isFinite(r.maxHarvests) || r.maxHarvests < 1 || !Number.isInteger(r.maxHarvests)) {
+        throw new Error(`Resource "${r.id}" maxHarvests must be a positive integer`);
+      }
+    }
+    // v1.0.3 — depletedTransformsTo must reference an existing resource
+    if (r.depletedTransformsTo != null) {
+      if (!resourceIds.has(r.depletedTransformsTo)) {
+        throw new Error(`Resource "${r.id}" depletedTransformsTo references unknown resource "${r.depletedTransformsTo}"`);
+      }
     }
   }
   for (const r of Object.values(_RECIPES)) {

@@ -1,35 +1,19 @@
 /**
- * Main entry — M4 (world) + M2.9 (buildings) + M2.10 (resources) + v0.4 (multiplayer) + v0.5.1 (6 biomes + ecology) integration.
- *
- * `bootGame(canvas, options?)`:
- *   options.mode = 'offline' (default) | 'host' | 'join'
- *   options.client       — RelayClient(已连接)
- *   options.session      — Session(已 host/join 完成)
- *
- * 联机模式下:
- *   - host 端广播 G_STATE 10Hz + G_WORLD 离散事件
- *   - join 端发 G_INPUT + 应用 host 的 state/world
- *   - 双方都可发送 G_CHAT
- *
- * v0.5.1:
- *   - 6 群系径向布局（forest 中心、plains 环、4 极端群系四角）
- *   - 玩家从最大 forest 块中心出生
- *   - EcologyManager 推进种群动力学（logistic + 食物链）
- *   - EcologyMonster 在 M2.14 Monster 之上加 FLEE / GRAZE / HUNT
+ * Main entry — M4 (world) + M2.10 (resources) integration.
+ * v1.0.1 — M2.10b: regrow + tool durability
  */
 'use strict';
 
-import { generateWorld, findBiomeCenter } from './world/generator.js';
+import { generateWorld } from './world/generator.js';
 import { scatterDecorations } from './world/decorator.js';
 import { computeTransitions, blendColors } from './world/transitions.js';
 import { getBiome } from './world/biome-config.js';
-import { CODE_TO_BIOME } from './world/generator.js';
 import { Player } from './player/player.js';
 import { Camera } from './player/camera.js';
 import { Input } from './utils/input.js';
 import { HUD } from './hud/hud.js';
 import {
-  TILE_W_HALF, TILE_H_HALF, TILE_SIZE,
+  TILE_W_HALF, TILE_H_HALF,
   worldToScreen, depthKey
 } from './render/isometric.js';
 import { getTileSprite, drawDecoration, drawPlayer } from './render/tile-renderer.js';
@@ -38,20 +22,8 @@ import { screenToWorld } from './render/picker.js';
 import { spawnResources } from './resources/spawner.js';
 import { Inventory } from './resources/inventory.js';
 import { Gather } from './resources/gather.js';
+import { RegrowManager } from './resources/regrow.js';
 import { TOTAL_SLOTS } from './resources/inventory.js';
-import { BuildingManager } from './buildings/placer.js';
-import { BuildingMenu } from './buildings/building-menu.js';
-import { drawBuilding, drawPlacementPreview } from './buildings/building-renderer.js';
-import { getBuilding } from './buildings/building-config.js';
-import { Multiplayer } from './net/multiplayer.js';
-import { loadImage, isReady, getOrFallback } from './render/image-loader.js';
-import { MonsterManager } from './monster/monster-manager.js';
-import { drawMonster } from './render/tile-renderer.js';
-import { EcologyManager } from './ecology/ecology.js';
-
-let monstersData = null;
-let ecologyData = null;
-let ecologyMonsters = null;
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -62,7 +34,12 @@ function loadInventory() {
   try {
     const raw = localStorage.getItem(INV_KEY);
     if (!raw) return null;
-    const inv = new Inventory();
+    const inv = new Inventory({
+      onBreak: ({ itemId }) => {
+        lastBreakBanner = `工具损坏:${itemId}`;
+        lastBreakUntil = performance.now() + 2200;
+      }
+    });
     inv.loadSnapshot(JSON.parse(raw));
     return inv;
   } catch (_) { return null; }
@@ -72,28 +49,23 @@ function saveInventory(inv) {
   catch (_) { /* quota / private mode — ignore */ }
 }
 
-export function bootGame(canvas, opts = {}) {
-  const mode = opts.mode || 'offline';
-  const client = opts.client || null;
-  const session = opts.session || null;
-  const playerName = opts.playerName || 'Player';
-
+export function bootGame(canvas) {
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
 
-  // 1. World — v0.5.1 default layout = radial (6 biomes).
-  const world = generateWorld({
-    width: WORLD_W,
-    height: WORLD_H,
-    seed: SEED,
-    layout: 'radial'
-  });
+  // 1. World.
+  const world = generateWorld({ width: WORLD_W, height: WORLD_H, seed: SEED });
   const decor = scatterDecorations(world, { density: 0.06, seed: SEED + 7 });
   const transitions = computeTransitions(world, 2);
   const resources = spawnResources(world, { seed: SEED + 53 });
 
-  // 2. Inventory + gather.
-  const inventory = loadInventory() || new Inventory();
+  // 2. Inventory + gather + regrow.
+  const inventory = loadInventory() || new Inventory({
+    onBreak: ({ itemId }) => {
+      lastBreakBanner = `工具损坏:${itemId}`;
+      lastBreakUntil = performance.now() + 2200;
+    }
+  });
   if (inventory.slots.every(s => s == null)) {
     inventory.add('log', 8);
     inventory.add('twine', 4);
@@ -103,38 +75,57 @@ export function bootGame(canvas, opts = {}) {
   const gather = new Gather({
     entities: resources,
     inventory,
+    selectedItemProvider: () => {
+      const s = inventory.hotbarSelected();
+      return s ? s.itemId : null;
+    },
     onEvent: (name, payload) => {
       if (name === 'complete') {
         const lootStr = (payload.loot || []).map(l => `${l.itemId}×${l.count}`).join(' ');
-        lastLootBanner = lootStr || '已采集';
+        const suffix = payload.toolUsed ? `  工具耐久 -1` : '';
+        lastLootBanner = (lootStr || '已采集') + suffix;
         lastLootUntil = performance.now() + 2200;
-        if (mp && mp.mode === 'host' && payload.entity) {
-          mp.broadcastGather(payload.entity.id, payload.loot, payload.regrowAt || 0);
+
+        // v1.0.3 — depletion / transform messaging.
+        if (payload.transformedTo) {
+          // gold_ore -> rock, gem_vein -> rock
+          lastDepletedBanner = `${payload.entity.def.name} 枯竭 → 变为 ${payload.transformedTo}`;
+          lastDepletedUntil = performance.now() + 2800;
+        } else if (payload.depleted && Number.isFinite(payload.maxHarvests)
+                   && payload.harvestCount >= payload.maxHarvests) {
+          // Permanent depletion with no transform (e.g. coal after 4 hits)
+          lastDepletedBanner = `${payload.entity.def.name} 已彻底枯竭 (${payload.harvestCount}/${payload.maxHarvests})`;
+          lastDepletedUntil = performance.now() + 2800;
+        } else if (payload.depleted && Number.isFinite(payload.maxHarvests)) {
+          // Regrow between depletions
+          lastDepletedBanner = `${payload.entity.def.name} (${payload.harvestCount}/${payload.maxHarvests})`;
+          lastDepletedUntil = performance.now() + 1400;
         }
       }
     }
   });
+  const regrow = new RegrowManager({
+    entities: resources,
+    onRegrow: (e) => {
+      lastRegrowBanner = `${e.def.name} 已重生`;
+      lastRegrowUntil = performance.now() + 1800;
+    }
+  });
   let lastLootBanner = null;
   let lastLootUntil = 0;
+  let lastRegrowBanner = null;
+  let lastRegrowUntil = 0;
+  let lastBreakBanner = null;
+  let lastBreakUntil = 0;
+  let lastDepletedBanner = null;
+  let lastDepletedUntil = 0;
 
-  // 3. Buildings.
-  const buildingMgr = new BuildingManager(world);
-  const buildingMenu = new BuildingMenu();
-
-  // 4. Actors.
+  // 3. Actors.
   const input = new Input(canvas);
   const camera = new Camera({
     viewportWidth: canvas.width, viewportHeight: canvas.height
   });
-
-  // v0.5.1: spawn player in largest forest block (新手区中心).
-  const forestCenter = findBiomeCenter(world, 'forest');
-  const playerStart = forestCenter.size > 0
-    ? { x: forestCenter.x, y: forestCenter.y }
-    : { x: Math.floor(WORLD_W / 2), y: Math.floor(WORLD_H / 2) };
-  const player = new Player({
-    world, x: playerStart.x, y: playerStart.y, speed: 5.0
-  });
+  const player = new Player({ world, x: 40, y: 30, speed: 5.0 });
   const hud = new HUD(ctx, input, world, inventory);
 
   const vitalsState = {
@@ -143,194 +134,34 @@ export function bootGame(canvas, opts = {}) {
     sanity: { cur: 100, max: 100 }
   };
 
-  // 5. Multiplayer.
-  let mp = null;
-  const chatLog = [];
-  function pushChat(line) {
-    chatLog.push({ at: Date.now(), text: line });
-    if (chatLog.length > 20) chatLog.shift();
-    updateChatDom();
-  }
-  function updateChatDom() {
-    const el = document.getElementById('ww-chat-log');
-    if (!el) return;
-    el.innerHTML = chatLog.map(c => `<div>${escapeHtml(c.text)}</div>`).join('');
-    el.scrollTop = el.scrollHeight;
-  }
-  if (client && session && (mode === 'host' || mode === 'join')) {
-    session.self.name = playerName;
-    mp = new Multiplayer({
-      mode, client, session,
-      player, world, buildingMgr, resources, gather,
-      vitals: vitalsState,
-      onChat: (m) => {
-        const prefix = m.from ? `[${m.from}]` : '[系统]';
-        pushChat(`${prefix} ${m.text}`);
-      },
-      onKicked: (reason) => {
-        pushChat(`[系统] 你被踢出房间 (${reason || '未知'})`);
-      },
-      onPeerJoined: (p) => {
-        pushChat(`[系统] ${p.name} 加入了房间`);
-      },
-      onPeerLeft: (m) => {
-        pushChat(`[系统] 玩家离开了 (${m.reason || ''})`);
-      },
-    });
-  }
-
-  // 6. Chat input 绑定(联机时)。
-  const chatInput = document.getElementById('ww-chat-input');
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const text = chatInput.value.trim();
-        if (text) {
-          if (mp) {
-            mp.broadcastChat(text);
-            pushChat(`[${playerName}] ${text}`);
-          } else {
-            pushChat(`[${playerName}] ${text}`);
-          }
-          chatInput.value = '';
-        }
-        e.preventDefault();
-      } else if (e.key === 'Escape') {
-        chatInput.value = '';
-        chatInput.blur();
-      }
-    });
-  }
-
-  // 7. Building placement 状态。
-  let pendingBuilding = null;
-  function tryPlaceBuilding(tx, ty) {
-    if (!pendingBuilding) return false;
-    const r = buildingMgr.canPlace(pendingBuilding, tx, ty, player);
-    if (!r.ok) {
-      pushChat(`[系统] 无法放置:${r.reason}`);
-      return false;
-    }
-    const b = buildingMgr.place(pendingBuilding, tx, ty, player);
-    if (mp && mp.mode === 'host') mp.broadcastPlace(b);
-    pendingBuilding = null;
-    buildingMenu.close();
-    return true;
-  }
-
-  // 8. v0.5.1: ecology manager.
-  const ecologyMgr = new EcologyManager({
-    world,
-    ecologyData: ecologyData || { biomes: {}, foodChain: {}, _meta: { ticksPerDay: 240 } },
-    ecologyMonsters: ecologyMonsters || {},
-    loadImage,
-    isReady,
-    getOrFallback,
-    seed: SEED
-  });
-
-  // M2.14: combat monsters.
-  const monsterMgr = new MonsterManager({
-    world,
-    monsterData: monstersData || {},
-    loadImage,
-    isReady,
-    getOrFallback
-  });
-
-  // Data fetches: monsters + ecology. If fetch fails, both managers
-  // stay empty (procedural fallback in the renderer handles empty
-  // case — demo boots, just no critters).
-  Promise.all([
-    fetch('./data/monsters.json').then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch('./data/ecology.json').then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch('./data/ecology-monsters.json').then(r => r.ok ? r.json() : null).catch(() => null)
-  ]).then(([mData, eData, emData]) => {
-    if (mData) {
-      monstersData = mData;
-      monsterMgr.monsterData = mData;
-      monsterMgr.types = Object.keys(mData).filter(k => !k.startsWith('_'));
-      monsterMgr.spawnDefaults();
-    }
-    if (eData && emData) {
-      ecologyData = eData;
-      ecologyMonsters = emData;
-      ecologyMgr.ecologyData = eData;
-      ecologyMgr.ecologyMonsters = emData;
-      ecologyMgr.populations = new Map();
-      ecologyMgr.entities = [];
-      ecologyMgr._chunks = new Map();
-      const FoodChain = ecologyMgr.foodChain.constructor;
-      ecologyMgr.foodChain = new FoodChain(eData);
-      ecologyMgr.initialize();
-    }
-  });
-
   let lastT = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
+    // panel toggles
     hud.processPanelToggles();
 
+    // panel clicks consume mouse before game routing
     let panelConsumed = false;
     if (input.consumeClick()) {
       panelConsumed = hud.handlePanelClick(input.mouseX, input.mouseY, canvas.width, canvas.height);
     }
 
-    const menuSelected = buildingMenu.update(input, canvas.width, canvas.height);
-    if (menuSelected) {
-      const typeId = buildingMenu.consumeSelection();
-      if (typeId) {
-        pendingBuilding = typeId;
-        pushChat(`[系统] 已选择建筑:${getBuilding(typeId)?.name || typeId},移动鼠标 + 左键放置`);
-      }
-    }
-
-    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible && !buildingMenu.isOpen) {
+    // player movement only when no panel visible
+    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible) {
       player.update(dt, input);
     }
     camera.follow(player);
-    gather.update(player, dt);
+    regrow.update(now);
+    gather.update(player, dt, now);
 
-    // v0.5.1: ecology + M2.14 monster AI tick — only when no panel open.
-    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible && !buildingMenu.isOpen) {
-      monsterMgr.update(dt, player);
-      ecologyMgr.update(dt, player);
-    }
-
-    if (mp) mp.tick(now, input);
-
-    if (!panelConsumed && !buildingMenu.isOpen && input.consumeClick()) {
+    // world click for gather — only when not consumed by a panel
+    if (!panelConsumed && input.consumeClick()) {
       const w = screenToWorld(input.mouseX, input.mouseY, canvas, player, camera);
-      const tx = Math.floor(w.x);
-      const ty = Math.floor(w.y);
-      if (pendingBuilding) {
-        tryPlaceBuilding(tx, ty);
-      } else {
-        gather.click(w.x, w.y);
-      }
+      gather.click(w.x, w.y);
     }
-
-    if (input.consumeRightClick()) {
-      if (pendingBuilding) {
-        pendingBuilding = null;
-        buildingMenu.close();
-        pushChat('[系统] 已取消建筑选择');
-      } else {
-        const w = screenToWorld(input.mouseX, input.mouseY, canvas, player, camera);
-        const tx = Math.floor(w.x);
-        const ty = Math.floor(w.y);
-        const b = buildingMgr.buildings.find(b => b.contains(tx, ty));
-        if (b) {
-          const id = b.entityId;
-          buildingMgr.remove(b);
-          if (mp && mp.mode === 'host') mp.broadcastRemove(id);
-          pushChat(`[系统] 拆除了 ${b.typeId}`);
-        }
-      }
-    }
-
+    // right-click places the hotbar item into the crafting grid (if open)
     if (hud.craftingPanel.visible && input.consumeRightClick()) {
       hud.craftingPanel.onClick(
         input.mouseX, input.mouseY, canvas.width, canvas.height,
@@ -343,9 +174,10 @@ export function bootGame(canvas, opts = {}) {
     vitalsState.hunger.cur = Math.max(0, vitalsState.hunger.cur - dt * 0.4);
     vitalsState.sanity.cur = Math.max(0, vitalsState.sanity.cur - dt * 0.2);
 
-    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState, monsterMgr, ecologyMgr);
+    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, now);
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
 
+    // banners
     if (lastLootBanner && now < lastLootUntil) {
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(canvas.width/2 - 110, 50, 220, 28);
@@ -357,38 +189,50 @@ export function bootGame(canvas, opts = {}) {
     } else {
       lastLootBanner = null;
     }
-
-    if (pendingBuilding && !buildingMenu.isOpen) {
-      const w = screenToWorld(input.mouseX, input.mouseY, canvas, player, camera);
-      const tx = Math.floor(w.x);
-      const ty = Math.floor(w.y);
-      const s = worldToScreen(tx, ty);
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      const camScreen = worldToScreen(camera.x, camera.y);
-      const offsetX = cx - camScreen.x;
-      const offsetY = cy - camScreen.y;
-      const sx = s.x + offsetX;
-      const sy = s.y + offsetY;
-      const can = buildingMgr.canPlace(pendingBuilding, tx, ty, player).ok;
-      drawPlacementPreview(ctx, sx, sy, pendingBuilding, can);
+    if (lastRegrowBanner && now < lastRegrowUntil) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(canvas.width/2 - 110, 86, 220, 26);
+      ctx.fillStyle = '#7ec47e';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`✿ ${lastRegrowBanner}`, canvas.width/2, 99);
+    } else {
+      lastRegrowBanner = null;
+    }
+    if (lastBreakBanner && now < lastBreakUntil) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(canvas.width/2 - 110, 120, 220, 26);
+      ctx.fillStyle = '#e85a3a';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`✕ ${lastBreakBanner}`, canvas.width/2, 133);
+    } else {
+      lastBreakBanner = null;
+    }
+    if (lastDepletedBanner && now < lastDepletedUntil) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(canvas.width/2 - 130, 154, 260, 26);
+      ctx.fillStyle = '#a85a3a';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`▼ ${lastDepletedBanner}`, canvas.width/2, 167);
+    } else {
+      lastDepletedBanner = null;
     }
 
-    buildingMenu.draw(ctx, canvas.width, canvas.height);
-
+    // periodic save
     if ((now | 0) % 60 === 0) saveInventory(inventory);
 
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { world, player, camera, hud, inventory, gather, resources, buildingMgr, mp, mode, ecologyMgr, monsterMgr };
+  return { world, player, camera, hud, inventory, gather, regrow, resources };
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
-
-function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState, monsterMgr, ecologyMgr) {
+function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, now) {
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -413,7 +257,7 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
       ctx.drawImage(sprite, sx - TILE_W_HALF, sy - TILE_H_HALF);
       if (transitions.neighbor[ei] >= 0) {
         const otherCode = transitions.neighbor[ei];
-        const other = getBiome(CODE_TO_BIOME[otherCode] || 'plains');
+        const other = getBiome(biomeCodeToId(otherCode));
         const blended = blendColors(biome.primary, other.primary, transitions.blend[ei]);
         ctx.fillStyle = blended;
         ctx.globalAlpha = 0.55;
@@ -440,88 +284,20 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
      || r.y < bounds.y0 - 1 || r.y > bounds.y1 + 1) continue;
     drawables.push({ kind: 'resource', ref: r, depth: depthKey(r.x, r.y) });
   }
-  for (const b of (buildingMgr?.buildings || [])) {
-    if (b.tx < bounds.x0 - 2 || b.tx > bounds.x1 + 2
-     || b.ty < bounds.y0 - 2 || b.ty > bounds.y1 + 2) continue;
-    drawables.push({ kind: 'building', ref: b, depth: depthKey(b.tx, b.ty) });
-  }
-  // M2.14: combat monsters.
-  if (monsterMgr) {
-    for (const m of monsterMgr.visible(camera)) {
-      const t = m.tilePos();
-      drawables.push({ kind: 'monster', ref: m, depth: depthKey(t.x, t.y) });
-    }
-  }
-  // v0.5.1: ecology entities.
-  if (ecologyMgr && ecologyMgr.entities.length > 0) {
-    for (const e of ecologyMgr.visible(camera)) {
-      const t = e.tilePos();
-      drawables.push({ kind: 'ecology', ref: e, depth: depthKey(t.x, t.y) });
-    }
-  }
   drawables.push({ kind: 'player', depth: depthKey(player.x, player.y), ref: player });
-  if (mp && mp.session) {
-    for (const p of mp.session.peers.values()) {
-      if (!p.state) continue;
-      const px = p.state.x, py = p.state.y;
-      if (px < bounds.x0 - 1 || px > bounds.x1 + 1
-       || py < bounds.y0 - 1 || py > bounds.y1 + 1) continue;
-      drawables.push({ kind: 'remote', ref: p, depth: depthKey(px, py) });
-    }
-  }
   drawables.sort((a, b) => a.depth - b.depth);
   for (const it of drawables) {
-    if (it.kind === 'decor') {
-      const s = worldToScreen(it.ref.x, it.ref.y);
-      drawDecoration(ctx, s.x + offsetX, s.y + offsetY, it.ref);
-    } else if (it.kind === 'resource') {
-      const s = worldToScreen(it.ref.x, it.ref.y);
+    const s = worldToScreen(it.ref.x, it.ref.y);
+    const sx = s.x + offsetX;
+    const sy = s.y + offsetY;
+    if (it.kind === 'decor') drawDecoration(ctx, sx, sy, it.ref);
+    else if (it.kind === 'resource') {
       const progress = (gather.target === it.ref) ? gather.progressFraction() : 0;
-      drawResource(ctx, s.x + offsetX, s.y + offsetY, it.ref, progress);
-    } else if (it.kind === 'building') {
-      const s = worldToScreen(it.ref.tx, it.ref.ty);
-      drawBuilding(ctx, s.x + offsetX, s.y + offsetY, it.ref, { showHp: true });
-    } else if (it.kind === 'monster') {
-      const s = worldToScreen(it.ref.tilePos().x, it.ref.tilePos().y);
-      const sprite = monsterMgr.resolveSprite(it.ref);
-      drawMonster(ctx, s.x + offsetX, s.y + offsetY, it.ref, sprite);
-    } else if (it.kind === 'ecology') {
-      const s = worldToScreen(it.ref.tilePos().x, it.ref.tilePos().y);
-      const sprite = ecologyMgr.resolveSprite(it.ref);
-      drawMonster(ctx, s.x + offsetX, s.y + offsetY, it.ref, sprite);
-    } else if (it.kind === 'player') {
-      const s = worldToScreen(it.ref.x, it.ref.y);
-      drawPlayer(ctx, s.x + offsetX, s.y + offsetY, it.ref.facing);
-      drawNameHp(ctx, s.x + offsetX, s.y + offsetY, mp?.session?.self?.name || '你', vitalsState, true);
-    } else if (it.kind === 'remote') {
-      const s = worldToScreen(it.ref.state.x, it.ref.state.y);
-      const facing = it.ref.state.facing || 'down';
-      drawPlayer(ctx, s.x + offsetX, s.y + offsetY, facing);
-      drawNameHp(ctx, s.x + offsetX, s.y + offsetY, it.ref.name || '?', it.ref.state, false);
+      drawResource(ctx, sx, sy, it.ref, progress, now);
     }
+    else drawPlayer(ctx, sx, sy, it.ref.facing);
   }
 }
 
-function drawNameHp(ctx, sx, sy, name, state, self) {
-  if (!state) return;
-  const label = self ? `${name} (你)` : name;
-  ctx.font = 'bold 10px ui-monospace, monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  const w = ctx.measureText(label).width + 8;
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.fillRect(sx - w/2, sy - 32, w, 14);
-  ctx.fillStyle = self ? '#d4a64a' : '#88c8ff';
-  ctx.fillText(label, sx, sy - 20);
-  if (Number.isFinite(state.hp)) {
-    const barW = 30, barH = 2;
-    const bx = sx - barW/2, by = sy - 17;
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(bx, by, barW, barH);
-    const pct = Math.max(0, Math.min(1, state.hp / 100));
-    ctx.fillStyle = pct > 0.5 ? '#5ad870' : pct > 0.25 ? '#d4c84a' : '#d45a4a';
-    ctx.fillRect(bx, by, barW * pct, barH);
-  }
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-}
+const CODE_TO_BIOME = ['forest', 'plains', 'mines', 'snow'];
+function biomeCodeToId(c) { return CODE_TO_BIOME[c] || 'plains'; }

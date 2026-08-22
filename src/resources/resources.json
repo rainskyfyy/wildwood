@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "version": "1.0.1",
+    "version": "1.0.2",
     "schema": "wildwood-resources-v1",
-    "note": "v1.0.1 新增 regrowTime 资源重生机制。"
+    "note": "v1.0.1 新增 regrowTime 资源重生机制。v1.0.2 加 5 个新资源(dirt_mound/sapling/carrot/mushroom/flower_patch)。v1.0.3 加 4 个枯竭型资源(coal/gold_ore/gem_vein/tin_ore),新增 maxHarvests + depletedTransformsTo 字段。"
   },
   "tree": {
     "id": "tree",
@@ -247,6 +247,89 @@
     "regrowTime": 40,
     "drops": [
       { "itemId": "petals", "count": 2, "chance": 1.0 }
+    ]
+  },
+  "coal": {
+    "id": "coal",
+    "name": "煤矿",
+    "category": "harvest",
+    "biomes": ["mines"],
+    "density": 0.015,
+    "harvestTime": 2.5,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "coal",
+    "color": "#1a1a1a",
+    "size": 0.7,
+    "regrowTime": 180,
+    "maxHarvests": 4,
+    "depletedTransformsTo": null,
+    "drops": [
+      { "itemId": "coal", "count": 2, "chance": 1.0 },
+      { "itemId": "stone", "count": 1, "chance": 0.3 }
+    ]
+  },
+  "gold_ore": {
+    "id": "gold_ore",
+    "name": "金矿",
+    "category": "harvest",
+    "biomes": ["mines"],
+    "density": 0.008,
+    "harvestTime": 3.0,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "gold_ore",
+    "color": "#d4a02a",
+    "size": 0.7,
+    "regrowTime": 240,
+    "maxHarvests": 2,
+    "depletedTransformsTo": "rock",
+    "drops": [
+      { "itemId": "gold_nugget", "count": 1, "chance": 1.0 },
+      { "itemId": "stone", "count": 1, "chance": 0.5 }
+    ]
+  },
+  "gem_vein": {
+    "id": "gem_vein",
+    "name": "宝石矿脉",
+    "category": "harvest",
+    "biomes": ["mines"],
+    "density": 0.004,
+    "harvestTime": 4.0,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "gem_vein",
+    "color": "#5abcd4",
+    "size": 0.65,
+    "regrowTime": 300,
+    "maxHarvests": 1,
+    "depletedTransformsTo": "rock",
+    "drops": [
+      { "itemId": "gem", "count": 1, "chance": 1.0 }
+    ]
+  },
+  "tin_ore": {
+    "id": "tin_ore",
+    "name": "锡矿",
+    "category": "harvest",
+    "biomes": ["mines"],
+    "density": 0.012,
+    "harvestTime": 2.0,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "tin_ore",
+    "color": "#b8b8c8",
+    "size": 0.7,
+    "regrowTime": 120,
+    "maxHarvests": 3,
+    "depletedTransformsTo": null,
+    "drops": [
+      { "itemId": "tin", "count": 2, "chance": 1.0 },
+      { "itemId": "stone", "count": 1, "chance": 0.2 }
     ]
   }
 }

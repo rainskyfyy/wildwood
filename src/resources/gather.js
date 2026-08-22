@@ -9,6 +9,15 @@
  *     durability is decremented by 1. The event payload now also
  *     includes `toolUsed: itemId | null` and `toolStatus: 'compatible'
  *     | 'wrong_tool' | 'no_tool_required' | 'tool_required' | 'na'`.
+ *
+ * v1.0.3 — depletion event payload:
+ *   - The 'complete' event payload now includes:
+ *       harvestCount   — number of successful harvests so far on this node
+ *       maxHarvests    — Infinity for non-depletable, integer for depletable
+ *       depleted       — true if the entity is permanently exhausted
+ *       transformedTo  — resource id the entity became (null if no transform)
+ *     Callers (HUD / banner) can use these to show progress, "the vein
+ *     is showing cracks", or "the gold vein turned to rock" messages.
  */
 'use strict';
 
@@ -99,7 +108,11 @@ export class Gather {
         loot: loot.granted,
         regrowAt: loot.regrowAt,
         toolUsed,
-        toolStatus
+        toolStatus,
+        harvestCount: loot.harvestCount,
+        maxHarvests: loot.maxHarvests,
+        depleted: loot.depleted,
+        transformedTo: loot.transformedTo
       });
       this.state = GATHER_JUST_DONE;
       this.target = null;

@@ -10,6 +10,13 @@
  * v1.0.2 — dig-category resources (dirt_mound, sapling, carrot, mushroom,
  *   flower_patch) added with their own icons and a generic "depleted patch"
  *   regrow visual.
+ *
+ * v1.0.3 — depletable resources:
+ *   - New icons for coal / gold_ore / gem_vein / tin_ore (mines-only)
+ *   - 'depleted' visual state now shows a cracked silhouette + red X
+ *     overlay so permanently-exhausted nodes (e.g. coal after 4 hits,
+ *     or a node that just transformed into rock) are clearly distinct
+ *     from transient 'regrowing' state.
  */
 'use strict';
 
@@ -157,7 +164,68 @@ const KIND_ICON = {
                             drawFlower(-4*s, -1*s, '#d4628a');
                             drawFlower(0,   -2*s, '#e8a04a');
                             drawFlower(4*s, -1*s, '#b4628a');
-                          }
+                          },
+  // v1.0.3 — depletable mines resources
+  coal:     (c, s) => { c.fillStyle = '#3a3a40';
+                        c.beginPath();
+                        c.ellipse(0, 0, 8*s, 6*s, 0, 0, Math.PI*2);
+                        c.fill();
+                        c.fillStyle = '#1a1a1a';
+                        c.fillRect(-5*s, -3*s, 3*s, 3*s);
+                        c.fillRect(1*s, 0, 4*s, 2*s);
+                        c.fillRect(-2*s, 2*s, 2*s, 2*s);
+                        c.fillStyle = '#5a5a60';
+                        c.beginPath();
+                        c.ellipse(-3*s, -3*s, 2*s, 1*s, 0, 0, Math.PI*2);
+                        c.fill();
+                      },
+  gold_ore: (c, s) => { c.fillStyle = '#5a5560';
+                        c.beginPath();
+                        c.ellipse(0, 0, 8*s, 6*s, 0, 0, Math.PI*2);
+                        c.fill();
+                        c.fillStyle = '#d4a02a';
+                        c.fillRect(-4*s, -2*s, 3*s, 3*s);
+                        c.fillRect(1*s, 1*s, 3*s, 3*s);
+                        c.fillStyle = '#f4c84a';
+                        c.beginPath();
+                        c.arc(-2*s, -3*s, 1*s, 0, Math.PI*2);
+                        c.fill();
+                        c.beginPath();
+                        c.arc(2*s, 0, 1*s, 0, Math.PI*2);
+                        c.fill();
+                      },
+  gem_vein: (c, s) => { c.fillStyle = '#3a4a5a';
+                         c.beginPath();
+                         c.ellipse(0, 0, 8*s, 5*s, 0, 0, Math.PI*2);
+                         c.fill();
+                         // Crystal shards
+                         c.fillStyle = '#5abcd4';
+                         c.beginPath();
+                         c.moveTo(-3*s, -3*s); c.lineTo(-1*s, -5*s);
+                         c.lineTo(1*s, -3*s); c.lineTo(0, 0);
+                         c.closePath(); c.fill();
+                         c.fillStyle = '#7adcf4';
+                         c.beginPath();
+                         c.moveTo(1*s, -1*s); c.lineTo(3*s, -3*s);
+                         c.lineTo(4*s, 0); c.lineTo(2*s, 2*s);
+                         c.closePath(); c.fill();
+                         c.fillStyle = '#aaeefc';
+                         c.beginPath();
+                         c.arc(0, -2*s, 1*s, 0, Math.PI*2);
+                         c.fill();
+                       },
+  tin_ore:  (c, s) => { c.fillStyle = '#5a5560';
+                        c.beginPath();
+                        c.ellipse(0, 0, 8*s, 6*s, 0, 0, Math.PI*2);
+                        c.fill();
+                        c.fillStyle = '#b8b8c8';
+                        c.fillRect(-4*s, -2*s, 3*s, 3*s);
+                        c.fillRect(1*s, 1*s, 3*s, 3*s);
+                        c.fillStyle = '#d4d4e0';
+                        c.beginPath();
+                        c.ellipse(-2*s, -3*s, 2*s, 1*s, 0, 0, Math.PI*2);
+                        c.fill();
+                      }
 };
 
 /**
@@ -228,9 +296,21 @@ export function drawResource(ctx, sx, sy, entity, progress = 0, now = Date.now()
     ctx.fillStyle = '#7ec47e';
     ctx.fillRect(-w/2, -28, w * frac, h);
   } else if (visual === 'depleted') {
-    ctx.globalAlpha = 0.3;
+    // Permanent depletion (e.g. coal after 4 hits, gold_ore after transform).
+    // v1.0.3: draw a dark cracked silhouette + a red X overlay so the player
+    // can tell at a glance that this node is gone for good (not just
+    // regrowing). 30% alpha + X gives a strong "exhausted" cue without
+    // hiding the icon completely.
+    ctx.globalAlpha = 0.35;
     icon(ctx, s);
     ctx.globalAlpha = 1.0;
+    // X overlay
+    ctx.strokeStyle = '#3a1a1a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-6*s, -6*s); ctx.lineTo(6*s, 6*s);
+    ctx.moveTo(6*s, -6*s); ctx.lineTo(-6*s, 6*s);
+    ctx.stroke();
   } else {
     icon(ctx, s);
     if (progress > 0 && progress < 1) {
