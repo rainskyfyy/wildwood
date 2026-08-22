@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>v0.8.0a Demo — 装配层 pass-through 字段 Object.freeze</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 0 16px;
+      background: #f6f6f6;
+      color: #222;
+    }
+    h1 { font-size: 22px; }
+    h2 { font-size: 16px; margin-top: 24px; }
+    .stage { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px 16px; margin: 8px 0; }
+    .row { display: flex; gap: 12px; align-items: center; margin: 6px 0; }
+    .label { width: 200px; color: #666; font-size: 13px; }
+    .action { background: #4a90e2; color: #fff; border: 0; border-radius: 4px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+    .action:hover { background: #357ab8; }
+    .log { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 8px; min-height: 32px; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+    .ok    { color: #2c8a3a; }
+    .err   { color: #c0392b; }
+    .muted { color: #888; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>v0.8.0a Demo — 装配层 pass-through 字段 Object.freeze</h1>
+  <p class="muted">对比 <strong>BEFORE</strong>(v0.8.0a 之前)与 <strong>AFTER</strong>(v0.8.0a)两种状态下,对 game 字段的 mutation 行为。</p>
+
+  <h2>1. BEFORE — 没有任何保护</h2>
+  <div class="stage" id="before">
+    <div class="row">
+      <span class="label"><code>game.inventory = newInv()</code></span>
+      <button class="action" id="b-reassign">尝试换引用</button>
+      <span id="b-reassign-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="row">
+      <span class="label"><code>delete game.inventory</code></span>
+      <button class="action" id="b-delete">尝试删除字段</button>
+      <span id="b-delete-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="row">
+      <span class="label"><code>game.inventory.newField = x</code></span>
+      <button class="action" id="b-newprop">尝试加新字段</button>
+      <span id="b-newprop-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="log" id="b-log"></div>
+  </div>
+
+  <h2>2. AFTER — 装配层已 freeze pass-through</h2>
+  <div class="stage" id="after">
+    <div class="row">
+      <span class="label"><code>game.inventory = newInv()</code></span>
+      <button class="action" id="a-reassign">尝试换引用</button>
+      <span id="a-reassign-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="row">
+      <span class="label"><code>delete game.inventory</code></span>
+      <button class="action" id="a-delete">尝试删除字段</button>
+      <span id="a-delete-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="row">
+      <span class="label"><code>game.inventory.newField = x</code></span>
+      <button class="action" id="a-newprop">尝试加新字段</button>
+      <span id="a-newprop-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="row">
+      <span class="label"><code>game.inventory.add(5)</code> (合法调用)</span>
+      <button class="action" id="a-method">调用实例方法</button>
+      <span id="a-method-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="row">
+      <span class="label"><code>game.inventory.count</code> (只读访问)</span>
+      <button class="action" id="a-read">读取实例字段</button>
+      <span id="a-read-status" class="muted">点击按钮触发</span>
+    </div>
+    <div class="log" id="a-log"></div>
+  </div>
+
+  <h2>3. 实例方法状态(只读 reference,合法 mutation)</h2>
+  <div class="stage">
+    <div class="row">
+      <span class="label">当前 <code>afterGame.inventory.count</code> =</span>
+      <span id="count-display" style="font-weight: bold; font-size: 18px;">0</span>
+    </div>
+  </div>
+
+<script type="module">
+  // -------- 模拟 Inventory 实例 --------
+  class MockInventory {
+    constructor() { this.count = 0; this.slots = []; }
+    add(n) { this.count += n; this.slots.push(n); return this.count; }
+  }
+  class MockEventMgr {
+    constructor() { this.pois = []; }
+    trigger() { this.pois.push({ at: Date.now() }); return this.pois.length; }
+  }
+
+  // -------- BEFORE:没有 freeze --------
+  const beforeGame = { inventory: new MockInventory(), eventMgr: new MockEventMgr() };
+
+  // -------- AFTER:装配层 freeze pass-through(用 defineProperty 锁字段) --------
+  const afterGame = { inventory: new MockInventory(), eventMgr: new MockEventMgr() };
+  // 等价于 src/util/freeze-passthrough.js 的 freezePassThroughs(game, fields)
+  for (const name of ['inventory', 'eventMgr']) {
+    const val = afterGame[name];
+    Object.defineProperty(afterGame, name, {
+      value: val, writable: false, configurable: false, enumerable: true
+    });
+  }
+
+  // -------- log helper --------
+  function logTo(elId, msg, cls) {
+    const el = document.getElementById(elId);
+    const line = document.createElement('div');
+    line.textContent = msg;
+    if (cls) line.className = cls;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+  function setStatus(elId, ok, msg) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.className = ok === null ? 'muted' : (ok ? 'ok' : 'err');
+  }
+
+  // -------- BEFORE 按钮 --------
+  document.getElementById('b-reassign').onclick = () => {
+    const oldRef = beforeGame.inventory;
+    beforeGame.inventory = new MockInventory();
+    const swapped = beforeGame.inventory !== oldRef;
+    setStatus('b-reassign-status', swapped, swapped ? '✓ 静默成功 — 状态泄漏' : '✗ 抛错');
+    logTo('b-log', `[reassign] beforeGame.inventory 已换引用 (${swapped ? '泄漏!' : '阻止'})`, swapped ? 'err' : 'ok');
+  };
+  document.getElementById('b-delete').onclick = () => {
+    const ok = delete beforeGame.inventory;
+    setStatus('b-delete-status', ok, ok ? '✓ 静默成功 — 字段被删' : '✗ 阻止');
+    logTo('b-log', `[delete] delete beforeGame.inventory → ${ok} (${ok ? '泄漏!' : '阻止'})`, ok ? 'err' : 'ok');
+  };
+  document.getElementById('b-newprop').onclick = () => {
+    beforeGame.inventory.brandNew = 'leak';
+    setStatus('b-newprop-status', !!beforeGame.inventory.brandNew, `字段已加: ${beforeGame.inventory.brandNew || '未加'}`);
+    logTo('b-log', `[newprop] beforeGame.inventory.brandNew = "${beforeGame.inventory.brandNew}" (实例未冻,允许)`, 'muted');
+  };
+
+  // -------- AFTER 按钮 --------
+  document.getElementById('a-reassign').onclick = () => {
+    let err = null;
+    try { afterGame.inventory = new MockInventory(); }
+    catch (e) { err = e; }
+    if (err) {
+      setStatus('a-reassign-status', false, `✓ 抛错: ${err.message.slice(0, 40)}...`);
+      logTo('a-log', `[reassign] TypeError: ${err.message}`, 'ok');
+    } else {
+      setStatus('a-reassign-status', null, '✗ 居然没抛错!');
+      logTo('a-log', `[reassign] 静默通过 — freeze 失效`, 'err');
+    }
+  };
+  document.getElementById('a-delete').onclick = () => {
+    let err = null;
+    try { delete afterGame.inventory; }
+    catch (e) { err = e; }
+    if (err) {
+      setStatus('a-delete-status', false, `✓ 抛错: ${err.message.slice(0, 40)}...`);
+      logTo('a-log', `[delete] TypeError: ${err.message}`, 'ok');
+    } else {
+      setStatus('a-delete-status', null, '✗ 居然没抛错!');
+      logTo('a-log', `[delete] 静默通过`, 'err');
+    }
+  };
+  document.getElementById('a-newprop').onclick = () => {
+    // 实例本身没冻,own prop 仍可写(由 v0.7.0a 约定保证入口单一)
+    afterGame.inventory.brandNew = 'allowed';
+    setStatus('a-newprop-status', true, `实例 own prop 仍可写(不冻实例) — brandNew = "${afterGame.inventory.brandNew}"`);
+    logTo('a-log', `[newprop] 实例 own prop 写入: brandNew="${afterGame.inventory.brandNew}"(预期行为,v0.8.0a 不冻实例)`, 'muted');
+  };
+  document.getElementById('a-method').onclick = () => {
+    const before = afterGame.inventory.count;
+    const ret = afterGame.inventory.add(5);
+    const after = afterGame.inventory.count;
+    document.getElementById('count-display').textContent = after;
+    setStatus('a-method-status', true, `方法可用:add(5) 返回 ${ret},count ${before} → ${after}`);
+    logTo('a-log', `[method] afterGame.inventory.add(5) → ${ret}(count ${before}→${after},实例方法正常工作)`, 'ok');
+  };
+  document.getElementById('a-read').onclick = () => {
+    const v = afterGame.inventory.count;
+    setStatus('a-read-status', true, `只读访问正常: count = ${v}`);
+    logTo('a-log', `[read] afterGame.inventory.count = ${v}(get 路径不受影响)`, 'ok');
+  };
+
+  // 初始 log
+  logTo('b-log', 'BEFORE:装配层未 freeze,任何 mutation 静默通过。', 'muted');
+  logTo('a-log', 'AFTER:装配层已 freeze(用 defineProperty 锁字段),mutation 抛错,实例方法照常工作。', 'muted');
+</script>
+</body>
+</html>
