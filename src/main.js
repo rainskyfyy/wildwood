@@ -1,5 +1,7 @@
 /**
- * Main entry — M4 (world) + M2.9 (buildings) + M2.10 (resources) + v0.4 (multiplayer) integration.
+ * Main entry — M4 (world) + M2.9 (buildings) + M2.10 (resources) +
+ *   v0.4 (multiplayer) + v0.5.2 (bosses + events) +
+ *   v0.5.4 (NPC village / trading / follower).
  *
  * `bootGame(canvas, options?)`:
  *   options.mode = 'offline' (default) | 'host' | 'join'
@@ -10,11 +12,22 @@
  *   - host 端广播 G_STATE 10Hz + G_WORLD 离散事件
  *   - join 端发 G_INPUT + 应用 host 的 state/world
  *   - 双方都可发送 G_CHAT
+ *
+ * v0.5.2:
+ *   - MonsterManager + BossManager + EventManager 接入主循环
+ *   - BossBar / EventBanner 顶层 HUD
+ *
+ * v0.5.4:
+ *   - 猪人村庄 + 交易中心,在森林/沼泽群系生成
+ *   - 交易:以物易物,价格供需浮动(±20%)
+ *   - 随从:好感度满 3 颗心招募,战斗追击,3 命上限
+ *   - 8 分钟白天 + 4 分钟夜晚驱动猪人状态机
+ *   - T 键开交易 / E 键喂食 / F 键招募
  */
 'use strict';
 
 import { generateWorld } from './world/generator.js';
-import { scatterDecorations } from './world/decorator.js';
+import { scatterDecorationsAndVillage } from './world/decorator.js';
 import { computeTransitions, blendColors } from './world/transitions.js';
 import { getBiome } from './world/biome-config.js';
 import { Player } from './player/player.js';
@@ -45,6 +58,17 @@ import { EventRegistry } from './events/events.js';
 import { BossBar } from './hud/boss-bar.js';
 import { EventBanner } from './hud/event-banner.js';
 import monstersRaw from './data/monsters.json' with { type: 'json' };
+// v0.5.4 — NPC village + trading + follower
+import { DayCycle } from './utils/day-cycle.js';
+import { getItem } from './resources/catalog.js';
+import { NPCManager, buildingAt, traderBuilding, PiglinState } from './npc/npc-manager.js';
+import { newTradeState, traderStock } from './trading/price-engine.js';
+import { TradeUI } from './trading/trade-ui.js';
+import { FollowerManager } from './follower/follower-manager.js';
+import { drawPiglin, drawFollower, drawBuilding as drawVillageBuilding } from './render/npc-renderer.js';
+
+// 中午起步 — 玩家醒来时猪人正在活动(8 分钟白天 + 4 分钟夜晚周期)
+const DAY_START_T = 4 * 60; // 4:00 of the 24h clock — sunrise-ish
 
 const WORLD_W = 80;
 const WORLD_H = 60;
@@ -86,7 +110,8 @@ export function bootGame(canvas, opts = {}) {
 
   // 1. World.
   const world = generateWorld({ width: WORLD_W, height: WORLD_H, seed: SEED });
-  const decor = scatterDecorations(world, { density: 0.06, seed: SEED + 7 });
+  // v0.5.4: also returns a `village` object (piglins + buildings + origin)
+  const { decor, village } = scatterDecorationsAndVillage(world, { density: 0.06, seed: SEED + 7 });
   const transitions = computeTransitions(world, 2);
   const resources = spawnResources(world, { seed: SEED + 53 });
 
@@ -165,6 +190,57 @@ export function bootGame(canvas, opts = {}) {
   // 注入到 module-level helper(供 render 顶层 HUD 调)
   _bossBarDraw = (_dt) => { try { bossBar.draw(bossMgr, canvas.width); } catch (_) { /* swallow */ } };
   _eventBannerDraw = (dt) => { try { eventBanner._pruneFlashes(dt); eventBanner.draw(eventMgr, dt); } catch (_) { /* swallow */ } };
+
+  // 3c. v0.5.4: day/night + NPC village + trading post + follower.
+  const dayCycle = new DayCycle({ t0: DAY_START_T });
+  const npcMgr = new NPCManager({ world, seed: SEED + 91 });
+  if (village && village.piglins && village.piglins.length) {
+    // 复用 decorator 跑出来的村庄(避免双重 generateVillage)
+    npcMgr.piglins = village.piglins;
+    npcMgr.buildings = village.buildings;
+    npcMgr.villageOrigin = village.origin;
+  } else {
+    // fallback: 自己跑一次
+    npcMgr.spawnVillage({ preferredBiome: 'forest' });
+  }
+  // 把村庄建筑的 footprint 标为不可走,供 A* pathfinder 使用。
+  // 只对 follower / piglin AI 生效(玩家碰撞仍由建筑系统处理)。
+  const blockedTiles = new Set();
+  for (const b of npcMgr.buildings) {
+    for (let dy = 0; dy < b.h; dy++) {
+      for (let dx = 0; dx < b.w; dx++) {
+        blockedTiles.add((b.y + dy) * 4096 + (b.x + dx));
+      }
+    }
+  }
+  const baseIsWalkable = world.isWalkable.bind(world);
+  world.isWalkable = function (x, y) {
+    if (blockedTiles.has(y * 4096 + x)) return false;
+    return baseIsWalkable(x, y);
+  };
+  const tradeState = newTradeState();
+  // 预填 scarcity 快照,让首次报价反映玩家当前库存
+  for (const id of traderStock()) {
+    tradeState.scarcity[id] = inventory.countOf(id);
+  }
+  const tradeUI = new TradeUI({
+    inventory,
+    state: tradeState,
+    onTrade: (r) => {
+      if (r && r.ok) {
+        const buyMeta = getItem(r.buyItem);
+        pushChat(`[系统] 交易成功:${getItem(r.sellItem).name}×${r.sellCount} → ${buyMeta.name}×${r.buyCount} (×${r.multiplier.toFixed(2)})`);
+      } else if (r && r.reason) {
+        pushChat(`[系统] 交易失败:${r.reason}`);
+      }
+    }
+  });
+  const followerMgr = new FollowerManager({
+    world,
+    player,
+    getMonsters: () => (monsterMgr ? monsterMgr.monsters : [])
+  });
+
   // 4b. vitals + chat(原 4 / 5 段已合并)
   const vitalsState = {
     hp:     { cur: player.hp, max: player.maxHp },
@@ -246,6 +322,101 @@ export function bootGame(canvas, opts = {}) {
     pendingBuilding = null;
     buildingMenu.close();
     return true;
+  }
+
+  // 7b. v0.5.4 helpers: feed / recruit / open-trade / dismiss.
+  function playerTile() {
+    return { x: Math.floor(player.x), y: Math.floor(player.y) };
+  }
+  function isAdjacent(a, b) {
+    return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1;
+  }
+  function nearestPiglinForInteraction(maxDist = 2) {
+    const pt = playerTile();
+    let best = null, bestDist = Infinity;
+    for (const p of npcMgr.piglins) {
+      if (p.state === PiglinState.DEAD) continue;
+      const px = Math.floor(p.x), py = Math.floor(p.y);
+      const d = Math.abs(px - pt.x) + Math.abs(py - pt.y);
+      if (d <= maxDist && d < bestDist) {
+        bestDist = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+  function tryFeed() {
+    const p = nearestPiglinForInteraction(2);
+    if (!p) {
+      pushChat('[系统] 附近没有猪人可喂食(E 键)');
+      return;
+    }
+    // 优先使用快捷栏选中;否则从背包找一个 food
+    let itemId = null;
+    if (typeof inventory.selected === 'number' && inventory.slots[inventory.selected]) {
+      const s = inventory.slots[inventory.selected];
+      if (s && getItem(s.itemId).category === 'food') itemId = s.itemId;
+    }
+    if (!itemId) {
+      for (const s of inventory.slots) {
+        if (s && getItem(s.itemId).category === 'food') { itemId = s.itemId; break; }
+      }
+    }
+    if (!itemId) {
+      pushChat('[系统] 背包里没有食物');
+      return;
+    }
+    if (p.feed(itemId)) {
+      for (let i = 0; i < inventory.slots.length; i++) {
+        const s = inventory.slots[i];
+        if (s && s.itemId === itemId) { inventory.remove(i, 1); break; }
+      }
+      pushChat(`[系统] 猪人收到 ${getItem(itemId).name},好感 +1(目前 ${p.affection}/3)`);
+    } else if (p.affection >= 3) {
+      pushChat('[系统] 这只猪人已经吃饱了(好感已满,按 F 招募)');
+    } else {
+      pushChat('[系统] 猪人不想吃这个');
+    }
+  }
+  function tryRecruit() {
+    if (followerMgr.current()) {
+      pushChat('[系统] 解散当前随从');
+      followerMgr.dismiss();
+      return;
+    }
+    const p = nearestPiglinForInteraction(2);
+    if (!p) {
+      pushChat('[系统] 附近没有猪人可招募');
+      return;
+    }
+    if (!p.isRecruitable()) {
+      pushChat(`[系统] 好感度不足:需要 3 颗心,当前 ${p.affection}/3`);
+      return;
+    }
+    const f = followerMgr.recruit(p);
+    if (f) {
+      pushChat('[系统] 猪人加入了你的队伍!跟随战斗');
+    } else {
+      pushChat('[系统] 招募失败');
+    }
+  }
+  function tryToggleTrade() {
+    if (tradeUI.isOpen()) {
+      tradeUI.close();
+      return;
+    }
+    const trader = traderBuilding(npcMgr.buildings);
+    if (!trader) {
+      pushChat('[系统] 附近没有猪人交易站');
+      return;
+    }
+    const center = { x: trader.x + trader.w / 2, y: trader.y + trader.h / 2 };
+    const pt = playerTile();
+    if (!isAdjacent(pt, center)) {
+      pushChat('[系统] 走近交易中心再按 T 键交易');
+      return;
+    }
+    tradeUI.open();
   }
 
   // 8. Frame loop.
@@ -408,13 +579,37 @@ export function bootGame(canvas, opts = {}) {
       }
     }
 
+    // 9i. v0.5.4: day/night + NPC + follower tick — only when no panel open.
+    if (!hud.inventoryPanel.visible && !hud.craftingPanel.visible
+        && !buildingMenu.isOpen && !tradeUI.isOpen()) {
+      dayCycle.update(dt);
+      const isDay = dayCycle.isDay();
+      npcMgr.update(dt, { isDay, player });
+      npcMgr.greetNearby(player, 4);
+      followerMgr.update(dt);
+    }
+    // 9j. v0.5.4: feed / recruit / trade key edges.
+    if (input.consumePressed('e') || input.consumePressed('E')) tryFeed();
+    if (input.consumePressed('f') || input.consumePressed('F')) tryRecruit();
+    if (input.consumePressed('t') || input.consumePressed('T')) {
+      // 注意:这里只处理 v0.5.4 的 T 键;v0.5.3 农耕 T 键由 cooking/processing 流程内部处理
+      if (!hud.craftingPanel.visible) tryToggleTrade();
+    }
+    // 9k. 刷新 scarcity 快照(轻量,每帧)
+    for (const id of traderStock()) {
+      tradeState.scarcity[id] = inventory.countOf(id);
+    }
+
     hud.update();
     input.endFrame();
 
     vitalsState.hunger.cur = Math.max(0, vitalsState.hunger.cur - dt * 0.4);
     vitalsState.sanity.cur = Math.max(0, vitalsState.sanity.cur - dt * 0.2);
 
-    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState, monsterMgr, bossBar, eventBanner);
+    render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState, monsterMgr, bossBar, eventBanner, {
+      // v0.5.4
+      npcMgr, followerMgr, dayCycle
+    });
     hud.draw(canvas.width, canvas.height, vitalsState, world, camera);
 
     // loot banner
@@ -456,14 +651,19 @@ export function bootGame(canvas, opts = {}) {
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { world, player, camera, hud, inventory, gather, resources, buildingMgr, mp, mode };
+  return {
+    world, player, camera, hud, inventory, gather, resources,
+    buildingMgr, mp, mode, monsterMgr,
+    // v0.5.4
+    npcMgr, followerMgr, tradeUI, tradeState, dayCycle
+  };
 }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
-function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState, monsterMgr, bossBar, eventBanner) {
+function render(ctx, canvas, world, decor, transitions, resources, player, camera, gather, buildingMgr, pendingBuilding, mp, vitalsState, monsterMgr, bossBar, eventBanner, extras) {
   ctx.fillStyle = '#1a1a2a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -531,8 +731,30 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
     for (const p of eventMgr.pois) {
       if (!p || p.x == null) continue;
       if (p.x < bounds.x0 - 1 || p.x > bounds.x1 + 1
-       || p.y < bounds.y0 - 1 || p.y > bounds.y1 + 1) continue;
+       || p.y < bounds.y0 - 1 || p.y > bounds.y1 + 2) continue;
       drawables.push({ kind: 'poi', ref: p, depth: depthKey(p.x, p.y) });
+    }
+  }
+  // v0.5.4: village buildings (houses + trading post) — depth-sorted
+  // so pigs can walk behind them.
+  for (const b of (extras?.npcMgr?.buildings || [])) {
+    if (b.x < bounds.x0 - 2 || b.x > bounds.x1 + 2
+     || b.y < bounds.y0 - 2 || b.y > bounds.y1 + 2) continue;
+    drawables.push({ kind: 'villageBuilding', ref: b, depth: depthKey(b.x, b.y) });
+  }
+  // v0.5.4: piglins (one per house).
+  for (const p of (extras?.npcMgr?.piglins || [])) {
+    if (p.state === PiglinState.DEAD) continue;
+    if (p.x < bounds.x0 - 1 || p.x > bounds.x1 + 1
+     || p.y < bounds.y0 - 1 || p.y > bounds.y1 + 1) continue;
+    drawables.push({ kind: 'piglin', ref: p, depth: depthKey(p.x, p.y) });
+  }
+  // v0.5.4: follower (if any).
+  const follower = extras?.followerMgr?.current();
+  if (follower && follower.alive) {
+    if (follower.x >= bounds.x0 - 1 && follower.x <= bounds.x1 + 1
+     && follower.y >= bounds.y0 - 1 && follower.y <= bounds.y1 + 1) {
+      drawables.push({ kind: 'follower', ref: follower, depth: depthKey(follower.x, follower.y) });
     }
   }
   drawables.push({ kind: 'player', depth: depthKey(player.x, player.y), ref: player });
@@ -568,6 +790,15 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
       const facing = it.ref.state.facing || 'down';
       drawPlayer(ctx, s.x + offsetX, s.y + offsetY, facing);
       drawNameHp(ctx, s.x + offsetX, s.y + offsetY, it.ref.name || '?', it.ref.state, /*self*/false);
+    } else if (it.kind === 'villageBuilding') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      drawVillageBuilding(ctx, s.x + offsetX, s.y + offsetY, it.ref);
+    } else if (it.kind === 'piglin') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      drawPiglin(ctx, s.x + offsetX, s.y + offsetY, it.ref);
+    } else if (it.kind === 'follower') {
+      const s = worldToScreen(it.ref.x, it.ref.y);
+      drawFollower(ctx, s.x + offsetX, s.y + offsetY, it.ref);
     } else if (it.kind === 'monster') {
       const m = it.ref;
       const s = worldToScreen(m.x, m.y);
@@ -633,6 +864,23 @@ function render(ctx, canvas, world, decor, transitions, resources, player, camer
   // 通过闭包访问(因为 render 是 module 内函数)
   if (typeof _bossBarDraw === 'function') _bossBarDraw(dt);
   if (typeof _eventBannerDraw === 'function') _eventBannerDraw(dt);
+
+  // v0.5.4: top-right day/night label
+  if (extras && extras.dayCycle) {
+    const dc = extras.dayCycle;
+    const w = 110, h = 20;
+    const x = canvas.width - w - 12;
+    const y = 12;
+    ctx.fillStyle = dc.isDay() ? 'rgba(212,166,74,0.85)' : 'rgba(60,40,80,0.85)';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = dc.isDay() ? '#1a1a2a' : '#f0f0f0';
+    ctx.font = 'bold 10px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dc.describe(), x + w / 2, y + h / 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
 }
 
 // 模块级桥:render 是 module 顶层函数,无法直接闭包到 bootGame 内的 bossMgr/eventMgr。
