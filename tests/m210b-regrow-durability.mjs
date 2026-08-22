@@ -235,14 +235,15 @@ ok('update with virtual clock (no Date.now) works', (() => {
 console.log('gather + tool integration');
 const gw = generateWorld({ width: 30, height: 30, seed: 99 });
 const gent = spawnResources(gw, { seed: 99 });
-// Find the closest tree to (0,0) — robust against RNG-sequence shifts
-// caused by catalog changes (e.g. adding new resource types shifts the
-// spawner rng sequence per tile, changing which tree is "first").
+// 找一个 tree 作为 gather 目标。原先用 (0,0) 作为玩家位置,但 30x30 地图
+// 在 seed 99 下 (0,0) 周围可能全是 marsh(没有 tree)。改为让玩家站在
+// tree 旁边(用 tree 位置作为 player 起点),这样 gather.range(5) 一定覆盖。
 const trees = gent.filter(e => e.id === 'tree');
-trees.sort((a, b) => a.distTo(0, 0) - b.distTo(0, 0));
-const tree = trees[0];
 ok('at least one tree spawned', trees.length > 0);
-ok('closest tree is within gather range (5)', tree && tree.distTo(0, 0) <= 5);
+const tree = trees[0];
+const playerStart = tree ? { x: tree.x, y: tree.y } : { x: 0, y: 0 };
+ok('closest tree is within gather range (5) when player starts at it',
+   tree && Math.hypot(tree.x - playerStart.x, tree.y - playerStart.y) <= 0.001);
 const invG = new Inventory();
 invG.add('axe', 1);
 invG.selectHotbar(0);
@@ -260,13 +261,13 @@ const gather = new Gather({
 });
 
 ok('gather click on tree starts gathering', (() => {
-  gather.click(0, 0);
+  gather.click(tree.x, tree.y);
   return gather.state === 'gathering' && gather.target === tree;
 })());
 
 ok('after enough time, completes with toolUsed=axe', (() => {
-  // harvestTime is 1.5s; run for 2s
-  gather.update({ x: 0, y: 0 }, 2.0, 1000);
+  // harvestTime is 1.5s; run for 2s; player stays at tree position
+  gather.update(playerStart, 2.0, 1000);
   return lastEvent != null && lastEvent.toolUsed === 'axe';
 })());
 
@@ -328,11 +329,11 @@ const gatherBr = new Gather({
   selectedItemProvider: () => 'axe',
   onEvent: (n, p) => { if (n === 'complete') brEvent = p; }
 });
-// tree is already depleted from earlier test; re-create
-const tree3 = new ResourceEntity({ id: 'tree', x: 0, y: 0, rngSeed: 99 });
+// tree is already depleted from earlier test; re-create a fresh one near player
+const tree3 = new ResourceEntity({ id: 'tree', x: playerStart.x, y: playerStart.y, rngSeed: 99 });
 gatherBr.entities = [tree3];
-gatherBr.click(0, 0);
-gatherBr.update({ x: 0, y: 0 }, 2.0, 4000);
+gatherBr.click(playerStart.x, playerStart.y);
+gatherBr.update(playerStart, 2.0, 4000);
 ok('tool with 1 durability breaks on use', invBr.slots[0] === null);
 
 // ---------- summary ----------

@@ -166,28 +166,35 @@ cInv.add('log', 4);
 cInv.add('twine', 4);
 cInv.add('stone', 2);
 
+// 5.3 农耕与烹饪 将 hand 配方改名 + pattern 微调:
+//   make_torch      pattern: [['twine', 'twine'], ['', '']]
+//   build_campfire  pattern: [['log', 'twine'], ['stone', '']]
 const grid1 = [
-  ['log', ''],
-  ['', 'twine']
+  ['twine', 'twine'],
+  ['', '']
 ];
-ok('match torch recipe', matchRecipe(grid1, 'hand')?.id === 'torch');
+ok('match torch recipe', matchRecipe(grid1, 'hand')?.id === 'make_torch');
 
 const beforeLog = cInv.countOf('log');
 const beforeTwine = cInv.countOf('twine');
+const beforeStone = cInv.countOf('stone');
 const r1c = craft(grid1, 'hand', cInv);
 ok('craft torch returns ok', r1c.ok === true);
-ok('craft torch consumed 1 log', cInv.countOf('log') === beforeLog - 1);
-ok('craft torch consumed 1 twine', cInv.countOf('twine') === beforeTwine - 1);
+ok('craft torch consumed 2 twine', cInv.countOf('twine') === beforeTwine - 2);
 ok('craft produced 1 torch', cInv.countOf('torch') === 1);
 
 const grid2 = [
-  ['log', 'log'],
-  ['twine', 'stone']
+  ['log', 'twine'],
+  ['stone', '']
 ];
-ok('match campfire recipe', matchRecipe(grid2, 'hand')?.id === 'campfire');
+ok('match campfire recipe', matchRecipe(grid2, 'hand')?.id === 'build_campfire');
 const r2c = craft(grid2, 'hand', cInv);
 ok('craft campfire ok', r2c.ok === true);
 ok('craft produced 1 campfire', cInv.countOf('campfire') === 1);
+ok('craft campfire consumed 1 log + 1 twine + 1 stone',
+   cInv.countOf('log') === beforeLog - 1
+   && cInv.countOf('twine') === beforeTwine - 3   // 2 for torch + 1 for campfire
+   && cInv.countOf('stone') === beforeStone - 1);
 
 const gridBad = [
   ['log', 'log'],
@@ -209,8 +216,12 @@ ok('emptyGrid is 2x2 of ""', g3.length === 2 && g3[0][0] === '' && g3[1][1] === 
 ok('all recipe patterns reference real items', (() => {
   const itemIds = new Set(allItems().map(i => i.id));
   for (const r of allRecipes()) {
-    for (const row of r.pattern) for (const c of row) {
-      if (c !== '' && !itemIds.has(c)) return false;
+    // pattern 可以是 1D(line grid, 5.3 cooking)或 2D(matrix, hand/science)
+    const cells = (!Array.isArray(r.pattern[0]))
+      ? r.pattern                                  // 1D
+      : r.pattern.flat();                          // 2D
+    for (const c of cells) {
+      if (c !== '' && c != null && !itemIds.has(c)) return false;
     }
   }
   return true;

@@ -27,6 +27,11 @@ import {
 import {
   BuildingManager, chebyshev, _resetEntityIds
 } from '../src/buildings/placer.js';
+import {
+  ProcessingManager, ProcessingStation
+} from '../src/processing/processing.js';
+import { CookingPot } from '../src/cooking/cooking.js';
+import { Inventory } from '../src/resources/inventory.js';
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -37,15 +42,15 @@ function ok(name, cond, detail) {
 // 1. building-config — catalog shape
 console.log('building-config');
 const cat = getBuildings();
-ok('catalog version=1', cat.version === 1);
-ok('buildOrder has 5 entries', cat.buildOrder.length === 5,
+ok('catalog version=2', cat.version === 2, `version=${cat.version}`);
+ok('buildOrder has 8 entries', cat.buildOrder.length === 8,
    `got ${cat.buildOrder.length}`);
-ok('buildOrder = [campfire, science_machine, chest, wall, floor]',
+ok('buildOrder = [campfire, science_machine, chest, wall, floor, drying_rack, fermenting_barrel, cooking_pot]',
    JSON.stringify(cat.buildOrder) === JSON.stringify(
-     ['campfire', 'science_machine', 'chest', 'wall', 'floor']
+     ['campfire', 'science_machine', 'chest', 'wall', 'floor', 'drying_rack', 'fermenting_barrel', 'cooking_pot']
    ));
-ok('building count == 5', getBuildingCount() === 5);
-const expectedIds = ['campfire', 'science_machine', 'chest', 'wall', 'floor'];
+ok('building count == 8', getBuildingCount() === 8);
+const expectedIds = ['campfire', 'science_machine', 'chest', 'wall', 'floor', 'drying_rack', 'fermenting_barrel', 'cooking_pot'];
 for (const id of expectedIds) {
   const def = getBuilding(id);
   ok(`getBuilding(${id}) exists`, !!def);
@@ -65,7 +70,7 @@ for (const id of expectedIds) {
   ok(`${id}.description non-empty`, typeof def.description === 'string' && def.description.length > 0);
   ok(`${id}.tags is array`, Array.isArray(def.tags) && def.tags.length > 0);
 }
-ok('menu order returns 5 defs', getBuildingMenuOrder().length === 5);
+ok('menu order returns 8 defs', getBuildingMenuOrder().length === 8);
 ok('getBuilding(unknown) === null', getBuilding('not_a_building') === null);
 
 // 2. chebyshev
@@ -188,6 +193,54 @@ ok('2x1 NOT contains (11,12)', !b4.contains(11, 12));
 const c = b4.center();
 ok('center is (12, 11.5)', c.x === 12 && c.y === 11.5,
    `(${c.x},${c.y})`);
+
+// 12. v0.5.3 加工站注册钩子 — 模拟 main.js tryPlaceBuilding 流程
+//   drying_rack / fermenting_barrel → processingMgr.register()
+//   cooking_pot                     → cookingPots.set()
+//   拆除 → unregister / delete
+console.log('processor registration hook');
+_resetEntityIds();
+const mgr6 = new BuildingManager(world);
+const processingMgr = new ProcessingManager();
+const cookingPots = new Map();
+const inv = new Inventory();
+
+const dr = mgr6.place('drying_rack', 5, 5, { x: 5, y: 5 });
+processingMgr.register(dr.entityId, new ProcessingStation({
+  station: 'drying_rack', entityId: dr.entityId
+}));
+ok('drying_rack registered', processingMgr.get(dr.entityId) != null);
+ok('drying_rack station = drying_rack',
+   processingMgr.get(dr.entityId).station === 'drying_rack');
+ok('drying_rack initial state = empty',
+   processingMgr.get(dr.entityId).state === 'empty');
+
+const fb = mgr6.place('fermenting_barrel', 7, 5, { x: 7, y: 5 });
+processingMgr.register(fb.entityId, new ProcessingStation({
+  station: 'fermenting_barrel', entityId: fb.entityId
+}));
+ok('fermenting_barrel registered', processingMgr.get(fb.entityId) != null);
+ok('fermenting_barrel station = fermenting_barrel',
+   processingMgr.get(fb.entityId).station === 'fermenting_barrel');
+
+const cp = mgr6.place('cooking_pot', 9, 5, { x: 9, y: 5 });
+cookingPots.set(cp.entityId, new CookingPot({ inventory: inv }));
+ok('cooking_pot registered', cookingPots.get(cp.entityId) instanceof CookingPot);
+ok('cooking_pot initial slots empty',
+   cookingPots.get(cp.entityId).slots.every(s => s === ''));
+
+// 拆除 — 反注册
+processingMgr.unregister(dr.entityId);
+ok('drying_rack unregistered', processingMgr.get(dr.entityId) === null);
+cookingPots.delete(cp.entityId);
+ok('cooking_pot deleted', !cookingPots.has(cp.entityId));
+
+// 拆除不存在的 entityId 不报错
+const unreg2 = processingMgr.unregister('does-not-exist');
+ok('unregister unknown id is noop', unreg2 === undefined,
+   `got ${unreg2}`);
+ok('cookingPots.delete unknown id is noop',
+   cookingPots.delete('does-not-exist') === false);
 
 // Summary
 console.log(`\n${pass} passed, ${fail} failed`);
