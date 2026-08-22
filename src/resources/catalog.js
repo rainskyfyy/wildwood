@@ -16,6 +16,17 @@
  *   getMaxHarvests(id)         the max harvest count, or Infinity
  *   getDepletedTransformsTo(id)  resource id the entity becomes when depleted
  *                              (null = no transform, stays depleted forever)
+ *
+ * v1.0.4 — three-stage growth system:
+ *   getGrowthStages(id)       array of {def, duration} for growth-capable
+ *                             resources; null for single-stage resources
+ *   getStageCount(id)         3 for growth-capable, 1 otherwise
+ *   getStageDef(id, idx)      the resource def for stage idx (0-based)
+ *   isGrowthCapable(id)       convenience: has growthStages array
+ *
+ *   Stage durations:
+ *     duration > 0   — auto-advance to next stage after N seconds
+ *     duration = -1  — terminal stage; entity stays here until harvested
  */
 'use strict';
 
@@ -86,9 +97,13 @@ export function getMaxDurability(itemId) {
  * gem_vein / tin_ore) all require pickaxe.
  */
 const _TOOL_COMPAT = {
-  // axe
+  // axe — trees (incl. v1.0.4 growth stages)
   tree:                ['axe'],
   dead_tree:           ['axe'],
+  tree_sprout:         ['axe'],
+  tree_old:            ['axe'],
+  dead_tree_sprout:    ['axe'],
+  dead_tree_old:       ['axe'],
   // pickaxe
   rock:                ['pickaxe'],
   boulder:             ['pickaxe'],
@@ -107,7 +122,10 @@ const _TOOL_COMPAT = {
   berry_bush:          [null],
   grass_tuft_harvest:  [null],
   ice_shard:           [null],             // bare hands (or pickaxe, but bare works)
-  flower_patch:        [null]
+  flower_patch:        [null],
+  // v1.0.4 — bush growth stages (bare hands)
+  berry_sprout:        [null],
+  berry_bush_old:      [null]
 };
 
 /**
@@ -176,6 +194,51 @@ export function getDepletedTransformsTo(resourceId) {
   return r.depletedTransformsTo || null;
 }
 
+/**
+ * v1.0.4 — three-stage growth.
+ *
+ * A resource is "growth-capable" if it has a `growthStages` array. Each
+ * stage is a {def, duration} entry: duration > 0 means the entity
+ * auto-advances to the next stage after N seconds; duration = -1 marks
+ * a terminal stage (entity stays until harvested).
+ *
+ * Single-stage resources (no growthStages) return null / 1 / null respectively.
+ */
+export function isGrowthCapable(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return false;
+  return Array.isArray(r.growthStages) && r.growthStages.length > 0;
+}
+
+export function getGrowthStages(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r || !Array.isArray(r.growthStages)) return null;
+  return r.growthStages;
+}
+
+export function getStageCount(resourceId) {
+  const stages = getGrowthStages(resourceId);
+  return stages ? stages.length : 1;
+}
+
+/**
+ * Return the def for a given stage index of a resource. For single-stage
+ * resources (no growthStages), only idx=0 is valid and it returns the
+ * resource's own def.
+ */
+export function getStageDef(resourceId, stageIndex) {
+  const stages = getGrowthStages(resourceId);
+  if (stages) {
+    const s = stages[stageIndex];
+    if (!s) throw new Error(`Resource "${resourceId}" has no stage ${stageIndex}`);
+    return getResource(s.def);
+  }
+  if (stageIndex !== 0) {
+    throw new Error(`Single-stage resource "${resourceId}" has no stage ${stageIndex}`);
+  }
+  return getResource(resourceId);
+}
+
 export function validateCatalog() {
   const itemIds = new Set(Object.keys(_ITEMS));
   const resourceIds = new Set(Object.keys(_RESOURCES));
@@ -199,6 +262,31 @@ export function validateCatalog() {
     if (r.depletedTransformsTo != null) {
       if (!resourceIds.has(r.depletedTransformsTo)) {
         throw new Error(`Resource "${r.id}" depletedTransformsTo references unknown resource "${r.depletedTransformsTo}"`);
+      }
+    }
+    // v1.0.4 — growthStages validation
+    if (r.growthStages != null) {
+      if (!Array.isArray(r.growthStages)) {
+        throw new Error(`Resource "${r.id}" growthStages must be an array`);
+      }
+      if (r.growthStages.length !== 3) {
+        throw new Error(`Resource "${r.id}" growthStages must have exactly 3 entries (got ${r.growthStages.length})`);
+      }
+      for (let i = 0; i < r.growthStages.length; i++) {
+        const s = r.growthStages[i];
+        if (!s || typeof s !== 'object') {
+          throw new Error(`Resource "${r.id}" growthStages[${i}] must be an object`);
+        }
+        if (typeof s.def !== 'string' || !resourceIds.has(s.def)) {
+          throw new Error(`Resource "${r.id}" growthStages[${i}].def must reference an existing resource (got "${s.def}")`);
+        }
+        if (typeof s.duration !== 'number' || (s.duration < 0 && s.duration !== -1)) {
+          throw new Error(`Resource "${r.id}" growthStages[${i}].duration must be a non-negative number or -1 for terminal (got ${s.duration})`);
+        }
+      }
+      // Last stage must be terminal (duration = -1)
+      if (r.growthStages[2].duration !== -1) {
+        throw new Error(`Resource "${r.id}" growthStages[2] (terminal stage) must have duration = -1`);
       }
     }
   }

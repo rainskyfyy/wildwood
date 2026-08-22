@@ -1,24 +1,207 @@
 {
-  "_meta": { "version": "1.0.2", "schema": "wildwood-items-v1",
-             "note": "v1.0.1 新增 maxDurability 工具耐久度字段;工具类物品 category=tool 携带耐久度。v1.0.2 新增 4 个高级矿物物品(coal/gold_nugget/gem/tin),作为枯竭型资源 coal/gold_ore/gem_vein/tin_ore 的掉落物。" },
-  "log":         { "id": "log",         "name": "木头",   "icon": "log",         "color": "#8a5a2a", "category": "material", "stackMax": 20 },
-  "twine":       { "id": "twine",       "name": "草绳",   "icon": "twine",       "color": "#5a8a3a", "category": "material", "stackMax": 20 },
-  "stone":       { "id": "stone",       "name": "石头",   "icon": "stone",       "color": "#7a7070", "category": "material", "stackMax": 20 },
-  "flint":       { "id": "flint",       "name": "燧石",   "icon": "flint",       "color": "#3a3a3a", "category": "material", "stackMax": 20 },
-  "iron_ore":    { "id": "iron_ore",    "name": "铁矿",   "icon": "iron_ore",    "color": "#a85a3a", "category": "material", "stackMax": 20 },
-  "dirt":        { "id": "dirt",        "name": "泥土",   "icon": "dirt",        "color": "#7a5a3a", "category": "material", "stackMax": 20 },
-  "petals":      { "id": "petals",      "name": "花瓣",   "icon": "petals",      "color": "#d4628a", "category": "material", "stackMax": 20 },
-  "ice":         { "id": "ice",         "name": "冰",     "icon": "ice",         "color": "#a8d4e8", "category": "material", "stackMax": 20 },
-  "coal":        { "id": "coal",        "name": "煤",     "icon": "coal",        "color": "#1a1a1a", "category": "material", "stackMax": 20, "fuelValue": 2 },
-  "gold_nugget": { "id": "gold_nugget", "name": "金块",   "icon": "gold_nugget", "color": "#d4a02a", "category": "material", "stackMax": 20, "value": 10 },
-  "gem":         { "id": "gem",         "name": "宝石",   "icon": "gem",         "color": "#5abcd4", "category": "material", "stackMax": 20, "value": 25 },
-  "tin":         { "id": "tin",         "name": "锡",     "icon": "tin",         "color": "#b8b8c8", "category": "material", "stackMax": 20 },
-  "berries":     { "id": "berries",     "name": "浆果",   "icon": "berries",     "color": "#8a2a4a", "category": "food",     "stackMax": 20, "foodValue": 1 },
-  "carrot":      { "id": "carrot",      "name": "胡萝卜", "icon": "carrot",      "color": "#d4802a", "category": "food",     "stackMax": 20, "foodValue": 1 },
-  "mushroom":    { "id": "mushroom",    "name": "蘑菇",   "icon": "mushroom",    "color": "#b8704a", "category": "food",     "stackMax": 20, "foodValue": 1 },
-  "torch":       { "id": "torch",       "name": "火把",   "icon": "torch",       "color": "#ffb84a", "category": "tool",     "stackMax": 20, "maxDurability": 30, "toolType": "light" },
-  "axe":         { "id": "axe",         "name": "斧头",   "icon": "axe",         "color": "#8a5a2a", "category": "tool",     "stackMax": 1,  "maxDurability": 50, "toolType": "axe" },
-  "pickaxe":     { "id": "pickaxe",     "name": "镐",     "icon": "pickaxe",     "color": "#8a5a2a", "category": "tool",     "stackMax": 1,  "maxDurability": 50, "toolType": "pickaxe" },
-  "shovel":      { "id": "shovel",      "name": "铲",     "icon": "shovel",      "color": "#8a5a2a", "category": "tool",     "stackMax": 1,  "maxDurability": 40, "toolType": "shovel" },
-  "campfire":    { "id": "campfire",    "name": "篝火",   "icon": "campfire",    "color": "#d4622a", "category": "placeable","stackMax": 1 }
+  "_meta": {
+    "version": "1.0.3",
+    "schema": "wildwood-items-v1",
+    "note": "v1.0.1 新增 maxDurability 工具耐久度字段;工具类物品 category=tool 携带耐久度。v1.0.2 新增 4 个高级矿物物品(coal/gold_nugget/gem/tin),作为枯竭型资源 coal/gold_ore/gem_vein/tin_ore 的掉落物。v1.0.3 新增 3 个三阶段成长稀有掉落物(acorn/dead_wood_chunk/berry_seed),作为 tree_old/dead_tree_old/berry_bush_old 阶段 3 的奖励。"
+  },
+  "log": {
+    "id": "log",
+    "name": "木头",
+    "icon": "log",
+    "color": "#8a5a2a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "twine": {
+    "id": "twine",
+    "name": "草绳",
+    "icon": "twine",
+    "color": "#5a8a3a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "stone": {
+    "id": "stone",
+    "name": "石头",
+    "icon": "stone",
+    "color": "#7a7070",
+    "category": "material",
+    "stackMax": 20
+  },
+  "flint": {
+    "id": "flint",
+    "name": "燧石",
+    "icon": "flint",
+    "color": "#3a3a3a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "iron_ore": {
+    "id": "iron_ore",
+    "name": "铁矿",
+    "icon": "iron_ore",
+    "color": "#a85a3a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "dirt": {
+    "id": "dirt",
+    "name": "泥土",
+    "icon": "dirt",
+    "color": "#7a5a3a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "petals": {
+    "id": "petals",
+    "name": "花瓣",
+    "icon": "petals",
+    "color": "#d4628a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "ice": {
+    "id": "ice",
+    "name": "冰",
+    "icon": "ice",
+    "color": "#a8d4e8",
+    "category": "material",
+    "stackMax": 20
+  },
+  "coal": {
+    "id": "coal",
+    "name": "煤",
+    "icon": "coal",
+    "color": "#1a1a1a",
+    "category": "material",
+    "stackMax": 20,
+    "fuelValue": 2
+  },
+  "gold_nugget": {
+    "id": "gold_nugget",
+    "name": "金块",
+    "icon": "gold_nugget",
+    "color": "#d4a02a",
+    "category": "material",
+    "stackMax": 20,
+    "value": 10
+  },
+  "gem": {
+    "id": "gem",
+    "name": "宝石",
+    "icon": "gem",
+    "color": "#5abcd4",
+    "category": "material",
+    "stackMax": 20,
+    "value": 25
+  },
+  "tin": {
+    "id": "tin",
+    "name": "锡",
+    "icon": "tin",
+    "color": "#b8b8c8",
+    "category": "material",
+    "stackMax": 20
+  },
+  "berries": {
+    "id": "berries",
+    "name": "浆果",
+    "icon": "berries",
+    "color": "#8a2a4a",
+    "category": "food",
+    "stackMax": 20,
+    "foodValue": 1
+  },
+  "carrot": {
+    "id": "carrot",
+    "name": "胡萝卜",
+    "icon": "carrot",
+    "color": "#d4802a",
+    "category": "food",
+    "stackMax": 20,
+    "foodValue": 1
+  },
+  "mushroom": {
+    "id": "mushroom",
+    "name": "蘑菇",
+    "icon": "mushroom",
+    "color": "#b8704a",
+    "category": "food",
+    "stackMax": 20,
+    "foodValue": 1
+  },
+  "torch": {
+    "id": "torch",
+    "name": "火把",
+    "icon": "torch",
+    "color": "#ffb84a",
+    "category": "tool",
+    "stackMax": 20,
+    "maxDurability": 30,
+    "toolType": "light"
+  },
+  "axe": {
+    "id": "axe",
+    "name": "斧头",
+    "icon": "axe",
+    "color": "#8a5a2a",
+    "category": "tool",
+    "stackMax": 1,
+    "maxDurability": 50,
+    "toolType": "axe"
+  },
+  "pickaxe": {
+    "id": "pickaxe",
+    "name": "镐",
+    "icon": "pickaxe",
+    "color": "#8a5a2a",
+    "category": "tool",
+    "stackMax": 1,
+    "maxDurability": 50,
+    "toolType": "pickaxe"
+  },
+  "shovel": {
+    "id": "shovel",
+    "name": "铲",
+    "icon": "shovel",
+    "color": "#8a5a2a",
+    "category": "tool",
+    "stackMax": 1,
+    "maxDurability": 40,
+    "toolType": "shovel"
+  },
+  "campfire": {
+    "id": "campfire",
+    "name": "篝火",
+    "icon": "campfire",
+    "color": "#d4622a",
+    "category": "placeable",
+    "stackMax": 1
+  },
+  "acorn": {
+    "id": "acorn",
+    "name": "橡子",
+    "icon": "acorn",
+    "color": "#7a5a2a",
+    "category": "material",
+    "stackMax": 20,
+    "seedable": true
+  },
+  "dead_wood_chunk": {
+    "id": "dead_wood_chunk",
+    "name": "枯木块",
+    "icon": "dead_wood_chunk",
+    "color": "#3a2a1a",
+    "category": "material",
+    "stackMax": 20
+  },
+  "berry_seed": {
+    "id": "berry_seed",
+    "name": "浆果种子",
+    "icon": "berry_seed",
+    "color": "#5a8a3a",
+    "category": "material",
+    "stackMax": 20,
+    "seedable": true
+  }
 }

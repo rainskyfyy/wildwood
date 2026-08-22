@@ -1,14 +1,18 @@
 {
   "_meta": {
-    "version": "1.0.2",
+    "version": "1.0.4",
     "schema": "wildwood-resources-v1",
-    "note": "v1.0.1 新增 regrowTime 资源重生机制。v1.0.2 加 5 个新资源(dirt_mound/sapling/carrot/mushroom/flower_patch)。v1.0.3 加 4 个枯竭型资源(coal/gold_ore/gem_vein/tin_ore),新增 maxHarvests + depletedTransformsTo 字段。"
+    "note": "v1.0.1 新增 regrowTime 资源重生机制。v1.0.2 加 5 个新资源(dirt_mound/sapling/carrot/mushroom/flower_patch)。v1.0.3 加 4 个枯竭型资源(coal/gold_ore/gem_vein/tin_ore),新增 maxHarvests + depletedTransformsTo 字段。v1.0.4 加 6 个三阶段成长资源(tree_sprout/tree_old/dead_tree_sprout/dead_tree_old/berry_sprout/berry_bush_old),并给 tree/dead_tree/berry_bush 三个资源新增 growthStages 三阶段字段。"
   },
   "tree": {
     "id": "tree",
     "name": "树",
     "category": "harvest",
-    "biomes": ["plains", "forest", "snow"],
+    "biomes": [
+      "plains",
+      "forest",
+      "snow"
+    ],
     "density": 0.05,
     "harvestTime": 1.5,
     "hp": 1,
@@ -21,15 +25,40 @@
     "regrowTime": 60,
     "regrowDrops": null,
     "drops": [
-      { "itemId": "log",   "count": 3, "chance": 1.0 },
-      { "itemId": "twine", "count": 1, "chance": 0.25 }
+      {
+        "itemId": "log",
+        "count": 3,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 0.25
+      }
+    ],
+    "growthStages": [
+      {
+        "def": "tree_sprout",
+        "duration": 30
+      },
+      {
+        "def": "tree",
+        "duration": 180
+      },
+      {
+        "def": "tree_old",
+        "duration": -1
+      }
     ]
   },
   "dead_tree": {
     "id": "dead_tree",
     "name": "枯树",
     "category": "harvest",
-    "biomes": ["plains", "mines"],
+    "biomes": [
+      "plains",
+      "mines"
+    ],
     "density": 0.015,
     "harvestTime": 1.0,
     "hp": 1,
@@ -41,15 +70,42 @@
     "size": 0.7,
     "regrowTime": 90,
     "drops": [
-      { "itemId": "log",   "count": 2, "chance": 1.0 },
-      { "itemId": "twine", "count": 1, "chance": 0.5 }
+      {
+        "itemId": "log",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 0.5
+      }
+    ],
+    "growthStages": [
+      {
+        "def": "dead_tree_sprout",
+        "duration": 45
+      },
+      {
+        "def": "dead_tree",
+        "duration": 180
+      },
+      {
+        "def": "dead_tree_old",
+        "duration": -1
+      }
     ]
   },
   "rock": {
     "id": "rock",
     "name": "石头",
     "category": "harvest",
-    "biomes": ["plains", "forest", "snow", "mines"],
+    "biomes": [
+      "plains",
+      "forest",
+      "snow",
+      "mines"
+    ],
     "density": 0.04,
     "harvestTime": 2.0,
     "hp": 1,
@@ -60,15 +116,25 @@
     "size": 0.75,
     "regrowTime": 120,
     "drops": [
-      { "itemId": "stone", "count": 3, "chance": 1.0 },
-      { "itemId": "flint", "count": 1, "chance": 0.2 }
+      {
+        "itemId": "stone",
+        "count": 3,
+        "chance": 1.0
+      },
+      {
+        "itemId": "flint",
+        "count": 1,
+        "chance": 0.2
+      }
     ]
   },
   "boulder": {
     "id": "boulder",
     "name": "大石头",
     "category": "harvest",
-    "biomes": ["mines"],
+    "biomes": [
+      "mines"
+    ],
     "density": 0.012,
     "harvestTime": 3.5,
     "hp": 3,
@@ -79,16 +145,31 @@
     "size": 1.05,
     "regrowTime": 240,
     "drops": [
-      { "itemId": "stone",    "count": 6, "chance": 1.0 },
-      { "itemId": "flint",    "count": 2, "chance": 0.4 },
-      { "itemId": "iron_ore", "count": 1, "chance": 0.15 }
+      {
+        "itemId": "stone",
+        "count": 6,
+        "chance": 1.0
+      },
+      {
+        "itemId": "flint",
+        "count": 2,
+        "chance": 0.4
+      },
+      {
+        "itemId": "iron_ore",
+        "count": 1,
+        "chance": 0.15
+      }
     ]
   },
   "grass_tuft_harvest": {
     "id": "grass_tuft_harvest",
     "name": "草丛",
     "category": "harvest",
-    "biomes": ["plains", "forest"],
+    "biomes": [
+      "plains",
+      "forest"
+    ],
     "density": 0.06,
     "harvestTime": 0.5,
     "hp": 1,
@@ -99,14 +180,21 @@
     "size": 0.5,
     "regrowTime": 30,
     "drops": [
-      { "itemId": "twine", "count": 2, "chance": 1.0 }
+      {
+        "itemId": "twine",
+        "count": 2,
+        "chance": 1.0
+      }
     ]
   },
   "berry_bush": {
     "id": "berry_bush",
     "name": "浆果丛",
     "category": "harvest",
-    "biomes": ["forest", "snow"],
+    "biomes": [
+      "forest",
+      "snow"
+    ],
     "density": 0.022,
     "harvestTime": 0.8,
     "hp": 1,
@@ -117,15 +205,39 @@
     "size": 0.65,
     "regrowTime": 45,
     "drops": [
-      { "itemId": "berries", "count": 2, "chance": 1.0 },
-      { "itemId": "twine",   "count": 1, "chance": 0.5 }
+      {
+        "itemId": "berries",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 0.5
+      }
+    ],
+    "growthStages": [
+      {
+        "def": "berry_sprout",
+        "duration": 30
+      },
+      {
+        "def": "berry_bush",
+        "duration": 120
+      },
+      {
+        "def": "berry_bush_old",
+        "duration": -1
+      }
     ]
   },
   "iron_ore": {
     "id": "iron_ore",
     "name": "铁矿",
     "category": "harvest",
-    "biomes": ["mines"],
+    "biomes": [
+      "mines"
+    ],
     "density": 0.018,
     "harvestTime": 2.5,
     "hp": 1,
@@ -136,14 +248,20 @@
     "size": 0.7,
     "regrowTime": 180,
     "drops": [
-      { "itemId": "iron_ore", "count": 2, "chance": 1.0 }
+      {
+        "itemId": "iron_ore",
+        "count": 2,
+        "chance": 1.0
+      }
     ]
   },
   "ice_shard": {
     "id": "ice_shard",
     "name": "冰锥",
     "category": "harvest",
-    "biomes": ["snow"],
+    "biomes": [
+      "snow"
+    ],
     "density": 0.02,
     "harvestTime": 1.0,
     "hp": 1,
@@ -154,14 +272,21 @@
     "size": 0.6,
     "regrowTime": 75,
     "drops": [
-      { "itemId": "ice", "count": 2, "chance": 1.0 }
+      {
+        "itemId": "ice",
+        "count": 2,
+        "chance": 1.0
+      }
     ]
   },
   "dirt_mound": {
     "id": "dirt_mound",
     "name": "土堆",
     "category": "dig",
-    "biomes": ["plains", "forest"],
+    "biomes": [
+      "plains",
+      "forest"
+    ],
     "density": 0.045,
     "harvestTime": 0.8,
     "hp": 1,
@@ -172,15 +297,25 @@
     "size": 0.55,
     "regrowTime": 60,
     "drops": [
-      { "itemId": "dirt",   "count": 2, "chance": 1.0 },
-      { "itemId": "flint",  "count": 1, "chance": 0.15 }
+      {
+        "itemId": "dirt",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "flint",
+        "count": 1,
+        "chance": 0.15
+      }
     ]
   },
   "sapling": {
     "id": "sapling",
     "name": "树苗",
     "category": "dig",
-    "biomes": ["forest"],
+    "biomes": [
+      "forest"
+    ],
     "density": 0.03,
     "harvestTime": 0.6,
     "hp": 1,
@@ -191,15 +326,26 @@
     "size": 0.45,
     "regrowTime": 35,
     "drops": [
-      { "itemId": "twine", "count": 1, "chance": 1.0 },
-      { "itemId": "log",   "count": 1, "chance": 0.3 }
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 1.0
+      },
+      {
+        "itemId": "log",
+        "count": 1,
+        "chance": 0.3
+      }
     ]
   },
   "carrot": {
     "id": "carrot",
     "name": "胡萝卜",
     "category": "dig",
-    "biomes": ["plains", "forest"],
+    "biomes": [
+      "plains",
+      "forest"
+    ],
     "density": 0.022,
     "harvestTime": 1.0,
     "hp": 1,
@@ -210,14 +356,21 @@
     "size": 0.4,
     "regrowTime": 90,
     "drops": [
-      { "itemId": "carrot", "count": 1, "chance": 1.0 }
+      {
+        "itemId": "carrot",
+        "count": 1,
+        "chance": 1.0
+      }
     ]
   },
   "mushroom": {
     "id": "mushroom",
     "name": "蘑菇",
     "category": "dig",
-    "biomes": ["forest", "mines"],
+    "biomes": [
+      "forest",
+      "mines"
+    ],
     "density": 0.018,
     "harvestTime": 0.7,
     "hp": 1,
@@ -228,14 +381,21 @@
     "size": 0.4,
     "regrowTime": 110,
     "drops": [
-      { "itemId": "mushroom", "count": 1, "chance": 1.0 }
+      {
+        "itemId": "mushroom",
+        "count": 1,
+        "chance": 1.0
+      }
     ]
   },
   "flower_patch": {
     "id": "flower_patch",
     "name": "花丛",
     "category": "harvest",
-    "biomes": ["plains", "forest"],
+    "biomes": [
+      "plains",
+      "forest"
+    ],
     "density": 0.025,
     "harvestTime": 0.4,
     "hp": 1,
@@ -246,14 +406,20 @@
     "size": 0.5,
     "regrowTime": 40,
     "drops": [
-      { "itemId": "petals", "count": 2, "chance": 1.0 }
+      {
+        "itemId": "petals",
+        "count": 2,
+        "chance": 1.0
+      }
     ]
   },
   "coal": {
     "id": "coal",
     "name": "煤矿",
     "category": "harvest",
-    "biomes": ["mines"],
+    "biomes": [
+      "mines"
+    ],
     "density": 0.015,
     "harvestTime": 2.5,
     "hp": 1,
@@ -266,15 +432,25 @@
     "maxHarvests": 4,
     "depletedTransformsTo": null,
     "drops": [
-      { "itemId": "coal", "count": 2, "chance": 1.0 },
-      { "itemId": "stone", "count": 1, "chance": 0.3 }
+      {
+        "itemId": "coal",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "stone",
+        "count": 1,
+        "chance": 0.3
+      }
     ]
   },
   "gold_ore": {
     "id": "gold_ore",
     "name": "金矿",
     "category": "harvest",
-    "biomes": ["mines"],
+    "biomes": [
+      "mines"
+    ],
     "density": 0.008,
     "harvestTime": 3.0,
     "hp": 1,
@@ -287,15 +463,25 @@
     "maxHarvests": 2,
     "depletedTransformsTo": "rock",
     "drops": [
-      { "itemId": "gold_nugget", "count": 1, "chance": 1.0 },
-      { "itemId": "stone", "count": 1, "chance": 0.5 }
+      {
+        "itemId": "gold_nugget",
+        "count": 1,
+        "chance": 1.0
+      },
+      {
+        "itemId": "stone",
+        "count": 1,
+        "chance": 0.5
+      }
     ]
   },
   "gem_vein": {
     "id": "gem_vein",
     "name": "宝石矿脉",
     "category": "harvest",
-    "biomes": ["mines"],
+    "biomes": [
+      "mines"
+    ],
     "density": 0.004,
     "harvestTime": 4.0,
     "hp": 1,
@@ -308,14 +494,20 @@
     "maxHarvests": 1,
     "depletedTransformsTo": "rock",
     "drops": [
-      { "itemId": "gem", "count": 1, "chance": 1.0 }
+      {
+        "itemId": "gem",
+        "count": 1,
+        "chance": 1.0
+      }
     ]
   },
   "tin_ore": {
     "id": "tin_ore",
     "name": "锡矿",
     "category": "harvest",
-    "biomes": ["mines"],
+    "biomes": [
+      "mines"
+    ],
     "density": 0.012,
     "harvestTime": 2.0,
     "hp": 1,
@@ -328,8 +520,192 @@
     "maxHarvests": 3,
     "depletedTransformsTo": null,
     "drops": [
-      { "itemId": "tin", "count": 2, "chance": 1.0 },
-      { "itemId": "stone", "count": 1, "chance": 0.2 }
+      {
+        "itemId": "tin",
+        "count": 2,
+        "chance": 1.0
+      },
+      {
+        "itemId": "stone",
+        "count": 1,
+        "chance": 0.2
+      }
+    ]
+  },
+  "tree_sprout": {
+    "id": "tree_sprout",
+    "name": "小树苗",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "forest",
+      "snow"
+    ],
+    "density": 0.0,
+    "harvestTime": 0.6,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": false,
+    "icon": "tree_sprout",
+    "color": "#6a8a3a",
+    "trunkColor": "#5a3a1a",
+    "size": 0.4,
+    "regrowTime": 0,
+    "drops": [
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 1.0
+      }
+    ]
+  },
+  "tree_old": {
+    "id": "tree_old",
+    "name": "老树",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "forest",
+      "snow"
+    ],
+    "density": 0.0,
+    "harvestTime": 2.5,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "tree_old",
+    "color": "#2a4a1a",
+    "trunkColor": "#2a1a0a",
+    "size": 1.1,
+    "regrowTime": 0,
+    "drops": [
+      {
+        "itemId": "log",
+        "count": 4,
+        "chance": 1.0
+      },
+      {
+        "itemId": "twine",
+        "count": 1,
+        "chance": 1.0
+      },
+      {
+        "itemId": "acorn",
+        "count": 1,
+        "chance": 1.0
+      }
+    ]
+  },
+  "dead_tree_sprout": {
+    "id": "dead_tree_sprout",
+    "name": "枯苗",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "mines"
+    ],
+    "density": 0.0,
+    "harvestTime": 0.5,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": false,
+    "icon": "dead_tree_sprout",
+    "color": "#7a5a3a",
+    "trunkColor": "#3a2a1a",
+    "size": 0.35,
+    "regrowTime": 0,
+    "drops": [
+      {
+        "itemId": "log",
+        "count": 1,
+        "chance": 1.0
+      }
+    ]
+  },
+  "dead_tree_old": {
+    "id": "dead_tree_old",
+    "name": "老枯树",
+    "category": "harvest",
+    "biomes": [
+      "plains",
+      "mines"
+    ],
+    "density": 0.0,
+    "harvestTime": 1.8,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": true,
+    "icon": "dead_tree_old",
+    "color": "#4a2a1a",
+    "trunkColor": "#2a1a0a",
+    "size": 0.9,
+    "regrowTime": 0,
+    "drops": [
+      {
+        "itemId": "log",
+        "count": 3,
+        "chance": 1.0
+      },
+      {
+        "itemId": "dead_wood_chunk",
+        "count": 1,
+        "chance": 1.0
+      }
+    ]
+  },
+  "berry_sprout": {
+    "id": "berry_sprout",
+    "name": "浆果苗",
+    "category": "harvest",
+    "biomes": [
+      "forest",
+      "snow"
+    ],
+    "density": 0.0,
+    "harvestTime": 0.4,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": false,
+    "icon": "berry_sprout",
+    "color": "#6a8a3a",
+    "size": 0.4,
+    "regrowTime": 0,
+    "drops": [
+      {
+        "itemId": "berries",
+        "count": 1,
+        "chance": 1.0
+      }
+    ]
+  },
+  "berry_bush_old": {
+    "id": "berry_bush_old",
+    "name": "老浆果丛",
+    "category": "harvest",
+    "biomes": [
+      "forest",
+      "snow"
+    ],
+    "density": 0.0,
+    "harvestTime": 1.2,
+    "hp": 1,
+    "collision": "1x1",
+    "blockMovement": false,
+    "icon": "berry_bush_old",
+    "color": "#6a1a3a",
+    "size": 0.85,
+    "regrowTime": 0,
+    "drops": [
+      {
+        "itemId": "berries",
+        "count": 4,
+        "chance": 1.0
+      },
+      {
+        "itemId": "berry_seed",
+        "count": 1,
+        "chance": 1.0
+      }
     ]
   }
 }

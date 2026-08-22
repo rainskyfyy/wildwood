@@ -39,7 +39,7 @@ function section(name) { console.log(`\n[${name}]`); }
 section('catalog: 4 depletable mines resources');
 
 const allR = allResources();
-assert(allR.length === 17, `共 17 资源 (实际 ${allR.length})`);
+assert(allR.length === 23, `共 23 资源 (v1.0.4 + 6 三阶段) (实际 ${allR.length})`);
 assert(validateCatalog() === true, 'validateCatalog 通过');
 
 const newIds = ['coal', 'gold_ore', 'gem_vein', 'tin_ore'];
@@ -70,7 +70,7 @@ assert(tinDef.drops.some(d => d.itemId === 'tin'), 'tin_ore 掉 tin');
 
 // items checks
 const allI = allItems();
-assert(allI.length === 20, `共 20 物品 (实际 ${allI.length})`);
+assert(allI.length === 23, `共 23 物品 (v1.0.4 + 3 种子) (实际 ${allI.length})`);
 for (const id of ['coal', 'gold_nugget', 'gem', 'tin']) {
   const it = allI.find(x => x.id === id);
   assert(it != null, `item ${id} 存在`);
@@ -204,25 +204,45 @@ assert(entGem.id === 'rock', '实体变 rock');
 assert(entGem.maxHarvests === Infinity, 'rock 不枯竭');
 
 // ============================================================
-// §6 — non-depletable unchanged
+// §6 — non-depletable still regrows forever
 // ============================================================
-section('non-depletable: tree still regrows forever');
+section('non-depletable: rock still regrows forever');
+// v1.0.4: tree is now growth-capable, so it can no longer serve as the
+// "non-depletable" exemplar. Use rock (non-depletable, non-growth-capable,
+// regrowTime=120) instead.
 
-const entTree = new ResourceEntity({ id: 'tree', x: 20, y: 20, rngSeed: 21 });
-assert(!entTree.isDepletable, 'tree isDepletable = false');
-assert(entTree.maxHarvests === Infinity, 'tree.maxHarvests = Infinity');
+const entRock = new ResourceEntity({ id: 'rock', x: 20, y: 20, rngSeed: 21, now: 0 });
+assert(!entRock.isDepletable, 'rock isDepletable = false');
+assert(!entRock.isGrowthCapable, 'rock isGrowthCapable = false');
+assert(entRock.maxHarvests === Infinity, 'rock.maxHarvests = Infinity');
 
-const invTree = new Inventory();
+const invRock = new Inventory();
 for (let i = 0; i < 5; i++) {
-  const r = entTree.harvest(invTree, 7000 + i * 1000);
-  assert(r.harvestCount === i + 1, `tree 第 ${i + 1} 采 harvestCount = ${i + 1}`);
-  assert(r.maxHarvests === Infinity, `tree 第 ${i + 1} 采 maxHarvests = Infinity`);
-  assert(r.depleted === true, `tree 第 ${i + 1} 采 depleted = true (regrow)`);
-  assert(r.transformedTo === null, `tree 第 ${i + 1} 采不 transform`);
-  entTree.update(entTree.regrowAt + 1);
-  assert(!entTree.depleted, `tree regrow ${i + 1} 后 not depleted`);
-  assert(entTree.id === 'tree', `tree id 保持不变 (${i + 1})`);
+  const r = entRock.harvest(invRock, 7000 + i * 1000);
+  assert(r.harvestCount === i + 1, `rock 第 ${i + 1} 采 harvestCount = ${i + 1}`);
+  assert(r.maxHarvests === Infinity, `rock 第 ${i + 1} 采 maxHarvests = Infinity`);
+  assert(r.depleted === true, `rock 第 ${i + 1} 采 payload depleted = true (mid-regrow)`);
+  assert(r.transformedTo === null, `rock 第 ${i + 1} 采不 transform`);
+  assert(entRock.depleted === true, `rock 第 ${i + 1} 采后 entity depleted (mid-regrow)`);
+  entRock.update(entRock.regrowAt + 1);
+  assert(!entRock.depleted, `rock regrow ${i + 1} 后 not depleted`);
+  assert(entRock.id === 'rock', `rock id 保持不变 (${i + 1})`);
 }
+
+// §6b — growth-capable entity behavior (v1.0.4+)
+section('growth-capable: tree harvest resets to stage 0 with harvested-stage regrowTime');
+const entTree = new ResourceEntity({ id: 'tree', x: 21, y: 21, rngSeed: 22, now: 0 });
+assert(entTree.isGrowthCapable, 'tree isGrowthCapable = true');
+assert(entTree.currentStageIndex === 0, 'tree init at stage 0 (tree_sprout)');
+entTree.update(31 * 1000);   // advance to stage 1
+assert(entTree.currentStageIndex === 1, 'tree advanced to stage 1');
+const rT1 = entTree.harvest(new Inventory(), 32 * 1000);
+assert(rT1.growthReset, 'tree stage 1 harvest growthReset=true');
+assert(entTree.currentStageIndex === 0, 'tree reset to stage 0 after harvest');
+assert(entTree.id === 'tree_sprout', 'tree id reset to tree_sprout');
+assert(entTree._rootId === 'tree', 'tree rootId unchanged');
+assert(entTree.depleted === true, 'tree depleted for 60s (harvested stage 1 regrowTime)');
+assert(entTree.regrowAt === 32 * 1000 + 60 * 1000, 'tree regrowAt = harvestTime + 60s');
 
 // ============================================================
 // §7 — gather integration: depleted entities skipped

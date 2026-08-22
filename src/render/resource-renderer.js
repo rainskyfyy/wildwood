@@ -17,6 +17,14 @@
  *     overlay so permanently-exhausted nodes (e.g. coal after 4 hits,
  *     or a node that just transformed into rock) are clearly distinct
  *     from transient 'regrowing' state.
+ *
+ * v1.0.4 — three-stage growth (M2.10e):
+ *   - 6 new defs for the stage variants of tree / dead_tree / berry_bush
+ *     (stage 0 = young, stage 1 = mature, stage 2 = old)
+ *   - Icons: tree_sprout / tree_old / dead_tree_sprout / dead_tree_old /
+ *            berry_sprout / berry_bush_old
+ *   - Stage 0 (sprout) is smaller and lighter; stage 2 (old) is darker and
+ *     bears more fruit / extra branches as the "ripe reward" visual cue.
  */
 'use strict';
 
@@ -225,7 +233,92 @@ const KIND_ICON = {
                         c.beginPath();
                         c.ellipse(-2*s, -3*s, 2*s, 1*s, 0, 0, Math.PI*2);
                         c.fill();
-                      }
+                      },
+  // v1.0.4 — three-stage growth stages (icon for each of the 6 new defs)
+  // Stage 0 = young/sapling. Stage 2 = old/mature. These are sub-icons of
+  // tree / dead_tree / berry_bush and only appear as part of a growth cycle.
+  tree_sprout: (c, s) => { /* small sapling, ~50% size of mature tree */
+                          c.fillStyle = '#3a2a1a';
+                          c.fillRect(-1*s, 0, 2*s, 4*s);
+                          c.fillStyle = '#6a8a3a';
+                          c.beginPath();
+                          c.arc(0, -2*s, 5*s, 0, Math.PI*2);
+                          c.fill();
+                          c.fillStyle = '#8aa84a';
+                          c.beginPath();
+                          c.arc(-2*s, -4*s, 2*s, 0, Math.PI*2);
+                          c.fill();
+                        },
+  tree_old:  (c, s) => { /* gnarly old tree, slightly larger, darker + bare branches */
+                        c.fillStyle = '#3a2a1a';
+                        c.fillRect(-3*s, -6*s, 6*s, 14*s);
+                        c.fillStyle = '#2a4a1a';
+                        c.beginPath();
+                        c.arc(0, -10*s, 11*s, 0, Math.PI*2);
+                        c.fill();
+                        c.fillStyle = '#1a3a0a';
+                        c.beginPath();
+                        c.arc(-5*s, -12*s, 5*s, 0, Math.PI*2);
+                        c.fill();
+                        // Bare branches
+                        c.fillStyle = '#3a2a1a';
+                        c.fillRect(-9*s, -5*s, 6*s, 1.5*s);
+                        c.fillRect(4*s, -7*s, 6*s, 1.5*s);
+                        c.fillRect(-7*s, -10*s, 1.5*s, 5*s);
+                        c.fillRect(5*s, -12*s, 1.5*s, 4*s);
+                      },
+  dead_tree_sprout: (c, s) => { /* small dead twig, mostly brown */
+                              c.fillStyle = '#5a3a2a';
+                              c.fillRect(-1*s, 0, 2*s, 4*s);
+                              c.fillStyle = '#7a5a3a';
+                              c.fillRect(-3*s, -2*s, 6*s, 1.5*s);
+                              c.fillRect(-2*s, -5*s, 1*s, 4*s);
+                            },
+  dead_tree_old:  (c, s) => { /* old dead tree, dark + crumbling */
+                            c.fillStyle = '#2a1a1a';
+                            c.fillRect(-2*s, -6*s, 4*s, 12*s);
+                            c.fillStyle = '#4a2a1a';
+                            c.beginPath(); c.moveTo(-2*s, -4*s);
+                            c.lineTo(2*s, -1*s); c.lineTo(0, 1*s); c.closePath(); c.fill();
+                            c.beginPath(); c.moveTo(0, -3*s);
+                            c.lineTo(4*s, 0); c.lineTo(2*s, 2*s); c.closePath(); c.fill();
+                            c.beginPath(); c.moveTo(-4*s, -2*s);
+                            c.lineTo(-2*s, 1*s); c.lineTo(-3*s, 3*s); c.closePath(); c.fill();
+                            // Cracks
+                            c.fillStyle = '#1a0a0a';
+                            c.fillRect(-1*s, -4*s, 1*s, 2*s);
+                            c.fillRect(0, 1*s, 1*s, 2*s);
+                          },
+  berry_sprout: (c, s) => { /* small berry bush, ~50% size, no berries yet */
+                          c.fillStyle = '#6a8a3a';
+                          c.beginPath();
+                          c.arc(0, 0, 5*s, 0, Math.PI*2);
+                          c.fill();
+                          c.fillStyle = '#8aa84a';
+                          c.beginPath();
+                          c.arc(-2*s, -2*s, 2*s, 0, Math.PI*2);
+                          c.fill();
+                        },
+  berry_bush_old: (c, s) => { /* large mature bush, dense berries */
+                            c.fillStyle = '#4a6a1a';
+                            c.beginPath();
+                            c.arc(0, 0, 10*s, 0, Math.PI*2);
+                            c.fill();
+                            c.fillStyle = '#6a8a2a';
+                            c.beginPath();
+                            c.arc(-3*s, -4*s, 5*s, 0, Math.PI*2);
+                            c.fill();
+                            c.beginPath();
+                            c.arc(4*s, -2*s, 5*s, 0, Math.PI*2);
+                            c.fill();
+                            // Many berries (ripe reward)
+                            c.fillStyle = '#8a2a4a';
+                            for (const [bx, by] of [[-4, 1], [-1, -3], [2, 0], [5, 1], [-3, -5], [3, -4], [0, 3]]) {
+                              c.beginPath();
+                              c.arc(bx*s, by*s, 1.5*s, 0, Math.PI*2);
+                              c.fill();
+                            }
+                          }
 };
 
 /**
@@ -320,6 +413,34 @@ export function drawResource(ctx, sx, sy, entity, progress = 0, now = Date.now()
       ctx.fillRect(-w/2, -28, w, h);
       ctx.fillStyle = '#d4a64a';
       ctx.fillRect(-w/2, -28, w * progress, h);
+    }
+    // v1.0.4: growth-stage progress bar for non-terminal growth-capable
+    // resources. Helps the player see when the next stage (richer drops)
+    // will arrive. Terminal stage (2) has duration=-1 and no bar.
+    if (entity.isGrowthCapable && !entity.isTerminalStage) {
+      const sp = entity.getStageProgress ? entity.getStageProgress(now) : 0;
+      const w = 24, h = 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(-w/2, -32, w, h);
+      // Color by stage: 0=young (cyan), 1=mature (gold)
+      ctx.fillStyle = entity.currentStageIndex === 0 ? '#7ed4d4' : '#d4c47e';
+      ctx.fillRect(-w/2, -32, w * sp, h);
+    } else if (entity.isGrowthCapable && entity.isTerminalStage) {
+      // Terminal: small "ripe" marker above (e.g. ★) so the player knows
+      // the resource is in its final, most-rewarding stage.
+      ctx.fillStyle = '#f4c84a';
+      ctx.beginPath();
+      const cx = 0, cy = -32, r = 3;
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 2 * Math.PI / 5) - Math.PI / 2;
+        const x = cx + r * Math.cos(a);
+        const y = cy + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const a2 = a + Math.PI / 5;
+        ctx.lineTo(cx + r * 0.4 * Math.cos(a2), cy + r * 0.4 * Math.sin(a2));
+      }
+      ctx.closePath();
+      ctx.fill();
     }
   }
   ctx.restore();
