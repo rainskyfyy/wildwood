@@ -121,6 +121,8 @@ def _format_age(minutes):
 
 
 # -------------------- 可观测性层 (沿用 v0.6.3a) --------------------
+SCRIPT_SOURCE = "update_roadmap.py"  # 用于 metrics 自识别,避免被测试 fixture / 其他脚本污染
+
 def record_sync_metric(start_ts, status, duration_seconds, commit_count, task_count,
                        commit_sha="", error=""):
     record = {
@@ -128,6 +130,7 @@ def record_sync_metric(start_ts, status, duration_seconds, commit_count, task_co
         "duration_seconds": round(duration_seconds, 3),
         "commit_count": commit_count, "task_count": task_count,
         "commit_sha": commit_sha, "error": error,
+        "source": SCRIPT_SOURCE,
     }
     try:
         WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
@@ -138,7 +141,30 @@ def record_sync_metric(start_ts, status, duration_seconds, commit_count, task_co
     return record
 
 
-def read_recent_metrics(n=10):
+# 已知非本脚本的污染源,过滤掉避免被计入健康指标
+_EXCLUDED_SOURCES = {"sync_roadmap.py", "sync_main.py"}
+_EXCLUDED_ERROR_TOKENS = {"sim", "historical"}
+
+
+def _is_real_metric(rec: dict) -> bool:
+    """保留:本脚本 + 没有 source 字段(历史 v0.6.3a 之前的条目)。排除:已知测试 fixture。"""
+    src = rec.get("source", "")
+    err = rec.get("error", "")
+    if src in _EXCLUDED_SOURCES:
+        return False
+    if err in _EXCLUDED_ERROR_TOKENS:
+        return False
+    # 保留 source in ("update_roadmap.py", "") — 本脚本 + 旧条目
+    return True
+
+
+def read_recent_metrics(n=10, source_filter=None):
+    """
+    读 sync_metrics.jsonl,按 ts 倒序,过滤掉已知测试 fixture(sync_roadmap.py / sync_main.py / sim / historical),
+    返回最多 n 条(时间最近)。
+
+    兼容 source_filter 参数(legacy 命名):实际效果固定为过滤已知 fixture,不再做额外白名单。
+    """
     if not SYNC_METRICS_PATH.exists():
         return []
     try:
@@ -148,18 +174,20 @@ def read_recent_metrics(n=10):
         return []
     cleaned = raw.replace("\x00", "").strip()
     lines = [ln for ln in cleaned.splitlines() if ln.strip()]
-    lines = lines[-n:] if len(lines) > n else lines
     out = []
     for ln in lines:
         try:
             out.append(json.loads(ln))
         except json.JSONDecodeError:
             continue
-    return out
+    out = [r for r in out if _is_real_metric(r)]
+    # 按 ts 字典序 == ISO 时间序,取末尾 n 条 = 时间最近 n 条
+    out.sort(key=lambda r: r.get("ts", ""))
+    return out[-n:] if len(out) > n else out
 
 
 def compute_consecutive_failures():
-    recent = read_recent_metrics(n=20)
+    recent = read_recent_metrics(n=20, source_filter=SCRIPT_SOURCE)
     n = 0
     for rec in reversed(recent):
         if rec.get("status") == "fail":
@@ -170,7 +198,7 @@ def compute_consecutive_failures():
 
 
 def compute_last_successful_commit():
-    recent = read_recent_metrics(n=50)
+    recent = read_recent_metrics(n=50, source_filter=SCRIPT_SOURCE)
     for rec in reversed(recent):
         if rec.get("status") == "ok" and rec.get("commit_sha"):
             return rec.get("ts"), rec.get("commit_sha")
@@ -178,7 +206,7 @@ def compute_last_successful_commit():
 
 
 def compute_status_badge():
-    recent = read_recent_metrics(n=50)
+    recent = read_recent_metrics(n=50, source_filter=SCRIPT_SOURCE)
     if not recent:
         return {
             "status": "red", "label": "无同步记录",
@@ -1018,7 +1046,7 @@ def main():
 
     consecutive_failures_after = compute_consecutive_failures()
     if consecutive_failures_after >= ALERT_THRESHOLD:
-        recent = read_recent_metrics(n=consecutive_failures_after)
+        recent = read_recent_metrics(n=consecutive_failures_after, source_filter=SCRIPT_SOURCE)
         recent_errors = [r.get("error", "") for r in recent if r.get("status") == "fail"]
         send_lark_alert(consecutive_failures_after, recent_errors)
 
