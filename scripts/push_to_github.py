@@ -1,139 +1,113 @@
 #!/usr/bin/env python3
 """
-push_to_github.py — 批量推多个文件改动到 GitHub main 分支。
-适用于 v0.5.x 各子任务提交 UI 模块代码改动。
+push_to_github.py — Direct push to GitHub via Git Data API (no git credentials).
 
-调用:
-  python3 scripts/push_to_github.py --files <path1> <path2> ... --message <commit msg>
-
-环境:
-  GH_TOKEN     — GitHub PAT (必须从环境变量传入)
-
-依赖:
-  python3 stdlib (json, urllib, base64)
+Usage: python3 push_to_github.py <repo> <branch> <path_to_files> [commit_msg]
 """
-import argparse
-import base64
-import datetime
-import json
-import os
 import sys
-import urllib.error
+import os
+import json
 import urllib.request
+import urllib.error
+import base64
+from pathlib import Path
 
-# -------------------- config --------------------
-GH_REPO   = os.environ.get("GH_REPO",  "rainskyfyy/wildwood")
-GH_BRANCH = os.environ.get("GH_BRANCH", "main")
-GH_TOKEN  = os.environ.get("GH_TOKEN", "")
+REPO = sys.argv[1] if len(sys.argv) > 1 else "rainskyfyy/wildwood"
+BRANCH = sys.argv[2] if len(sys.argv) > 2 else "main"
+ROOT = sys.argv[3] if len(sys.argv) > 3 else "."
+MSG = sys.argv[4] if len(sys.argv) > 4 else "chore: bulk push via API"
+
+# PAT from env (set GH_PAT=... before running); not stored in this file
+PAT = os.environ.get("GH_PAT", "")
+if not PAT:
+    print("ERROR: GH_PAT env var not set. Set it to a valid GitHub PAT before running.", file=sys.stderr)
+    sys.exit(1)
+
+API = f"https://api.github.com/repos/{REPO}"
+AUTH = f"token {PAT}"
 
 
-def api(path, method="GET", body=None):
-    if not GH_TOKEN:
-        print("ERROR: GH_TOKEN env var is required", file=sys.stderr)
-        sys.exit(2)
-    url = f"https://api.github.com/repos/{GH_REPO}/{path}"
-    headers = {
-        "Authorization": f"token {GH_TOKEN}",
+def req(method, url, data=None):
+    body = json.dumps(data).encode() if data is not None else None
+    r = urllib.request.Request(url, data=body, method=method, headers={
+        "Authorization": AUTH,
         "Accept": "application/vnd.github+json",
-        "User-Agent": "wildwood-push-helper",
+        "User-Agent": "aily-push",
         "X-GitHub-Api-Version": "2022-11-28",
-    }
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+        "Content-Type": "application/json"
+    })
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(r) as resp:
+            return json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
-        body_txt = e.read().decode("utf-8", errors="replace")
-        print(f"HTTP {e.code} on {method} {url}\n{body_txt}", file=sys.stderr)
+        body = e.read().decode() if e.fp else ""
+        print(f"HTTP {e.code} on {method} {url}\n{body}", file=sys.stderr)
         raise
 
 
-def push_files(file_paths, commit_message, repo_root="."):
-    """Push list of files to GH_BRANCH.
-
-    Returns (new_commit_sha, list_of_blobs).
-    """
-    # 1. Read current main HEAD.
-    head = api(f"git/ref/heads/{GH_BRANCH}")["object"]["sha"]
-    base_commit = api(f"git/commits/{head}")
-    base_tree = base_commit["tree"]["sha"]
-
-    # 2. For each file: read content, create blob.
-    tree_entries = []
-    blobs_info = []
-    for fpath in file_paths:
-        full = os.path.join(repo_root, fpath)
-        if not os.path.exists(full):
-            print(f"ERROR: file not found: {full}", file=sys.stderr)
-            sys.exit(1)
-        with open(full, "rb") as f:
-            content = f.read()
-        # detect binary: try utf-8 decode
-        try:
-            text = content.decode("utf-8")
-            is_binary = False
-        except UnicodeDecodeError:
-            text = None
-            is_binary = True
-
-        if is_binary:
-            blob_sha = api("git/blobs", "POST", {
-                "content": base64.b64encode(content).decode("ascii"),
-                "encoding": "base64",
-            })["sha"]
-        else:
-            blob_sha = api("git/blobs", "POST", {
-                "content": base64.b64encode(text.encode("utf-8")).decode("ascii"),
-                "encoding": "base64",
-            })["sha"]
-        blobs_info.append((fpath, blob_sha, len(content)))
-        tree_entries.append({
-            "path": fpath,
-            "mode": "100644",
-            "type": "blob",
-            "sha": blob_sha,
-        })
-
-    # 3. New tree (with all changes based on base).
-    new_tree = api("git/trees", "POST", {
-        "base_tree": base_tree,
-        "tree": tree_entries,
-    })["sha"]
-
-    # 4. New commit.
-    new_commit = api("git/commits", "POST", {
-        "message": commit_message,
-        "tree": new_tree,
-        "parents": [head],
-    })["sha"]
-
-    # 5. Patch ref.
-    api(f"git/refs/heads/{GH_BRANCH}", "PATCH", {"sha": new_commit, "force": False})
-
-    return new_commit, blobs_info
-
-
 def main():
-    ap = argparse.ArgumentParser(description="Push file changes to GitHub main")
-    ap.add_argument("--files", nargs="+", required=True, help="files to push (relative to repo root)")
-    ap.add_argument("--message", required=True, help="commit message")
-    ap.add_argument("--root", default=".", help="repo root path")
-    args = ap.parse_args()
+    print(f"Pushing to {REPO}@{BRANCH} from {ROOT}")
+    # 1. Get current HEAD
+    ref = req("GET", f"{API}/git/ref/heads/{BRANCH}")
+    head_sha = ref["object"]["sha"]
+    print(f"Current HEAD: {head_sha}")
+    commit = req("GET", f"{API}/git/commits/{head_sha}")
+    base_tree = commit["tree"]["sha"]
+    print(f"Base tree: {base_tree}")
 
-    print(f"Pushing {len(args.files)} files to {GH_REPO}@{GH_BRANCH}")
-    for f in args.files:
-        print(f"  - {f}")
+    # 2. Collect files (relative to ROOT, exclude .git, node_modules, __pycache__, etc.)
+    root = Path(ROOT).resolve()
+    skip = {".git", "node_modules", "__pycache__", ".DS_Store", "*.pyc", "*.bundle", ".cache", "artifacts"}
+    blobs = []
+    for p in root.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(root).as_posix()
+        if any(s in rel.split("/") for s in skip):
+            continue
+        if any(rel.endswith(s) for s in [".pyc", ".bundle"]):
+            continue
+        if rel.startswith("artifacts/"):
+            continue
+        with open(p, "rb") as f:
+            data = f.read()
+        if b"\x00" in data[:8192]:
+            print(f"  skip binary-ish: {rel}")
+            continue
+        try:
+            content = data.decode("utf-8")
+        except UnicodeDecodeError:
+            print(f"  skip non-utf8: {rel}")
+            continue
+        b = req("POST", f"{API}/git/blobs", {"content": content, "encoding": "utf-8"})
+        blobs.append((rel, b["sha"]))
+        print(f"  blob: {rel} -> {b['sha'][:8]}")
 
-    commit, blobs = push_files(args.files, args.message, repo_root=args.root)
-    print(f"\nDone. new HEAD = {commit[:12]}")
-    print(f"  https://github.com/{GH_REPO}/commit/{commit}")
-    print(f"\nBlobs:")
-    for f, sha, sz in blobs:
-        print(f"  {f}  {sha[:12]}  {sz}B")
+    # 3. Build new tree (with mode 100644, type blob)
+    tree_entries = [
+        {"path": rel, "mode": "100644", "type": "blob", "sha": sha}
+        for rel, sha in blobs
+    ]
+    new_tree = req("POST", f"{API}/git/trees", {
+        "base_tree": base_tree,
+        "tree": tree_entries
+    })
+    print(f"New tree: {new_tree['sha']}")
+
+    # 4. Create commit
+    new_commit = req("POST", f"{API}/git/commits", {
+        "message": MSG,
+        "tree": new_tree["sha"],
+        "parents": [head_sha]
+    })
+    print(f"New commit: {new_commit['sha']}")
+
+    # 5. Update ref
+    req("PATCH", f"{API}/git/refs/heads/{BRANCH}", {
+        "sha": new_commit["sha"]
+    })
+    print(f"Ref {BRANCH} updated to {new_commit['sha']}")
+    print(f"\nDone. https://github.com/{REPO}/commit/{new_commit['sha']}")
 
 
 if __name__ == "__main__":

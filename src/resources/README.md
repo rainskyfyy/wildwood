@@ -7,9 +7,9 @@ framework, ES modules only.
 
 | File | Purpose |
 |---|---|
-| `catalog.js` | Loads + queries the three JSON tables; **validates** that recipes reference real items, that tools have `maxDurability`, and that regrow times are non-negative. Exposes `isTool`, `getToolType`, `getMaxDurability`, `checkTool`, `allowedTools`, `isDepletable`, `getMaxHarvests`, `getDepletedTransformsTo`. |
-| `resources.json` | 17 harvestable / diggable resources: 8 harvest-category (tree, dead_tree, rock, boulder, grass_tuft, berry_bush, iron_ore, ice_shard, flower_patch) and 5 dig-category (dirt_mound, sapling, carrot, mushroom). Each has `regrowTime` (seconds), `category`, and `drops[]`. |
-| `items.json` | 20 items: 12 materials, 3 food (berries, carrot, mushroom), 4 tools (axe, pickaxe, shovel, torch), 1 placeable (campfire). Tools carry `maxDurability` and `toolType`. |
+| `catalog.js` | Loads + queries the three JSON tables; **validates** that recipes reference real items, that tools have `maxDurability`, and that regrow times are non-negative. Exposes `isTool`, `getToolType`, `getMaxDurability`, `checkTool`, `allowedTools`. |
+| `resources.json` | 13 harvestable / diggable resources: 8 harvest-category (tree, dead_tree, rock, boulder, grass_tuft, berry_bush, iron_ore, ice_shard, flower_patch) and 5 dig-category (dirt_mound, sapling, carrot, mushroom). Each has `regrowTime` (seconds), `category`, and `drops[]`. |
+| `items.json` | 16 items: 8 materials, 3 food (berries, carrot, mushroom), 4 tools (axe, pickaxe, shovel, torch), 1 placeable (campfire). Tools carry `maxDurability` and `toolType`. |
 | `recipes.json` | 6 recipes: 3 hand-held (torch, rope, campfire) at 2×2 and 3 science-machine (axe, pickaxe, shovel) at 3×3. |
 | `inventory.js` | 6 hotbar + 15 backpack = 21 slots. `add` / `remove` / `move` / `swap` / `compact` / `serialize` / `loadSnapshot`. Tools get their own slot, never merge. `damageTool(slot, by)` decrements durability; at 0 the slot is cleared and `onBreak` fires. |
 | `resource-entity.js` | One harvestable world object. `harvest(inv, now)` returns `{granted, regrowAt}`; `update(now)` ticks the regrow timer; `getVisualState()` returns `'full' \| 'regrowing' \| 'depleted'`. |
@@ -46,51 +46,6 @@ has passed:
 
 If `regrowTime === 0`, the resource is **permanently depleted** — useful
 for one-off quest nodes or final-tier rocks.
-
-## Depletion model (v1.0.3 — M2.10d)
-
-Some resources are finite. Each node has a `maxHarvests` (positive integer);
-after that many successful harvests the entity **permanently exhausts**:
-
-1. `entity.harvestCount` increments by 1 each successful gather
-2. If `harvestCount >= maxHarvests`:
-   - If `depletedTransformsTo` is set (e.g. `rock`), the entity **mutates
-     in place** — id, drops, icon, color, regrow behavior all reload
-     from the new resource def; `harvestCount` resets to 0. The same
-     world position is now useful as a different (typically lower-tier)
-     resource.
-   - If `depletedTransformsTo` is null, the entity is permanently
-     depleted — `depleted = true`, `regrowAt = 0`, and the entity
-     cannot be harvested again (also excluded from `gather.findInRange`).
-3. The `complete` event payload includes `harvestCount`, `maxHarvests`,
-   `depleted`, and `transformedTo` so the HUD can show progress and
-   the banner can announce transform / exhaustion.
-
-Resources without `maxHarvests` (e.g. tree, rock) keep the v1.0.1
-infinite-regrow behavior unchanged.
-
-### Depletable resources (all in `mines` biome)
-
-| Resource | maxHarvests | regrowTime (s) | transforms to | Drops |
-|---|---|---|---|---|
-| `coal`       | 4 | 180 | — | `coal×2`, `stone×1` (30%) |
-| `gold_ore`   | 2 | 240 | `rock` | `gold_nugget×1`, `stone×1` (50%) |
-| `gem_vein`   | 1 | 300 | `rock` | `gem×1` |
-| `tin_ore`    | 3 | 120 | — | `tin×2`, `stone×1` (20%) |
-
-A `gold_ore` node behaves as gold (rare, valuable) for 2 harvests, then
-becomes a `rock` node at the same position for as long as the world
-lasts (rock has `maxHarvests = Infinity`, regrows every 120s). The
-player keeps a useful resource even after the gold runs out.
-
-### Catalog exports for depletion
-
-- `isDepletable(resourceId)` — true if the resource has finite maxHarvests
-- `getMaxHarvests(resourceId)` — positive integer or `Infinity`
-- `getDepletedTransformsTo(resourceId)` — target resource id, or `null`
-
-`validateCatalog()` checks `maxHarvests` is a positive integer and
-`depletedTransformsTo` references an existing resource.
 
 ### Times by resource
 
@@ -157,11 +112,7 @@ states for each entity:
 - `'regrowing'` — small stump + sapling (for tree/dead_tree) or a
   generic "disturbed patch" with a growing green sprout (for dig /
   harvest resources); green regrow progress bar above
-- `'depleted'` — 30% alpha + a red X overlay + cracks — for **permanent
-  exhaustion** (e.g. coal after 4 hits, or a vein that just transformed
-  into a rock and is now in its regrow cycle). Visually distinct from
-  the transient `'regrowing'` state so the player knows the node is
-  gone for good.
+- `'depleted'` — very dim (30% alpha) — for permanent depletion only
 
 The hotbar and backpack panel show a per-tool durability bar at the
 bottom of each tool slot, colored:
@@ -219,7 +170,6 @@ gather.update(player, dt, now);
 node tests/m210-node-smoke.mjs             # 58/58 — M2.10 base
 node tests/m210b-regrow-durability.mjs     # 67/67 — M2.10b regrow + durability
 node tests/m210c-shovel-resources.mjs      # 76/76 — M2.10c shovel + new resources
-node tests/m210d-depletion.mjs             # 156/156 — M2.10d depletion + transform
 node tests/m4-node-smoke.mjs               # 20/20 — M4 world regression
 ```
 

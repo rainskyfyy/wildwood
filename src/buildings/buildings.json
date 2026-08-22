@@ -1,16 +1,7 @@
 {
-  "version": 2,
-  "comment": "M2.9 + v0.5.3 building catalog. 8 entries. Sizes in tiles (w x h). cost is item id -> qty (referenced in src/resources/items.json). hp is destructible threshold. v2 adds 3 craft stations (drying_rack / fermenting_barrel / cooking_pot) registered on placement by main.js tryPlaceBuilding.",
-  "buildOrder": [
-    "campfire",
-    "science_machine",
-    "chest",
-    "wall",
-    "floor",
-    "drying_rack",
-    "fermenting_barrel",
-    "cooking_pot"
-  ],
+  "version": 1,
+  "comment": "M2.9 building catalog. 5 entries per spec. Sizes in tiles (w x h). cost is item id -> qty (referenced in src/resources/items.json). hp is destructible threshold.",
+  "buildOrder": ["campfire", "science_machine", "chest", "wall", "floor"],
   "buildings": {
     "campfire": {
       "id": "campfire",
@@ -18,7 +9,7 @@
       "icon": "🔥",
       "size": [1, 1],
       "hp": 30,
-      "cost": { "log": 5, "cut_grass": 3 },
+      "cost": { "wood": 5, "grass": 3 },
       "color": "#d87038",
       "outline": "#3a1a0a",
       "accent": "#f0b860",
@@ -31,7 +22,7 @@
       "icon": "🔬",
       "size": [2, 1],
       "hp": 80,
-      "cost": { "log": 10, "gold": 4, "stone": 4 },
+      "cost": { "wood": 10, "gold": 4, "stone": 4 },
       "color": "#5a8aa8",
       "outline": "#1a2a3a",
       "accent": "#7ad8f0",
@@ -44,7 +35,7 @@
       "icon": "📦",
       "size": [1, 1],
       "hp": 50,
-      "cost": { "log": 8 },
+      "cost": { "wood": 8 },
       "color": "#8a5a3a",
       "outline": "#2a1a0a",
       "accent": "#d4a64a",
@@ -70,51 +61,12 @@
       "icon": "🟫",
       "size": [1, 1],
       "hp": 30,
-      "cost": { "log": 2 },
+      "cost": { "wood": 2 },
       "color": "#a8753a",
       "outline": "#3a2010",
       "accent": "#c89a5a",
       "description": "铺地,可让建筑放置在非可建造地形上(对自身可叠加)",
       "tags": ["foundation"]
-    },
-    "drying_rack": {
-      "id": "drying_rack",
-      "name": "晒肉架",
-      "icon": "🥓",
-      "size": [1, 1],
-      "hp": 40,
-      "cost": { "log": 4, "twine": 2 },
-      "color": "#a87a3a",
-      "outline": "#3a2010",
-      "accent": "#d4a85a",
-      "description": "把生肉风干成肉干,保质期 ×3。空 → 放入 meat → 30s 等待 → 取出 jerky",
-      "tags": ["craft_station", "drying", "processor"]
-    },
-    "fermenting_barrel": {
-      "id": "fermenting_barrel",
-      "name": "发酵桶",
-      "icon": "🛢️",
-      "size": [1, 1],
-      "hp": 60,
-      "cost": { "log": 6, "stone": 4 },
-      "color": "#7a4a2a",
-      "outline": "#2a1208",
-      "accent": "#c89a5a",
-      "description": "把果汁/谷物发酵成酒。空 → 放入原料 → 60s 等待 → 取出浆果酒/小麦啤酒/蜂蜜酒",
-      "tags": ["craft_station", "fermenting", "processor"]
-    },
-    "cooking_pot": {
-      "id": "cooking_pot",
-      "name": "烹饪锅",
-      "icon": "🍲",
-      "size": [1, 1],
-      "hp": 50,
-      "cost": { "stone": 6, "log": 4 },
-      "color": "#8a5a3a",
-      "outline": "#2a1208",
-      "accent": "#c8703a",
-      "description": "4 槽 multiset 烹饪。把食材丢进锅里,匹配食谱后点击「烹饪」消耗并产出料理。",
-      "tags": ["craft_station", "cooking", "processor"]
     }
   }
 }

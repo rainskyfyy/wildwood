@@ -134,22 +134,20 @@ ok('tools do not merge when moving', (() => {
 
 // ---------- 3. resource regrow ----------
 console.log('resource-entity regrow');
-// v1.0.4 — tree is now growth-capable, so use rock for the canonical
-// regrow test (rock is single-stage with regrowTime=120).
-const r = new ResourceEntity({ id: 'rock', x: 10, y: 10, rngSeed: 1 });
-ok('rock regrowTime = 120', r.regrowTime === 120);
+const r = new ResourceEntity({ id: 'tree', x: 10, y: 10, rngSeed: 1 });
+ok('tree regrowTime = 60', r.regrowTime === 60);
 ok('initial visual state = full', r.getVisualState() === 'full');
 ok('initial regrowFraction = 1', r.regrowFraction(0) === 1);
 
 const now0 = 1000000;
 const out = r.harvest(new Inventory(), now0);
 ok('harvest returns granted array', Array.isArray(out.granted));
-ok('harvest sets regrowAt = now + 120s', out.regrowAt === now0 + 120_000);
+ok('harvest sets regrowAt = now + 60s', out.regrowAt === now0 + 60_000);
 ok('after harvest: depleted = true', r.depleted === true);
 ok('after harvest: visual = regrowing', r.getVisualState() === 'regrowing');
 ok('regrowFraction at t0 = 0', r.regrowFraction(now0) === 0);
-ok('regrowFraction halfway = ~0.5', Math.abs(r.regrowFraction(now0 + 60_000) - 0.5) < 0.001);
-ok('regrowFraction at full = 1', r.regrowFraction(now0 + 120_000) === 1);
+ok('regrowFraction halfway = ~0.5', Math.abs(r.regrowFraction(now0 + 30_000) - 0.5) < 0.001);
+ok('regrowFraction at full = 1', r.regrowFraction(now0 + 60_000) === 1);
 
 ok('update(now) before regrowAt does not respawn', (() => {
   const e = new ResourceEntity({ id: 'rock', x: 1, y: 1, rngSeed: 1 });
@@ -240,14 +238,11 @@ const gent = spawnResources(gw, { seed: 99 });
 // Find the closest tree to (0,0) — robust against RNG-sequence shifts
 // caused by catalog changes (e.g. adding new resource types shifts the
 // spawner rng sequence per tile, changing which tree is "first").
-// v1.0.4 — trees are now growth-capable. Newly spawned trees start at
-// stage 0 (id=tree_sprout), so filter by _rootId instead of id.
-const trees = gent.filter(e => e._rootId === 'tree');
+const trees = gent.filter(e => e.id === 'tree');
 trees.sort((a, b) => a.distTo(0, 0) - b.distTo(0, 0));
 const tree = trees[0];
 ok('at least one tree spawned', trees.length > 0);
 ok('closest tree is within gather range (5)', tree && tree.distTo(0, 0) <= 5);
-ok('spawned tree starts at stage 0 (tree_sprout)', tree && tree.id === 'tree_sprout');
 const invG = new Inventory();
 invG.add('axe', 1);
 invG.selectHotbar(0);

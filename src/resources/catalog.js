@@ -10,23 +10,6 @@
  * v1.0.2 — shovel wired to diggable resources (dirt_mound, sapling, carrot,
  *   mushroom). New 'dig' resource category is metadata-only (no behavior
  *   difference from 'harvest' today, but lets future systems filter on it).
- *
- * v1.0.3 — resource depletion system:
- *   isDepletable(id)           true if the resource has finite harvests
- *   getMaxHarvests(id)         the max harvest count, or Infinity
- *   getDepletedTransformsTo(id)  resource id the entity becomes when depleted
- *                              (null = no transform, stays depleted forever)
- *
- * v1.0.4 — three-stage growth system:
- *   getGrowthStages(id)       array of {def, duration} for growth-capable
- *                             resources; null for single-stage resources
- *   getStageCount(id)         3 for growth-capable, 1 otherwise
- *   getStageDef(id, idx)      the resource def for stage idx (0-based)
- *   isGrowthCapable(id)       convenience: has growthStages array
- *
- *   Stage durations:
- *     duration > 0   — auto-advance to next stage after N seconds
- *     duration = -1  — terminal stage; entity stays here until harvested
  */
 'use strict';
 
@@ -92,27 +75,15 @@ export function getMaxDurability(itemId) {
  * Shovel is required for dig-category resources (dirt_mound / sapling /
  * carrot) and accelerates mushroom collection. berry_bush / grass_tuft /
  * ice_shard / flower_patch are bare-handed.
- *
- * v1.0.3 — 4 new mine-only depletable resources (coal / gold_ore /
- * gem_vein / tin_ore) all require pickaxe.
  */
 const _TOOL_COMPAT = {
-  // axe — trees (incl. v1.0.4 growth stages)
+  // axe
   tree:                ['axe'],
   dead_tree:           ['axe'],
-  tree_sprout:         ['axe'],
-  tree_old:            ['axe'],
-  dead_tree_sprout:    ['axe'],
-  dead_tree_old:       ['axe'],
   // pickaxe
   rock:                ['pickaxe'],
   boulder:             ['pickaxe'],
   iron_ore:            ['pickaxe'],
-  // v1.0.3 — depletable mines-only resources
-  coal:                ['pickaxe'],
-  gold_ore:            ['pickaxe'],
-  gem_vein:            ['pickaxe'],
-  tin_ore:             ['pickaxe'],
   // shovel
   dirt_mound:          ['shovel'],
   sapling:             ['shovel'],
@@ -122,10 +93,7 @@ const _TOOL_COMPAT = {
   berry_bush:          [null],
   grass_tuft_harvest:  [null],
   ice_shard:           [null],             // bare hands (or pickaxe, but bare works)
-  flower_patch:        [null],
-  // v1.0.4 — bush growth stages (bare hands)
-  berry_sprout:        [null],
-  berry_bush_old:      [null]
+  flower_patch:        [null]
 };
 
 /**
@@ -164,84 +132,8 @@ export function allowedTools(resourceId) {
   return allowed.slice();
 }
 
-/**
- * v1.0.3 — resource depletion.
- *
- * A resource is "depletable" if it has a finite maxHarvests. Once a node
- * has been harvested that many times, it transitions to a permanent
- * depleted state (regrowAt = 0 forever). If depletedTransformsTo is set,
- * the entity mutates in place into the target resource id (e.g. gold_ore
- * becomes rock after 2 harvests, so the spot is still useful for stone).
- *
- * Resources without maxHarvests (or with Infinity) never deplete; they
- * behave as before (regrow after regrowTime).
- */
-export function isDepletable(resourceId) {
-  const r = _RESOURCES[resourceId];
-  if (!r) return false;
-  return Number.isFinite(r.maxHarvests) && r.maxHarvests > 0;
-}
-
-export function getMaxHarvests(resourceId) {
-  const r = _RESOURCES[resourceId];
-  if (!r || !Number.isFinite(r.maxHarvests)) return Infinity;
-  return r.maxHarvests;
-}
-
-export function getDepletedTransformsTo(resourceId) {
-  const r = _RESOURCES[resourceId];
-  if (!r) return null;
-  return r.depletedTransformsTo || null;
-}
-
-/**
- * v1.0.4 — three-stage growth.
- *
- * A resource is "growth-capable" if it has a `growthStages` array. Each
- * stage is a {def, duration} entry: duration > 0 means the entity
- * auto-advances to the next stage after N seconds; duration = -1 marks
- * a terminal stage (entity stays until harvested).
- *
- * Single-stage resources (no growthStages) return null / 1 / null respectively.
- */
-export function isGrowthCapable(resourceId) {
-  const r = _RESOURCES[resourceId];
-  if (!r) return false;
-  return Array.isArray(r.growthStages) && r.growthStages.length > 0;
-}
-
-export function getGrowthStages(resourceId) {
-  const r = _RESOURCES[resourceId];
-  if (!r || !Array.isArray(r.growthStages)) return null;
-  return r.growthStages;
-}
-
-export function getStageCount(resourceId) {
-  const stages = getGrowthStages(resourceId);
-  return stages ? stages.length : 1;
-}
-
-/**
- * Return the def for a given stage index of a resource. For single-stage
- * resources (no growthStages), only idx=0 is valid and it returns the
- * resource's own def.
- */
-export function getStageDef(resourceId, stageIndex) {
-  const stages = getGrowthStages(resourceId);
-  if (stages) {
-    const s = stages[stageIndex];
-    if (!s) throw new Error(`Resource "${resourceId}" has no stage ${stageIndex}`);
-    return getResource(s.def);
-  }
-  if (stageIndex !== 0) {
-    throw new Error(`Single-stage resource "${resourceId}" has no stage ${stageIndex}`);
-  }
-  return getResource(resourceId);
-}
-
 export function validateCatalog() {
   const itemIds = new Set(Object.keys(_ITEMS));
-  const resourceIds = new Set(Object.keys(_RESOURCES));
   for (const r of Object.values(_RESOURCES)) {
     for (const d of r.drops || []) {
       if (!itemIds.has(d.itemId)) {
@@ -251,43 +143,6 @@ export function validateCatalog() {
     // regrowTime is optional; if present must be a non-negative number
     if (r.regrowTime != null && (typeof r.regrowTime !== 'number' || r.regrowTime < 0)) {
       throw new Error(`Resource "${r.id}" regrowTime must be a non-negative number`);
-    }
-    // v1.0.3 — maxHarvests is optional; if present must be a positive integer
-    if (r.maxHarvests != null) {
-      if (!Number.isFinite(r.maxHarvests) || r.maxHarvests < 1 || !Number.isInteger(r.maxHarvests)) {
-        throw new Error(`Resource "${r.id}" maxHarvests must be a positive integer`);
-      }
-    }
-    // v1.0.3 — depletedTransformsTo must reference an existing resource
-    if (r.depletedTransformsTo != null) {
-      if (!resourceIds.has(r.depletedTransformsTo)) {
-        throw new Error(`Resource "${r.id}" depletedTransformsTo references unknown resource "${r.depletedTransformsTo}"`);
-      }
-    }
-    // v1.0.4 — growthStages validation
-    if (r.growthStages != null) {
-      if (!Array.isArray(r.growthStages)) {
-        throw new Error(`Resource "${r.id}" growthStages must be an array`);
-      }
-      if (r.growthStages.length !== 3) {
-        throw new Error(`Resource "${r.id}" growthStages must have exactly 3 entries (got ${r.growthStages.length})`);
-      }
-      for (let i = 0; i < r.growthStages.length; i++) {
-        const s = r.growthStages[i];
-        if (!s || typeof s !== 'object') {
-          throw new Error(`Resource "${r.id}" growthStages[${i}] must be an object`);
-        }
-        if (typeof s.def !== 'string' || !resourceIds.has(s.def)) {
-          throw new Error(`Resource "${r.id}" growthStages[${i}].def must reference an existing resource (got "${s.def}")`);
-        }
-        if (typeof s.duration !== 'number' || (s.duration < 0 && s.duration !== -1)) {
-          throw new Error(`Resource "${r.id}" growthStages[${i}].duration must be a non-negative number or -1 for terminal (got ${s.duration})`);
-        }
-      }
-      // Last stage must be terminal (duration = -1)
-      if (r.growthStages[2].duration !== -1) {
-        throw new Error(`Resource "${r.id}" growthStages[2] (terminal stage) must have duration = -1`);
-      }
     }
   }
   for (const r of Object.values(_RECIPES)) {

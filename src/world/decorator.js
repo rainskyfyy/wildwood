@@ -1,12 +1,6 @@
 /**
  * Decorator — scatters biome-appropriate decorations onto the world grid.
  *
- * v0.5.4 NPC:
- *   - Decorator now also generates a piglin village in the forest biome.
- *   - `scatterDecorationsAndVillage(world, opts)` returns both the decor
- *     array AND a village object (piglins + buildings + origin).
- *   - `scatterDecorations` is kept as a thin alias for backward compat.
- *
  * M5 changes vs M4:
  *   - Each decor entry now has an `art` field (PNG path) or `art: null`
  *     for procedural fallbacks (marsh).
@@ -24,9 +18,11 @@
  *   x, y, kind, color, size, art: string|null
  * }
  */
+
 'use strict';
+
 import { getBiome } from './biome-config.js';
-import { generateVillage } from '../npc/village.js';
+
 // Mulberry32 PRNG — same as perlin.js, exposed for deterministic scatter.
 function mulberry32(seed) {
   let s = seed >>> 0;
@@ -74,24 +70,4 @@ export function scatterDecorations(world, { density = 0.04, seed } = {}) {
     }
   }
   return out;
-}
-
-/**
- * v0.5.4 — scatter decorations AND generate the piglin village.
- *
- * Returns a struct that includes the decor array and a `village`:
- *   {
- *     decor: Decor[],
- *     village: { piglins, buildings, origin }
- *   }
- *
- * Backward compatibility: callers that ignore the return shape still
- * get the decor array (the legacy behavior).
- */
-export function scatterDecorationsAndVillage(world, opts = {}) {
-  const { density = 0.04, seed } = opts;
-  const decor = scatterDecorations(world, { density, seed });
-  const villageSeed = (seed ?? world.seed) ^ 0x7A1B2C3D;
-  const village = generateVillage(world, { seed: villageSeed });
-  return { decor, village };
 }

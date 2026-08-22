@@ -110,11 +110,7 @@ ok('every entity has a defined icon', r1.every(e => !!e.icon));
 // ---------- 4. resource entity ----------
 console.log('resource-entity');
 const bag = new Inventory();
-// v1.0.4: tree is growth-capable. Advance from stage 0 (tree_sprout, 30s)
-// to stage 1 (mature tree, 1.5s harvestTime) before testing the canonical
-// harvest behavior the original m210 test was written for.
-const tree = new ResourceEntity({ id: 'tree', x: 10, y: 10, rngSeed: 42, now: 0 });
-tree.update(31 * 1000);   // stage 0 (30s) -> stage 1
+const tree = new ResourceEntity({ id: 'tree', x: 10, y: 10, rngSeed: 42 });
 ok('tree.hp = 1', tree.hp === 1);
 ok('tree.harvestTime = 1.5', tree.harvestTime === 1.5);
 ok('tree.distTo self = 0', tree.distTo(10, 10) < 0.001);
@@ -146,9 +142,7 @@ const gather = new Gather({ entities: ents, inventory: gInv, range: DEFAULT_RANG
 
 ok('initial state = idle', gather.state === GATHER_IDLE);
 
-ents.push(new ResourceEntity({ id: 'tree', x: 15.5, y: 15.5, rngSeed: 1, now: 0 }));
-// Advance the pushed tree to mature stage (stage 1) for the gather test.
-ents[ents.length - 1].update(31 * 1000);
+ents.push(new ResourceEntity({ id: 'tree', x: 15.5, y: 15.5, rngSeed: 1 }));
 const player = { x: 15.5, y: 15.5 };
 ok('click on in-range resource starts gathering',
    gather.click(15.5, 15.5) === true && gather.state === GATHER_GATHERING);
