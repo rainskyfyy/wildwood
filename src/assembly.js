@@ -1,5 +1,5 @@
 /**
- * assembly.js — v0.6.0a
+ * assembly.js — v0.7.0a
  *
  * 把原 main.js 的「装配层」独立出来:所有 import + 常量 + 子系统实例化。
  * 返回一个 `game` 对象(包含 ctx / world / 各种 manager / 闭包状态),
@@ -9,6 +9,14 @@
  * 末段「追加段」,不动 runtime.js;反过来调优帧循环 / 渲染时不动装配。
  * 多 agent 并行推不同子任务时,冲突面从 main.js 一整块缩到 assembly.js
  * 末段「追加段」,缓解集成炸弹。
+ *
+ * v0.7.0a — EventService / BuildingService / MonsterService:
+ *   - 3 个 Service 是 mutation 单入口(参考 v0.6.0b InventoryService 模式)
+ *   - 装配层 `eventMgr` / `buildingMgr` / `monsterMgr` 字段保留,值 = Service
+ *     内部的同名 Manager 实例,只读 pass-through(供 render / Multiplayer
+ *     读 buildings 数组 / pois 数组 / monsters 数组等)
+ *   - 新增 `eventSvc` / `buildingSvc` / `monsterSvc` 字段,runtime 全部切到 svc
+ *   - tryPlaceBuilding / spawnDefaults 等装配层 mutation 入口也走 svc
  *
  * 集成规范:
  *  - 不引入新依赖,不改变外部行为
@@ -37,14 +45,17 @@ import { Inventory } from './resources/inventory.js';
 import { Gather } from './resources/gather.js';
 import { TOTAL_SLOTS } from './resources/inventory.js';
 import { BuildingManager } from './buildings/placer.js';
+import { BuildingService } from './services/BuildingService.js';
 import { BuildingMenu } from './buildings/building-menu.js';
 import { drawBuilding, drawPlacementPreview } from './buildings/building-renderer.js';
 import { getBuilding } from './buildings/building-config.js';
 import { Multiplayer } from './net/multiplayer.js';
 import { MonsterManager } from './monster/monster-manager.js';
+import { MonsterService } from './services/MonsterService.js';
 import { BossManager } from './boss/boss-manager.js';
 import { BossConfig, validateBossConfig } from './boss/boss-config.js';
 import { EventManager } from './events/event-manager.js';
+import { EventService } from './services/EventService.js';
 import { EventRegistry } from './events/events.js';
 import { BossBar } from './hud/boss-bar.js';
 import { EventBanner } from './hud/event-banner.js';
@@ -171,8 +182,10 @@ export function assembleGame(canvas, opts = {}) {
     }
   });
 
-  // 3. Buildings.
-  const buildingMgr = new BuildingManager(world);
+  // 3. Buildings. v0.7.0a: BuildingService wraps BuildingManager.
+  // 装配层字段 buildingMgr = svc.buildingMgr(只读 pass-through)。
+  const buildingSvc = new BuildingService({ world });
+  const buildingMgr = buildingSvc.buildingMgr;
   const buildingMenu = new BuildingMenu();
 
   // 4. Actors.
@@ -184,12 +197,15 @@ export function assembleGame(canvas, opts = {}) {
   const hud = new HUD(ctx, input, world, inventory);
 
   // 3b. Monsters + Bosses + Events (v0.5.2) — 必须在 player 之后构造
-  const monsterMgr = new MonsterManager({
+  // v0.7.0a: MonsterService 包装 MonsterManager。
+  const monsterSvc = new MonsterService({
     world,
     monsterData: monstersRaw,
     seed: SEED + 99
   });
-  monsterMgr.spawnDefaults();
+  const monsterMgr = monsterSvc.monsterMgr;
+  // BossManager 需要底层 MonsterManager (manager.monsters 数组直接读)
+  // 这是已知的 v0.6.x 旁路,留给 v0.7.x 联机层把 BossManager 也接 svc。
   const bossMgr = new BossManager({
     world,
     monsterManager: monsterMgr,
@@ -201,7 +217,8 @@ export function assembleGame(canvas, opts = {}) {
     }
   });
   const bossBar = new BossBar(ctx);
-  const eventMgr = new EventManager({
+  // v0.7.0a: EventService 包装 EventManager。
+  const eventSvc = new EventService({
     world,
     bossManager: bossMgr,
     monsterManager: monsterMgr,
@@ -212,6 +229,9 @@ export function assembleGame(canvas, opts = {}) {
       }
     }
   });
+  const eventMgr = eventSvc.eventMgr;
+  // 装配层一次性 spawn defaults — 走 svc(因为 spawnDefaults 是 mutation)。
+  monsterSvc.spawnDefaults();
   const eventBanner = new EventBanner(ctx);
 
   // 3c. v0.5.4: day/night + NPC village + trading post + follower.
@@ -261,7 +281,7 @@ export function assembleGame(canvas, opts = {}) {
   const followerMgr = new FollowerManager({
     world,
     player,
-    getMonsters: () => (monsterMgr ? monsterMgr.monsters : [])
+    getMonsters: () => (monsterSvc ? monsterSvc.list() : [])
   });
 
   // 4b. vitals + chat
@@ -272,6 +292,9 @@ export function assembleGame(canvas, opts = {}) {
   };
 
   // 5. Multiplayer(必须放 pushChat 之后,因 onChat 用到)。
+  // v0.7.0a: 仍传 buildingMgr(指向 service 内部 Manager 实例),
+  // 因为 Multiplayer 内部直接读 .buildings 数组 + 调 .place/.remove。
+  // 这是 v0.7 联机层要解决的旁路,本任务不涉及。
   if (client && session && (mode === 'host' || mode === 'join')) {
     session.self.name = playerName;
     runtime.mp = new Multiplayer({
@@ -317,16 +340,16 @@ export function assembleGame(canvas, opts = {}) {
     });
   }
 
-  // 7. Building placement helpers(挂到 game 上,runtime 用)
+  // 7. Building placement helpers(挂到 game 上,runtime 用)。
+  // v0.7.0a: 走 buildingSvc(mutation 单入口)。
   function tryPlaceBuilding(tx, ty) {
     if (!runtime.pendingBuilding) return false;
-    const r = buildingMgr.canPlace(runtime.pendingBuilding, tx, ty, player);
+    const r = buildingSvc.place(runtime.pendingBuilding, tx, ty, player);
     if (!r.ok) {
       pushChat(`[系统] 无法放置:${r.reason}`);
       return false;
     }
-    const b = buildingMgr.place(runtime.pendingBuilding, tx, ty, player);
-    if (runtime.mp && runtime.mp.mode === 'host') runtime.mp.broadcastPlace(b);
+    if (runtime.mp && runtime.mp.mode === 'host') runtime.mp.broadcastPlace(r.building);
     runtime.pendingBuilding = null;
     buildingMenu.close();
     return true;
@@ -431,9 +454,15 @@ export function assembleGame(canvas, opts = {}) {
     // 顶层对象(由 setup 创建)
     ctx, canvas, mode, playerName, client, session,
     world, decor, village, transitions, resources,
-    inventory, gather, buildingMgr, buildingMenu,
+    inventory, gather,
+    // v0.7.0a: Service 是 mutation 单入口;
+    // 装配层旧 Manager 字段保留为只读 pass-through(供 render / Multiplayer / HUD 读)。
+    eventSvc, eventMgr,
+    buildingSvc, buildingMgr,
+    monsterSvc, monsterMgr,
+    buildingMenu,
     input, camera, player, hud,
-    monsterMgr, bossMgr, bossBar, eventMgr, eventBanner,
+    bossMgr, bossBar, eventBanner,
     dayCycle, npcMgr, tradeState, tradeUI, followerMgr,
     vitalsState,
     // 闭包状态集中

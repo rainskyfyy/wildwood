@@ -1,5 +1,5 @@
 /**
- * runtime.js — v0.6.0a
+ * runtime.js — v0.7.0a
  *
  * 负责游戏循环与渲染:frame() / render() / drawNameHp() / biomeCodeToId()
  * 等纯运行时逻辑,接受 assembly.js 装配好的 game 对象。
@@ -11,6 +11,13 @@
  *    main.js 顶层作用域
  *  - 顶层 HUD(BossBar / EventBanner)的 draw 通过 util/render-hooks.js
  *    注入,避免 render() 顶层函数无法访问 bossMgr / eventMgr 的问题
+ *
+ * v0.7.0a — Service 化 caller 切换:
+ *  - eventMgr → eventSvc(EventService)
+ *  - buildingMgr → buildingSvc(BuildingService)
+ *  - monsterMgr → monsterSvc(MonsterService)
+ *  - 装配层 eventMgr / buildingMgr / monsterMgr 字段保留为只读 pass-through,
+ *    渲染读 .pois / .buildings / .monsters 仍走这些字段名(同 instance)
  *
  * 反向依赖:runtime.js → assembly.js(assembleGame 返回的 game 对象)
  * 正向依赖:assembly.js → runtime.js(通过 main.js 串联,见 main.js)
@@ -108,6 +115,7 @@ export function runGame(game) {
     }
 
     // ---- 6. 右键:取消 / 拆除 ----
+    // v0.7.0a: 拆除走 buildingSvc.findAt / remove(mutation 单入口)
     if (game.input.consumeRightClick()) {
       if (game.runtime.pendingBuilding) {
         game.runtime.pendingBuilding = null;
@@ -121,10 +129,10 @@ export function runGame(game) {
         );
         const tx = Math.floor(w.x);
         const ty = Math.floor(w.y);
-        const b = game.buildingMgr.buildings.find(b => b.contains(tx, ty));
+        const b = game.buildingSvc ? game.buildingSvc.findAt(tx, ty) : null;
         if (b) {
           const id = b.entityId;
-          game.buildingMgr.remove(b);
+          game.buildingSvc.remove(b);
           if (game.runtime.mp && game.runtime.mp.mode === 'host') {
             game.runtime.mp.broadcastRemove(id);
           }
@@ -143,25 +151,20 @@ export function runGame(game) {
     }
 
     // ---- 7. v0.5.2 战斗 / Boss / 事件 ----
-    // 7a. 活动事件 → monster multiplier
-    if (game.eventMgr && typeof game.eventMgr.getMonsterMultiplier === 'function') {
-      const mul = game.eventMgr.getMonsterMultiplier();
-      for (const m of (game.monsterMgr?.monsters || [])) {
-        m.effectiveAtk = Math.max(1, Math.round((m.config?.atk || 1) * (mul.atkMul || 1)));
-        m.effectiveSpeed = (m.config?.speed || 1) * (mul.speedMul || 1);
-      }
-    }
-    // 7b. tick monsters
-    if (game.monsterMgr) game.monsterMgr.update(dt, game.player);
+    // 7a. v0.7.0a: 活动事件 → monster multiplier(走 eventSvc)
+    //   svc.update 内部应用 mul 到每个 monster 的 effectiveAtk / effectiveSpeed
+    const mul = game.eventSvc
+      ? game.eventSvc.getMonsterMultiplier()
+      : { atk: 1, speed: 1 };
+    // 7b. tick monsters — 走 monsterSvc,svc 内部应用 mul 并 tick
+    if (game.monsterSvc) game.monsterSvc.update(dt, game.player, mul);
 
     // 7c. 玩家攻击(空格键) — 找最近 monster/boss
+    //   v0.7.0a: 走 monsterSvc.findNearest(mutation 单入口 + 单一定义点)
     if (game.input.consumePressed(' ')) {
-      let closest = null, closestD = Infinity;
-      for (const m of (game.monsterMgr?.monsters || [])) {
-        if (m.state === 'DEAD' || m.hp <= 0) continue;
-        const d = Math.hypot(m.x - game.player.x, m.y - game.player.y);
-        if (d < closestD) { closestD = d; closest = m; }
-      }
+      const closest = game.monsterSvc
+        ? game.monsterSvc.findNearest({ x: game.player.x, y: game.player.y })
+        : null;
       if (closest && game.player.attack(closest)) {
         game.runtime.lastLootBanner =
           `Hit ${closest.typeId || closest.config?.id || 'mob'}`;
@@ -170,8 +173,8 @@ export function runGame(game) {
     }
     // 7d. tick boss
     if (game.bossMgr) game.bossMgr.update(now / 1000);
-    // 7e. tick events
-    if (game.eventMgr) game.eventMgr.update(now / 1000);
+    // 7e. v0.7.0a: tick events 走 eventSvc
+    if (game.eventSvc) game.eventSvc.update(now / 1000);
 
     // 7f. 死亡后回血(简化)
     if (game.player.hp <= 0) {
@@ -221,6 +224,7 @@ export function runGame(game) {
     }
 
     // 7h. L 键 = 触发随机事件
+    //   v0.7.0a: 走 eventSvc.trigger(mutation 单入口)
     if (game.input.consumePressed('l') || game.input.consumePressed('L')) {
       const nowS = now / 1000;
       if (nowS - game.runtime.lastEventTrigger >= game.EVENT_COOLDOWN_S) {
@@ -228,7 +232,9 @@ export function runGame(game) {
         const ids = Object.keys(EventRegistry.all());
         if (ids.length > 0) {
           const idx = Math.floor(Math.random() * ids.length);
-          const ok = game.eventMgr.trigger(ids[idx], nowS);
+          const ok = game.eventSvc
+            ? game.eventSvc.trigger(ids[idx], nowS)
+            : false;
           if (!ok) game.pushChat(`[系统] 事件 ${ids[idx]} 触发失败`);
         }
       } else {
@@ -296,7 +302,8 @@ export function runGame(game) {
       game.runtime.lastLootBanner = null;
     }
 
-    // ---- 11. 放置预览(building menu 关闭后) ----
+    // ---- 11. 放置预览(building menu 关闭后)----
+    //   v0.7.0a: 走 buildingSvc.canPlace
     if (game.runtime.pendingBuilding && !game.buildingMenu.isOpen) {
       const w = screenToWorld(
         game.input.mouseX, game.input.mouseY,
@@ -312,9 +319,9 @@ export function runGame(game) {
       const offsetY = cy - camScreen.y;
       const sx = s.x + offsetX;
       const sy = s.y + offsetY;
-      const can = game.buildingMgr.canPlace(
-        game.runtime.pendingBuilding, tx, ty, game.player
-      ).ok;
+      const can = game.buildingSvc
+        ? game.buildingSvc.canPlace(game.runtime.pendingBuilding, tx, ty, game.player).ok
+        : false;
       drawPlacementPreview(game.ctx, sx, sy, game.runtime.pendingBuilding, can);
     }
 
@@ -349,6 +356,10 @@ function render(game, dt) {
   const npcMgr = game.npcMgr;
   const followerMgr = game.followerMgr;
   const dayCycle = game.dayCycle;
+  // v0.7.0a: render 读 pois / buildings / monsters 走 service getter
+  const eventSvc = game.eventSvc;
+  const buildingSvc = game.buildingSvc;
+  const monsterSvc = game.monsterSvc;
   const mp = runtime.mp;
 
   ctx.fillStyle = '#1a1a2a';
@@ -404,25 +415,27 @@ function render(game, dt) {
      || r.y < bounds.y0 - 1 || r.y > bounds.y1 + 1) continue;
     drawables.push({ kind: 'resource', ref: r, depth: depthKey(r.x, r.y) });
   }
+  // v0.7.0a: 渲染读 buildingMgr.buildings(只读 pass-through)
   for (const b of (buildingMgr?.buildings || [])) {
     if (b.tx < bounds.x0 - 2 || b.tx > bounds.x1 + 2
      || b.ty < bounds.y0 - 2 || b.ty > bounds.y1 + 2) continue;
     drawables.push({ kind: 'building', ref: b, depth: depthKey(b.tx, b.ty) });
   }
-  // v0.5.2 monsters(含 Boss)
+  // v0.5.2 monsters(含 Boss)。svc 字段是装配层保留的 pass-through。
   for (const m of (monsterMgr?.monsters || [])) {
     if (m.x < bounds.x0 - 1 || m.x > bounds.x1 + 1
      || m.y < bounds.y0 - 1 || m.y > bounds.y1 + 1) continue;
     drawables.push({ kind: 'monster', ref: m, depth: depthKey(m.x, m.y) });
   }
-  // v0.5.2 event POIs(cave_poi, meteor_fall)
-  if (game.eventMgr && Array.isArray(game.eventMgr.pois)) {
-    for (const p of game.eventMgr.pois) {
-      if (!p || p.x == null) continue;
-      if (p.x < bounds.x0 - 1 || p.x > bounds.x1 + 1
-       || p.y < bounds.y0 - 1 || p.y > bounds.y1 + 2) continue;
-      drawables.push({ kind: 'poi', ref: p, depth: depthKey(p.x, p.y) });
-    }
+  // v0.7.0a: POI 读 eventSvc.pois(getter) — 也兼容 eventMgr.pois 直读
+  const pois = (eventSvc && Array.isArray(eventSvc.pois))
+    ? eventSvc.pois
+    : (game.eventMgr && Array.isArray(game.eventMgr.pois)) ? game.eventMgr.pois : [];
+  for (const p of pois) {
+    if (!p || p.x == null) continue;
+    if (p.x < bounds.x0 - 1 || p.x > bounds.x1 + 1
+     || p.y < bounds.y0 - 1 || p.y > bounds.y1 + 2) continue;
+    drawables.push({ kind: 'poi', ref: p, depth: depthKey(p.x, p.y) });
   }
   // v0.5.4 village buildings
   for (const b of (npcMgr?.buildings || [])) {
@@ -615,4 +628,5 @@ function drawNameHp(ctx, sx, sy, name, state, self) {
 }
 
 const CODE_TO_BIOME = ['forest', 'plains', 'mines', 'snow'];
-function biomeCodeToId(c) { return CODE_TO_BIOME[c] || 'plains'; }
+function biomeCodeToId(c) { return CODE_TO_BIOME[c] || 'plains';
+}
