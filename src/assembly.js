@@ -1,5 +1,5 @@
 /**
- * assembly.js — v0.6.0a
+ * assembly.js — v0.6.0a (extended v0.8.0a)
  *
  * 把原 main.js 的「装配层」独立出来:所有 import + 常量 + 子系统实例化。
  * 返回一个 `game` 对象(包含 ctx / world / 各种 manager / 闭包状态),
@@ -9,6 +9,11 @@
  * 末段「追加段」,不动 runtime.js;反过来调优帧循环 / 渲染时不动装配。
  * 多 agent 并行推不同子任务时,冲突面从 main.js 一整块缩到 assembly.js
  * 末段「追加段」,缓解集成炸弹。
+ *
+ * v0.8.0a — pass-through 冻结:
+ *   所有指向 Manager / Service / UI 实例的字段在装配完成后立即
+ *   Object.freeze,堵住"换引用"型状态泄漏口。Service 入口仍是
+ *   mutation 唯一通路;UI 只读访问走 pass-through 不受影响。
  *
  * 集成规范:
  *  - 不引入新依赖,不改变外部行为
@@ -58,6 +63,7 @@ import { FollowerManager } from './follower/follower-manager.js';
 import { drawPiglin, drawFollower, drawBuilding as drawVillageBuilding } from './render/npc-renderer.js';
 import { escapeHtml } from './util/escape-html.js';
 import { setBossBarDraw, setEventBannerDraw } from './util/render-hooks.js';
+import { freezePassThroughs } from './util/freeze-passthrough.js';
 
 // ---------- 常量 ----------
 const DAY_START_T = 4 * 60; // 4:00 of the 24h clock — sunrise-ish
@@ -450,6 +456,26 @@ export function assembleGame(canvas, opts = {}) {
   // 顶层 HUD:BossBar / EventBanner draw 注册到模块钩子(供 render 调)
   setBossBarDraw(() => { try { bossBar.draw(bossMgr, canvas.width); } catch (_) { /* swallow */ } });
   setEventBannerDraw((dt) => { try { eventBanner._pruneFlashes(dt); eventBanner.draw(eventMgr, dt); } catch (_) { /* swallow */ } });
+
+  // v0.8.0a:freeze 装配层 pass-through 字段,堵住"换引用"泄漏口。
+  // 这些字段指向 Manager / Service / UI 实例,只读访问没问题;
+  // 但任何 `game.X = newX` 都会抛 TypeError,迫使 mutation 走 Service。
+  // runtime 闭包状态(`runtime` 对象本身)与画布等顶层对象不放进列表,
+  // 那些是合法 mutable state。
+  freezePassThroughs(game, [
+    // 状态拥有者(v0.6.0b / v0.7.0a Service 拆分)
+    'inventory', 'eventMgr', 'buildingMgr', 'monsterMgr',
+    // UI 组件 / 输入
+    'gather', 'buildingMenu', 'hud', 'input', 'camera', 'player',
+    'bossMgr', 'bossBar', 'eventBanner',
+    // v0.5.4 NPC 村庄 + 交易 + 随从
+    'dayCycle', 'npcMgr', 'tradeState', 'tradeUI', 'followerMgr',
+    'vitalsState',
+    // 世界 / 装饰 / 资源(只读 reference,装配完成后不应被换)
+    'world', 'decor', 'village', 'transitions', 'resources',
+    // 顶层上下文(装配完成,不应被换)
+    'ctx', 'canvas',
+  ]);
 
   return game;
 }
