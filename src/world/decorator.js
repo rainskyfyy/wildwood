@@ -22,6 +22,11 @@
 'use strict';
 
 import { getBiome } from './biome-config.js';
+// v0.8.0 P0 Bug-1:scatterDecorationsAndVillage needs to also produce
+// the NPC village so assembly.js can install it on npcMgr in one shot.
+// Lazy-static import is safe — npc/village.js does not import from
+// world/decorator.js (no circular dep).
+import { generateVillage } from '../npc/village.js';
 
 // Mulberry32 PRNG — same as perlin.js, exposed for deterministic scatter.
 function mulberry32(seed) {
@@ -70,4 +75,35 @@ export function scatterDecorations(world, { density = 0.04, seed } = {}) {
     }
   }
   return out;
+}
+
+/**
+ * v0.8.0 P0 Bug-1:scatter decorations AND the NPC village in one call.
+ * Returns `{ decor, village }` so assembly.js can install both via
+ * `const { decor, village } = scatterDecorationsAndVillage(...)`.
+ *
+ * Village is `{ piglins, buildings, origin }` on success, or `null` when
+ * `generateVillage` returns an empty roster (no placeable clearing in
+ * the forest biome). assembly.js already handles `village == null` by
+ * falling back to `npcMgr.spawnVillage({ preferredBiome: 'forest' })`.
+ *
+ * @param {import('./generator.js').WorldGrid} world
+ * @param {object} [opts]
+ * @param {number} [opts.density=0.04] — probability of a decor per tile per cycle
+ * @param {number} [opts.seed] — override seed (defaults to world.seed)
+ * @returns {{ decor: Array<object>, village: { piglins: Array, buildings: Array, origin: object|null } | null }}
+ */
+export function scatterDecorationsAndVillage(world, opts = {}) {
+  const decor = scatterDecorations(world, opts);
+  let village = null;
+  try {
+    const result = generateVillage(world, opts);
+    if (result && Array.isArray(result.piglins) && result.piglins.length > 0) {
+      village = result;
+    }
+  } catch (_e) {
+    // village generation failed — caller falls back to npcMgr.spawnVillage
+    village = null;
+  }
+  return { decor, village };
 }
