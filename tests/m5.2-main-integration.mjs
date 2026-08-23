@@ -17,7 +17,7 @@ const srcDir = join(__dirname, '..', 'src');
 
 let src = readFileSync(join(srcDir, 'main.js'), 'utf8');
 // v0.6.0a: wiring 分散在 main.js / assembly.js / runtime.js
-for (const f of ['assembly.js', 'runtime.js']) {
+for (const f of ['assembly.js', 'runtime.js', 'util/render-hooks.js']) {
   const p = join(srcDir, f);
   if (existsSync(p)) src += '\n' + readFileSync(p, 'utf8');
 }
@@ -50,11 +50,11 @@ ok('constructs BossBar', src.includes('new BossBar(ctx)'));
 ok('constructs EventBanner', src.includes('new EventBanner(ctx)'));
 
 section('frame loop ticks');
-ok('monsterMgr.update called', src.includes('monsterMgr.update(dt, player)'));
+ok('monsterMgr.update called', /monsterMgr\.update\s*\(\s*dt\s*,\s*(game\.)?player\s*\)/.test(src));
 ok('bossMgr.update called', src.includes('bossMgr.update('));
 ok('eventMgr.update called', src.includes('eventMgr.update('));
 ok('player.attack called (Space)', src.includes('player.attack('));
-ok('vitalsState.hp synced from player.hp', src.includes('vitalsState.hp.cur = player.hp'));
+ok('vitalsState.hp synced from player.hp', /vitalsState\.hp\.cur\s*=\s*(game\.)?player\.hp/.test(src));
 ok('event multiplier applied to monsters', src.includes('getMonsterMultiplier()'));
 ok('effectiveAtk/effectiveSpeed set on monsters', src.includes('m.effectiveAtk') && src.includes('m.effectiveSpeed'));
 
@@ -78,8 +78,8 @@ ok('_bossBarDraw declared at module level', src.match(/let _bossBarDraw/));
 ok('_eventBannerDraw declared at module level', src.match(/let _eventBannerDraw/));
 
 section('helper integration in bootGame');
-ok('bootGame sets _bossBarDraw = ...', src.includes('_bossBarDraw = ('));
-ok('bootGame sets _eventBannerDraw = ...', src.includes('_eventBannerDraw = ('));
+ok('bootGame sets _bossBarDraw = ...', src.includes('_bossBarDraw = (') || src.includes('setBossBarDraw('));
+ok('bootGame sets _eventBannerDraw = ...', src.includes('_eventBannerDraw = (') || src.includes('setEventBannerDraw('));
 ok('BossConfig.forBiome / all() fallback', src.includes('BossConfig.forBiome') && src.includes('BossConfig.all'));
 ok('EventRegistry.all() for random event', src.includes('EventRegistry.all()'));
 

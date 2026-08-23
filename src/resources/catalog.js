@@ -69,6 +69,102 @@ export function getMaxDurability(itemId) {
 }
 
 /**
+ * v1.1.0 — gridKind(recipe.grid) returns shape descriptor.
+ *   - 1x1 / 1x2 / 1x3 / 1x4 -> { kind: 'line', size: 1|2|3|4 }
+ *   - 2x2 -> { kind: 'square', size: 2 }
+ *   - 3x3 -> { kind: 'square', size: 3 }
+ *   - anything else -> { kind: 'unknown', size: 0 }
+ */
+export function gridKind(grid) {
+  if (typeof grid === 'string') {
+    if (grid === '1x1') return { kind: 'line', size: 1 };
+    if (grid === '1x2') return { kind: 'line', size: 2 };
+    if (grid === '1x3') return { kind: 'line', size: 3 };
+    if (grid === '1x4') return { kind: 'line', size: 4 };
+    if (grid === '2x2') return { kind: 'square', size: 2 };
+    if (grid === '3x3') return { kind: 'square', size: 3 };
+  }
+  return { kind: 'unknown', size: 0 };
+}
+
+// ---------- v1.1.0 — three-stage growth system (M2.10e) ----------
+
+/**
+ * A resource is "growth-capable" when it has a `growthStages` array of
+ * length >= 2. Each stage entry has:
+ *   { def: <resourceId used at this stage>, duration: <seconds, -1 = terminal> }
+ *
+ * The last stage is considered terminal (duration <= 0 means it never
+ * advances). Non-growth-capable resources are single-stage and trivially
+ * terminal.
+ */
+export function isGrowthCapable(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return false;
+  return Array.isArray(r.growthStages) && r.growthStages.length >= 2;
+}
+
+export function getGrowthStages(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return null;
+  return r.growthStages || null;
+}
+
+export function getStageCount(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return 0;
+  return r.growthStages ? r.growthStages.length : 1;
+}
+
+/**
+ * Returns the resource descriptor used at the given stage. For a single-
+ * stage resource, stage 0 returns the resource itself. Throws if stage is
+ * out of range.
+ */
+export function getStageDef(resourceId, stage) {
+  const r = _RESOURCES[resourceId];
+  if (!r) throw new Error(`Unknown resource: ${resourceId}`);
+  if (!r.growthStages) {
+    if (stage === 0) return r;
+    throw new Error(`Resource "${resourceId}" has no stage ${stage}`);
+  }
+  if (stage < 0 || stage >= r.growthStages.length) {
+    throw new Error(`Resource "${resourceId}" has no stage ${stage}`);
+  }
+  const defId = r.growthStages[stage].def;
+  const def = _RESOURCES[defId];
+  if (!def) {
+    throw new Error(`Stage ${stage} of "${resourceId}" references unknown def "${defId}"`);
+  }
+  return def;
+}
+
+/**
+ * A resource is "depletable" when it has a positive `maxHarvests` field.
+ * When its harvestCount reaches maxHarvests and a regrow completes, the
+ * entity transforms to the resource named in `depletedTransformsTo`
+ * (or stays as the same resource when null).
+ */
+export function isDepletable(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return false;
+  return typeof r.maxHarvests === 'number' && r.maxHarvests > 0;
+}
+
+export function getMaxHarvests(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return Infinity;
+  if (typeof r.maxHarvests === 'number' && r.maxHarvests > 0) return r.maxHarvests;
+  return Infinity;
+}
+
+export function getDepletedTransformsTo(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return null;
+  return r.depletedTransformsTo || null;
+}
+
+/**
  * Which tool types can harvest which resource kinds.
  * null = bare hands (any resource can be gathered without a tool).
  *
@@ -103,8 +199,33 @@ const _TOOL_COMPAT = {
  *   'wrong_tool'        if the tool exists but is not the right type
  *   'tool_required'     if the resource needs a tool but none is equipped
  */
+/**
+ * Resolve a stage id (e.g. 'tree_sprout', 'tree_old') back to its parent
+ * root id (e.g. 'tree'). If resourceId is already a root id (no parent
+ * references it as a stage def), returns resourceId as-is.
+ */
+function _findRootId(resourceId) {
+  const r = _RESOURCES[resourceId];
+  if (!r) return resourceId;
+  // If this resource is referenced as a stage of another resource, the
+  // parent is the root. Walk the catalog and check.
+  for (const candidate of Object.values(_RESOURCES)) {
+    if (Array.isArray(candidate.growthStages)) {
+      for (const s of candidate.growthStages) {
+        if (s.def === resourceId) return candidate.id;
+      }
+    }
+  }
+  return resourceId;
+}
+
 export function checkTool(resourceId, toolId) {
-  const allowed = _TOOL_COMPAT[resourceId];
+  // Growth-capable stages (e.g. 'tree_sprout', 'tree_old') aren't in
+  // _TOOL_COMPAT directly — resolve them back to the parent root id
+  // (e.g. 'tree') so a stage 0 sprout still respects the parent's tool
+  // compatibility.
+  const rootId = _findRootId(resourceId);
+  const allowed = _TOOL_COMPAT[rootId];
   if (allowed === undefined) return 'compatible';  // unknown resource id, fail open
   // If a tool is equipped: prefer 'compatible' if its type is in the allowed
   // list. If it's a tool but not allowed, return 'wrong_tool' UNLESS bare
@@ -127,7 +248,8 @@ export function checkTool(resourceId, toolId) {
  * indicates bare-handed compatibility. Returns [] for unknown ids.
  */
 export function allowedTools(resourceId) {
-  const allowed = _TOOL_COMPAT[resourceId];
+  const rootId = _findRootId(resourceId);
+  const allowed = _TOOL_COMPAT[rootId];
   if (allowed === undefined) return [];
   return allowed.slice();
 }
@@ -147,23 +269,45 @@ export function validateCatalog() {
   }
   for (const r of Object.values(_RECIPES)) {
     const { grid, pattern } = r;
-    const expected = grid === '2x2' ? 2 : 3;
-    if (!Array.isArray(pattern) || pattern.length !== expected) {
-      throw new Error(`Recipe "${r.id}" pattern must be ${expected}x${expected}`);
-    }
-    for (const row of pattern) {
-      if (row.length !== expected) {
-        throw new Error(`Recipe "${r.id}" pattern row width != ${expected}`);
+    // v1.1.0 — accept both 2D (2x2/3x3) and 1D (1x1/1x2/1x3/1x4) grids.
+    const dim1D = (g) => g === '1x1' ? 1 : g === '1x2' ? 2 : g === '1x3' ? 3 : g === '1x4' ? 4 : null;
+    const dim2D = (g) => g === '2x2' ? 2 : g === '3x3' ? 3 : null;
+    if (dim1D(grid) !== null) {
+      // 1D pattern: flat array of strings, length 1..4.
+      const expected = dim1D(grid);
+      if (!Array.isArray(pattern) || pattern.length !== expected) {
+        throw new Error(`Recipe "${r.id}" pattern must be length ${expected} (1D)`);
       }
-      for (const cell of row) {
+      for (const cell of pattern) {
+        if (typeof cell !== 'string') {
+          throw new Error(`Recipe "${r.id}" pattern cells must be strings`);
+        }
         if (cell !== '' && !itemIds.has(cell)) {
           throw new Error(`Recipe "${r.id}" references unknown item "${cell}"`);
         }
       }
+    } else if (dim2D(grid) !== null) {
+      // 2D pattern: array of arrays.
+      const expected = dim2D(grid);
+      if (!Array.isArray(pattern) || pattern.length !== expected) {
+        throw new Error(`Recipe "${r.id}" pattern must be ${expected}x${expected}`);
+      }
+      for (const row of pattern) {
+        if (!Array.isArray(row) || row.length !== expected) {
+          throw new Error(`Recipe "${r.id}" pattern row width != ${expected}`);
+        }
+        for (const cell of row) {
+          if (cell !== '' && !itemIds.has(cell)) {
+            throw new Error(`Recipe "${r.id}" references unknown item "${cell}"`);
+          }
+        }
+      }
+    } else {
+      throw new Error(`Recipe "${r.id}" has unknown grid "${grid}"`);
     }
     if (!itemIds.has(r.output.itemId)) {
       throw new Error(`Recipe "${r.id}" outputs unknown item "${r.output.itemId}"`);
-      }
+    }
   }
   for (const it of Object.values(_ITEMS)) {
     if (it.category === 'tool') {
