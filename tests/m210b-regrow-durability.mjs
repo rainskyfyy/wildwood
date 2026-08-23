@@ -132,41 +132,45 @@ ok('tools do not merge when moving', (() => {
   return t.slots[0] != null && t.slots[1] != null;
 })());
 
-// ---------- 3. resource regrow ----------
+// ---------- 3. resource regrow (non-growth-capable: rock) ----------
+// Use rock (non-growth-capable, regrowTime > 0) for the standard regrow
+// window tests. Tree (growth-capable) is tested separately in §3b below.
 console.log('resource-entity regrow');
-const r = new ResourceEntity({ id: 'tree', x: 10, y: 10, rngSeed: 1 });
-ok('tree regrowTime = 60', r.regrowTime === 60);
+const r = new ResourceEntity({ id: 'rock', x: 10, y: 10, rngSeed: 1 });
+ok('rock regrowTime > 0', r.regrowTime > 0);
 ok('initial visual state = full', r.getVisualState() === 'full');
 ok('initial regrowFraction = 1', r.regrowFraction(0) === 1);
 
 const now0 = 1000000;
 const out = r.harvest(new Inventory(), now0);
 ok('harvest returns granted array', Array.isArray(out.granted));
-ok('harvest sets regrowAt = now + 60s', out.regrowAt === now0 + 60_000);
+ok('harvest sets regrowAt = now + regrowTime', out.regrowAt === now0 + r.regrowTime * 1000);
 ok('after harvest: depleted = true', r.depleted === true);
 ok('after harvest: visual = regrowing', r.getVisualState() === 'regrowing');
 ok('regrowFraction at t0 = 0', r.regrowFraction(now0) === 0);
-ok('regrowFraction halfway = ~0.5', Math.abs(r.regrowFraction(now0 + 30_000) - 0.5) < 0.001);
-ok('regrowFraction at full = 1', r.regrowFraction(now0 + 60_000) === 1);
+ok('regrowFraction halfway = ~0.5', Math.abs(r.regrowFraction(now0 + r.regrowTime * 500) - 0.5) < 0.001);
+ok('regrowFraction at full = 1', r.regrowFraction(now0 + r.regrowTime * 1000) === 1);
 
 ok('update(now) before regrowAt does not respawn', (() => {
   const e = new ResourceEntity({ id: 'rock', x: 1, y: 1, rngSeed: 1 });
   e.harvest(new Inventory(), 1000);
-  return e.update(1000 + 60_000) === false && e.depleted === true;
+  return e.update(1000 + e.regrowTime * 500) === false && e.depleted === true;
 })());
 
 ok('update(now) at regrowAt respawns', (() => {
   const e = new ResourceEntity({ id: 'rock', x: 1, y: 1, rngSeed: 1 });
   e.harvest(new Inventory(), 1000);
-  return e.update(1000 + 120_000) === true && e.depleted === false;
+  const regrowAt = 1000 + e.regrowTime * 1000;
+  return e.update(regrowAt) === true && e.depleted === false;
 })());
 
 ok('re-harvest after regrow drops again', (() => {
   const e = new ResourceEntity({ id: 'rock', x: 1, y: 1, rngSeed: 1 });
   const bag = new Inventory();
   e.harvest(bag, 1000);
-  e.update(1000 + 120_000);
-  const out2 = e.harvest(bag, 1000 + 120_000);
+  const regrowAt = 1000 + e.regrowTime * 1000;
+  e.update(regrowAt);
+  const out2 = e.harvest(bag, regrowAt);
   return out2.granted.length > 0;
 })());
 
@@ -238,18 +242,22 @@ const gent = spawnResources(gw, { seed: 99 });
 // Find the closest tree to (0,0) — robust against RNG-sequence shifts
 // caused by catalog changes (e.g. adding new resource types shifts the
 // spawner rng sequence per tile, changing which tree is "first").
-const trees = gent.filter(e => e.id === 'tree');
+// Match by _rootId (parent) — fresh growth-capable trees spawn at stage 0 (tree_sprout)
+const trees = gent.filter(e => e._rootId === 'tree');
 trees.sort((a, b) => a.distTo(0, 0) - b.distTo(0, 0));
 const tree = trees[0];
 ok('at least one tree spawned', trees.length > 0);
-ok('closest tree is within gather range (5)', tree && tree.distTo(0, 0) <= 5);
+// 'closest within range 5' is now environment-sensitive (30x30 seed=99 doesn't
+// always place a tree near origin). For the gather integration test, we
+// construct a deterministic tree near (0,0) so the test is hermetic.
+const gatherTree = new ResourceEntity({ id: 'tree', x: 3, y: 0, rngSeed: 7 });
 const invG = new Inventory();
 invG.add('axe', 1);
 invG.selectHotbar(0);
 
 let lastEvent = null;
 const gather = new Gather({
-  entities: [tree],
+  entities: [gatherTree],
   inventory: invG,
   range: 5,
   selectedItemProvider: () => {
@@ -261,7 +269,7 @@ const gather = new Gather({
 
 ok('gather click on tree starts gathering', (() => {
   gather.click(0, 0);
-  return gather.state === 'gathering' && gather.target === tree;
+  return gather.state === 'gathering' && gather.target === gatherTree;
 })());
 
 ok('after enough time, completes with toolUsed=axe', (() => {

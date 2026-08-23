@@ -1,55 +1,794 @@
 {
-  "_meta": { "version": "1.1.0", "schema": "wildwood-recipes-v1",
-             "note": "v1.1.0 新增 boss 装备配方(远古长矛/回火镐/毛皮大衣/冰霜之刃);以 boss 掉落物为核心材料" },
+  "_meta": {
+    "version": "1.2.1",
+    "schema": "wildwood-recipes-v1",
+    "note": "v1.0.2 processing recipes: 改 jerky/berry_wine/wheat_beer/honey_mead/pumpkin_spice 命名空间"
+  },
   "torch": {
-    "id": "torch", "name": "火把", "station": "hand", "grid": "2x2",
-    "pattern": [["log", ""], ["", "twine"]],
-    "output": { "itemId": "torch", "count": 1 }
+    "id": "torch",
+    "name": "火把",
+    "station": "hand",
+    "grid": "2x2",
+    "pattern": [
+      [
+        "log",
+        ""
+      ],
+      [
+        "",
+        "twine"
+      ]
+    ],
+    "output": {
+      "itemId": "torch",
+      "count": 1
+    }
   },
   "rope": {
-    "id": "rope", "name": "绳索", "station": "hand", "grid": "2x2",
-    "pattern": [["twine", "twine"], ["twine", "twine"]],
-    "output": { "itemId": "twine", "count": 4 }
+    "id": "rope",
+    "name": "绳索",
+    "station": "hand",
+    "grid": "2x2",
+    "pattern": [
+      [
+        "twine",
+        "twine"
+      ],
+      [
+        "twine",
+        "twine"
+      ]
+    ],
+    "output": {
+      "itemId": "twine",
+      "count": 4
+    }
   },
   "campfire": {
-    "id": "campfire", "name": "篝火", "station": "hand", "grid": "2x2",
-    "pattern": [["log", "log"], ["twine", "stone"]],
-    "output": { "itemId": "campfire", "count": 1 }
+    "id": "campfire",
+    "name": "篝火",
+    "station": "hand",
+    "grid": "2x2",
+    "pattern": [
+      [
+        "log",
+        "log"
+      ],
+      [
+        "twine",
+        "stone"
+      ]
+    ],
+    "output": {
+      "itemId": "campfire",
+      "count": 1
+    }
   },
   "axe": {
-    "id": "axe", "name": "斧头", "station": "science", "grid": "3x3",
-    "pattern": [["", "iron_ore", ""], ["log", "log", ""], ["", "log", ""]],
-    "output": { "itemId": "axe", "count": 1 }
+    "id": "axe",
+    "name": "斧头",
+    "station": "science",
+    "grid": "3x3",
+    "pattern": [
+      [
+        "",
+        "iron_ore",
+        ""
+      ],
+      [
+        "log",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "log",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "axe",
+      "count": 1
+    }
   },
   "pickaxe": {
-    "id": "pickaxe", "name": "镐", "station": "science", "grid": "3x3",
-    "pattern": [["", "iron_ore", "iron_ore"], ["", "log", ""], ["", "log", ""]],
-    "output": { "itemId": "pickaxe", "count": 1 }
+    "id": "pickaxe",
+    "name": "镐",
+    "station": "science",
+    "grid": "3x3",
+    "pattern": [
+      [
+        "",
+        "iron_ore",
+        "iron_ore"
+      ],
+      [
+        "",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "log",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "pickaxe",
+      "count": 1
+    }
   },
   "shovel": {
-    "id": "shovel", "name": "铲", "station": "science", "grid": "3x3",
-    "pattern": [["", "", ""], ["iron_ore", "log", ""], ["", "log", ""]],
-    "output": { "itemId": "shovel", "count": 1 }
+    "id": "shovel",
+    "name": "铲",
+    "station": "science",
+    "grid": "3x3",
+    "pattern": [
+      [
+        "",
+        "",
+        ""
+      ],
+      [
+        "iron_ore",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "log",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "shovel",
+      "count": 1
+    }
   },
-
   "ancient_spear": {
-    "id": "ancient_spear", "name": "远古长矛", "station": "science", "grid": "3x3",
-    "pattern": [["deer_antler", "log", ""], ["", "log", ""], ["", "flint", ""]],
-    "output": { "itemId": "ancient_spear", "count": 1 }
+    "id": "ancient_spear",
+    "name": "远古长矛",
+    "station": "science",
+    "grid": "3x3",
+    "pattern": [
+      [
+        "deer_antler",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "flint",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "ancient_spear",
+      "count": 1
+    }
   },
   "tempered_pickaxe": {
-    "id": "tempered_pickaxe", "name": "回火镐", "station": "science", "grid": "3x3",
-    "pattern": [["ant_ichor", "iron_ore", "iron_ore"], ["", "log", ""], ["", "log", ""]],
-    "output": { "itemId": "tempered_pickaxe", "count": 1 }
+    "id": "tempered_pickaxe",
+    "name": "回火镐",
+    "station": "science",
+    "grid": "3x3",
+    "pattern": [
+      [
+        "ant_ichor",
+        "iron_ore",
+        "iron_ore"
+      ],
+      [
+        "",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "log",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "tempered_pickaxe",
+      "count": 1
+    }
   },
   "fur_coat": {
-    "id": "fur_coat", "name": "毛皮大衣", "station": "hand", "grid": "2x2",
-    "pattern": [["bear_pelt", "bear_pelt"], ["twine", ""]],
-    "output": { "itemId": "fur_coat", "count": 1 }
+    "id": "fur_coat",
+    "name": "毛皮大衣",
+    "station": "hand",
+    "grid": "2x2",
+    "pattern": [
+      [
+        "bear_pelt",
+        "bear_pelt"
+      ],
+      [
+        "twine",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "fur_coat",
+      "count": 1
+    }
   },
   "frost_blade": {
-    "id": "frost_blade", "name": "冰霜之刃", "station": "science", "grid": "3x3",
-    "pattern": [["dragon_scale", "ice", ""], ["", "log", ""], ["", "flint", ""]],
-    "output": { "itemId": "frost_blade", "count": 1 }
+    "id": "frost_blade",
+    "name": "冰霜之刃",
+    "station": "science",
+    "grid": "3x3",
+    "pattern": [
+      [
+        "dragon_scale",
+        "ice",
+        ""
+      ],
+      [
+        "",
+        "log",
+        ""
+      ],
+      [
+        "",
+        "flint",
+        ""
+      ]
+    ],
+    "output": {
+      "itemId": "frost_blade",
+      "count": 1
+    }
+  },
+  "vegetable_stew": {
+    "id": "vegetable_stew",
+    "name": "蔬菜炖",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "carrot",
+      "potato",
+      "water",
+      "salt"
+    ],
+    "output": {
+      "itemId": "vegetable_stew",
+      "count": 1
+    }
+  },
+  "roasted_potato": {
+    "id": "roasted_potato",
+    "name": "烤土豆",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "potato",
+      "water",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "roasted_potato",
+      "count": 1
+    }
+  },
+  "hearty_stew": {
+    "id": "hearty_stew",
+    "name": "丰盛炖菜",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "meat",
+      "carrot",
+      "potato",
+      "water"
+    ],
+    "output": {
+      "itemId": "hearty_stew",
+      "count": 1
+    }
+  },
+  "omelet": {
+    "id": "omelet",
+    "name": "煎蛋卷",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "egg",
+      "salt",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "omelet",
+      "count": 1
+    }
+  },
+  "cooked_carrot": {
+    "id": "cooked_carrot",
+    "name": "熟胡萝卜",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "carrot",
+      "water",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "cooked_carrot",
+      "count": 1
+    }
+  },
+  "berry_jam": {
+    "id": "berry_jam",
+    "name": "浆果酱",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "berries",
+      "honey",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "berry_jam",
+      "count": 1
+    }
+  },
+  "mushroom_soup": {
+    "id": "mushroom_soup",
+    "name": "蘑菇汤",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "mushroom",
+      "water",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "mushroom_soup",
+      "count": 1
+    }
+  },
+  "fish_stew": {
+    "id": "fish_stew",
+    "name": "炖鱼",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "fish",
+      "water",
+      "salt",
+      "carrot"
+    ],
+    "output": {
+      "itemId": "fish_stew",
+      "count": 1
+    }
+  },
+  "meat_skewer": {
+    "id": "meat_skewer",
+    "name": "烤肉串",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "meat",
+      "salt",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "meat_skewer",
+      "count": 1
+    }
+  },
+  "honey_glazed": {
+    "id": "honey_glazed",
+    "name": "蜜汁肉",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "meat",
+      "honey",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "honey_glazed",
+      "count": 1
+    }
+  },
+  "spicy_meat": {
+    "id": "spicy_meat",
+    "name": "辣肉",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "meat",
+      "spice",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "spicy_meat",
+      "count": 1
+    }
+  },
+  "corn_pudding": {
+    "id": "corn_pudding",
+    "name": "玉米布丁",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "corn",
+      "milk",
+      "egg",
+      "honey"
+    ],
+    "output": {
+      "itemId": "corn_pudding",
+      "count": 1
+    }
+  },
+  "tomato_sauce": {
+    "id": "tomato_sauce",
+    "name": "番茄酱",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "tomato",
+      "salt",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "tomato_sauce",
+      "count": 1
+    }
+  },
+  "wheat_bread": {
+    "id": "wheat_bread",
+    "name": "小麦面包",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "wheat",
+      "water",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "wheat_bread",
+      "count": 1
+    }
+  },
+  "pumpkin_pie": {
+    "id": "pumpkin_pie",
+    "name": "南瓜派",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "pumpkin",
+      "flour",
+      "egg",
+      "honey"
+    ],
+    "output": {
+      "itemId": "pumpkin_pie",
+      "count": 1
+    }
+  },
+  "watermelon_sorbet": {
+    "id": "watermelon_sorbet",
+    "name": "西瓜冰沙",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "watermelon",
+      "ice",
+      "honey",
+      ""
+    ],
+    "output": {
+      "itemId": "watermelon_sorbet",
+      "count": 1
+    }
+  },
+  "ice_cream": {
+    "id": "ice_cream",
+    "name": "冰淇淋",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "milk",
+      "ice",
+      "honey",
+      ""
+    ],
+    "output": {
+      "itemId": "ice_cream",
+      "count": 1
+    }
+  },
+  "carrot_cake": {
+    "id": "carrot_cake",
+    "name": "胡萝卜蛋糕",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "carrot",
+      "flour",
+      "egg",
+      "honey"
+    ],
+    "output": {
+      "itemId": "carrot_cake",
+      "count": 1
+    }
+  },
+  "fish_pie": {
+    "id": "fish_pie",
+    "name": "鱼派",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "fish",
+      "flour",
+      "salt",
+      "egg"
+    ],
+    "output": {
+      "itemId": "fish_pie",
+      "count": 1
+    }
+  },
+  "potato_pancake": {
+    "id": "potato_pancake",
+    "name": "土豆饼",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "potato",
+      "egg",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "potato_pancake",
+      "count": 1
+    }
+  },
+  "berry_pie": {
+    "id": "berry_pie",
+    "name": "浆果派",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "berries",
+      "flour",
+      "egg",
+      "honey"
+    ],
+    "output": {
+      "itemId": "berry_pie",
+      "count": 1
+    }
+  },
+  "mushroom_risotto": {
+    "id": "mushroom_risotto",
+    "name": "蘑菇烩饭",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "mushroom",
+      "rice",
+      "water",
+      "salt"
+    ],
+    "output": {
+      "itemId": "mushroom_risotto",
+      "count": 1
+    }
+  },
+  "egg_drop_soup": {
+    "id": "egg_drop_soup",
+    "name": "蛋花汤",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "egg",
+      "water",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "egg_drop_soup",
+      "count": 1
+    }
+  },
+  "salted_fish": {
+    "id": "salted_fish",
+    "name": "咸鱼",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "fish",
+      "salt",
+      "",
+      ""
+    ],
+    "output": {
+      "itemId": "salted_fish",
+      "count": 1
+    }
+  },
+  "spiced_meat": {
+    "id": "spiced_meat",
+    "name": "五香肉",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "meat",
+      "spice",
+      "salt",
+      "honey"
+    ],
+    "output": {
+      "itemId": "spiced_meat",
+      "count": 1
+    }
+  },
+  "berry_smoothie": {
+    "id": "berry_smoothie",
+    "name": "浆果奶昔",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "berries",
+      "milk",
+      "ice",
+      "honey"
+    ],
+    "output": {
+      "itemId": "berry_smoothie",
+      "count": 1
+    }
+  },
+  "honey_cake": {
+    "id": "honey_cake",
+    "name": "蜂蜜蛋糕",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "flour",
+      "honey",
+      "egg",
+      "salt"
+    ],
+    "output": {
+      "itemId": "honey_cake",
+      "count": 1
+    }
+  },
+  "fish_soup": {
+    "id": "fish_soup",
+    "name": "鲜鱼汤",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "fish",
+      "water",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "fish_soup",
+      "count": 1
+    }
+  },
+  "trail_mix": {
+    "id": "trail_mix",
+    "name": "什锦干果",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "berries",
+      "honey",
+      "spice",
+      ""
+    ],
+    "output": {
+      "itemId": "trail_mix",
+      "count": 1
+    }
+  },
+  "wild_salad": {
+    "id": "wild_salad",
+    "name": "野菜沙拉",
+    "station": "cooking",
+    "grid": "1x4",
+    "pattern": [
+      "berries",
+      "mushroom",
+      "salt",
+      ""
+    ],
+    "output": {
+      "itemId": "wild_salad",
+      "count": 1
+    }
+  },
+  "jerky": {
+    "id": "jerky",
+    "name": "肉干",
+    "station": "drying_rack",
+    "grid": "1x1",
+    "pattern": [
+      "meat"
+    ],
+    "output": {
+      "itemId": "jerky",
+      "count": 1
+    }
+  },
+  "berry_wine": {
+    "id": "berry_wine",
+    "name": "浆果酒",
+    "station": "fermenting_barrel",
+    "grid": "1x1",
+    "pattern": [
+      "berries"
+    ],
+    "output": {
+      "itemId": "berry_wine",
+      "count": 1
+    }
+  },
+  "wheat_beer": {
+    "id": "wheat_beer",
+    "name": "麦芽酒",
+    "station": "fermenting_barrel",
+    "grid": "1x1",
+    "pattern": [
+      "wheat"
+    ],
+    "output": {
+      "itemId": "wheat_beer",
+      "count": 1
+    }
+  },
+  "honey_mead": {
+    "id": "honey_mead",
+    "name": "蜂蜜酒",
+    "station": "fermenting_barrel",
+    "grid": "1x1",
+    "pattern": [
+      "honey"
+    ],
+    "output": {
+      "itemId": "honey_mead",
+      "count": 1
+    }
+  },
+  "pumpkin_spice": {
+    "id": "pumpkin_spice",
+    "name": "南瓜香料酒",
+    "station": "fermenting_barrel",
+    "grid": "1x1",
+    "pattern": [
+      "pumpkin"
+    ],
+    "output": {
+      "itemId": "pumpkin_spice",
+      "count": 1
+    }
   }
 }
