@@ -109,27 +109,6 @@ export class Inventory {
     return { added: count - remaining, leftover: remaining };
   }
 
-  /**
-   * Consume (remove) `count` units of `itemId` from any matching slot.
-   * Returns { added, leftover } — leftover > 0 means we couldn't find
-   * enough of the item. Used by systems (farming/processing) that need
-   * a single-call item-by-id removal.
-   */
-  consume(itemId, count) {
-    if (count <= 0) return { added: 0, leftover: 0 };
-    let remaining = count;
-    for (let i = 0; i < TOTAL_SLOTS && remaining > 0; i++) {
-      const s = this.slots[i];
-      if (s && s.itemId === itemId) {
-        const take = Math.min(remaining, s.count);
-        s.count -= take;
-        if (s.count <= 0) this.slots[i] = null;
-        remaining -= take;
-      }
-    }
-    return { added: count - remaining, leftover: remaining };
-  }
-
   remove(i, count) {
     if (count <= 0) return 0;
     const s = this.slots[i];

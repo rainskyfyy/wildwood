@@ -220,8 +220,8 @@ export function cookingPanelOnClick(mx, my, hitMap, pot, inventory, hotbarSlotIn
     if (stack) {
       const r = pot.put(stack.itemId);
       if (r.ok) {
-        // Consume one from hotbar (use slot-indexed remove)
-        inventory.remove(hotbarSlotIndex, 1);
+        // Consume one from hotbar
+        inventory.consume(stack.itemId, 1);
         return 'slot_added';
       }
     }

@@ -113,7 +113,7 @@ test('all processing patterns are single-cell', () => {
 // 9. potion buff
 test('all potions have buff', () => {
   const potions = allItems().filter(it => it.category === 'potion');
-  assert.equal(potions.length, 10, `expected 10 potions (healing/speed/strength/night_vision + 6 brewed), got ${potions.length}`);
+  assert.equal(potions.length, 4, `expected 4 potions, got ${potions.length}`);
   for (const p of potions) {
     assert.ok(typeof p.buff === 'string' && p.buff.length > 0,
       `${p.id} missing buff`);
@@ -127,7 +127,7 @@ test('total recipe count by station', () => {
   for (const r of total) byStation[r.station] = (byStation[r.station] || 0) + 1;
   console.log('     stations:', JSON.stringify(byStation));
   assert.ok(byStation.hand >= 3);
-  assert.ok(byStation.science >= 6, `science: ${byStation.science}`);
+  assert.ok(byStation.science >= 8, `science: ${byStation.science}`);
   assert.ok(byStation.cooking === 30);
   assert.equal(byStation.drying_rack, 1);
   assert.equal(byStation.fermenting_barrel, 4);

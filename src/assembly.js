@@ -1,5 +1,5 @@
 /**
- * assembly.js — v0.6.0a (extended v0.8.0a)
+ * assembly.js — v0.6.0a (extended v0.8.0a, v0.8.2a)
  *
  * 把原 main.js 的「装配层」独立出来:所有 import + 常量 + 子系统实例化。
  * 返回一个 `game` 对象(包含 ctx / world / 各种 manager / 闭包状态),
@@ -14,6 +14,12 @@
  *   所有指向 Manager / Service / UI 实例的字段在装配完成后立即
  *   Object.freeze,堵住"换引用"型状态泄漏口。Service 入口仍是
  *   mutation 唯一通路;UI 只读访问走 pass-through 不受影响。
+ *
+ * v0.8.2a — tickState 桥接边界:
+ *   新增 TickStateService(svc 写,单 mutation 入口)与 TickStateView
+ *   (pass-through 读,只读 view),挂到 game.tickStateSvc / game.tickStateView
+ *   并纳入 v0.8.0a 冻结列表。UI 改 tickRate / paused 必须经 svc,读必须
+ *   走 view。换引用 / 直接 mutate view 都被抛错拦截。
  *
  * 集成规范:
  *  - 不引入新依赖,不改变外部行为
@@ -64,6 +70,8 @@ import { drawPiglin, drawFollower, drawBuilding as drawVillageBuilding } from '.
 import { escapeHtml } from './util/escape-html.js';
 import { setBossBarDraw, setEventBannerDraw } from './util/render-hooks.js';
 import { freezePassThroughs } from './util/freeze-passthrough.js';
+import { createTickStateService } from './services/TickStateService.js';
+import { createTickStateView } from './ui/sync/tickStateView.js';
 
 // ---------- 常量 ----------
 const DAY_START_T = 4 * 60; // 4:00 of the 24h clock — sunrise-ish
@@ -270,6 +278,18 @@ export function assembleGame(canvas, opts = {}) {
     getMonsters: () => (monsterMgr ? monsterMgr.monsters : [])
   });
 
+  // v0.8.2a:tickState 桥接边界 — svc 写 + pass-through 读
+  // 装配层创建唯一 svc 实例,挂在 game.tickStateSvc(被 freeze 锁引用)
+  // UI 视图挂在 game.tickStateView(只读,UI 组件 / 数据可视化唯一入口)
+  const tickStateSvc = createTickStateService({ defaultMs: 200, minMs: 16 });
+  const tickStateView = createTickStateView(tickStateSvc);
+  // 委托给 window.__tickState(向后兼容 v0.6.4a 起的 IIFE 入口);
+  // 装配前 IIFE 已有占位 svc,绑定时把占位订阅者迁移到真实 svc,再启动
+  if (typeof window !== 'undefined' && window.__tickState && typeof window.__tickState.__bindService === 'function') {
+    window.__tickState.__bindService(tickStateSvc, { migrateSubscribers: true, restart: false });
+  }
+  tickStateSvc.start();
+
   // 4b. vitals + chat
   const vitalsState = {
     hp:     { cur: player.hp, max: player.maxHp },
@@ -442,6 +462,8 @@ export function assembleGame(canvas, opts = {}) {
     monsterMgr, bossMgr, bossBar, eventMgr, eventBanner,
     dayCycle, npcMgr, tradeState, tradeUI, followerMgr,
     vitalsState,
+    // v0.8.2a:tickState 桥接边界(svc 写 + pass-through 读)
+    tickStateSvc, tickStateView,
     // 闭包状态集中
     runtime,
     // 工具方法(原 bootGame 内的闭包,挂到 game 上供 runtime 调用)
@@ -462,6 +484,10 @@ export function assembleGame(canvas, opts = {}) {
   // 但任何 `game.X = newX` 都会抛 TypeError,迫使 mutation 走 Service。
   // runtime 闭包状态(`runtime` 对象本身)与画布等顶层对象不放进列表,
   // 那些是合法 mutable state。
+  // v0.8.2a 扩展:把 tickStateSvc / tickStateView 也纳入冻结;UI 改
+  // tickRate / paused 必须经 tickStateSvc(单 mutation 入口),读必须
+  // 走 tickStateView(pass-through 只读 view)。换引用会被 v0.8.0a 字段
+  // 级 freeze 抛 TypeError 拦截。
   freezePassThroughs(game, [
     // 状态拥有者(v0.6.0b / v0.7.0a Service 拆分)
     'inventory', 'eventMgr', 'buildingMgr', 'monsterMgr',
@@ -471,6 +497,8 @@ export function assembleGame(canvas, opts = {}) {
     // v0.5.4 NPC 村庄 + 交易 + 随从
     'dayCycle', 'npcMgr', 'tradeState', 'tradeUI', 'followerMgr',
     'vitalsState',
+    // v0.8.2a:tickState 桥接边界(svc 写 + view 读)
+    'tickStateSvc', 'tickStateView',
     // 世界 / 装饰 / 资源(只读 reference,装配完成后不应被换)
     'world', 'decor', 'village', 'transitions', 'resources',
     // 顶层上下文(装配完成,不应被换)

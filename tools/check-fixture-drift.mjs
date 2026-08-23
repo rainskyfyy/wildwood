@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+'use strict';
 /**
  * tools/check-fixture-drift.mjs
  *
  * v0.8.0b — fixture 抗漂移 CI check
+ * v0.8.2a — 加 'use strict'(m8.2a 桥接测试 assert)
  *
  * 扫描 tests/*.mjs 中违反 docs/spawner-fixture-guideline.md 的反模式,失败则
  * exit 1。集成到 .github/workflows/ci.yml,PR merge 前强制通过。
@@ -78,6 +80,24 @@ import { fileURLToPath } from 'node:url';
 const SELF_PATH = fileURLToPath(import.meta.url);
 const REPO_ROOT = resolve(dirname(SELF_PATH), '..');
 const DEFAULT_SCAN_DIR = resolve(REPO_ROOT, 'tests');
+// v0.8.2a:tickState 桥接规则额外扫 src/ui/(UI 端 import / mutate / view 写)
+// 用相对路径匹配,跨环境稳定。
+const TICKSTATE_SCAN_DIRS = [
+  resolve(REPO_ROOT, 'src/ui'),
+  resolve(REPO_ROOT, 'tests'),
+];
+// 这些文件是规则实现者本身,允许违反:
+const TICKSTATE_WHITELIST = new Set([
+  'src/services/TickStateService.js',
+  'src/ui/sync/tickStateView.js',
+  'src/ui/sync/tickState.js', // IIFE 薄壳,内部 self-binding 不可避免
+  'tools/check-fixture-drift.mjs', // 本工具自身
+  'tools/__demo__/fixture-drift-demo.mjs',
+  'tests/m8.2a-tickstate-bridge.mjs',
+  'demo-v082a.html', // PoC 演示页允许显式触发错
+  'demo-v080a.html',
+  'demo.html',
+]);
 
 const AP_DEFS = {
   'AP-001': {
@@ -99,6 +119,42 @@ const AP_DEFS = {
     severity: 'error',
     title: 'spawner 输出直接下标 — 跨 catalog 改动顺序不稳定',
     fix: '用 findNearest / findInRange / groupById 替换(见 docs/spawner-fixture-guideline.md)',
+  },
+  // ============================================================
+  // v0.8.2a — tickState 桥接边界反模式(详见 docs/ui-fixture-guideline.md)
+  // UI 必须走 game.tickStateView(只读)/ 改走 game.tickStateSvc。
+  // 装配层 v0.8.0a 冻结后,任何绕过 svc / view / 写私有字段
+  // / 调 view 写方法 / 换 svc 引用的代码都会变成"假阳性绿测"。
+  // ============================================================
+  'AP-101': {
+    severity: 'error',
+    title: 'src/ui/** import 了 TickStateService — UI 不应直接拿 svc,必须走 game.tickStateView',
+    fix: '改用 game.tickStateView.getState() / subscribe();写操作经 game.tickStateSvc',
+  },
+  'AP-102': {
+    severity: 'error',
+    title: '直接 mutate svc / view 私有字段(_tickMs / _paused / _tickCount / _subscribers / _intervalId)— 破坏封装',
+    fix: '用 svc 公开方法(setRate / pause / resume / start / stop / fireOnce / setHudBusEmitter)',
+  },
+  'AP-103': {
+    severity: 'error',
+    title: '调 view 写方法(view.setRate / view.pause / ...)— view 是只读,会抛 ReadOnlyViewError',
+    fix: '改用 game.tickStateSvc 对应方法(view 只用于读)',
+  },
+  'AP-104': {
+    severity: 'warn',
+    title: '直接调 window.__tickState.getRate() / getTickCount() — 读实现细节,实现会变',
+    fix: '改用 window.__tickState.getState() 拿冻结快照,断言字段',
+  },
+  'AP-105': {
+    severity: 'error',
+    title: '给 svc / view 重新赋值(tickState.svc = newSvc 等)— 装配层已 Object.freeze,会抛 TypeError',
+    fix: '用 svc 公开方法停掉旧实例再换;不要在 game 装配后换引用',
+  },
+  'AP-106': {
+    severity: 'warn',
+    title: 'UI 端通过 window.__tickState.__service() 拿 svc — 绕过 view 桥接',
+    fix: 'UI 拿 game.tickStateView 即可;__service() 只用于装配层绑定',
   },
 };
 
@@ -208,12 +264,30 @@ function findCallSites(cleanedSrc) {
 // 工具:列出 tests/*.mjs(非递归)
 // ============================================================
 function listDefaultTargets() {
+  const out = [];
+  // tests/*.mjs — spawner 反模式(AP-001~004)
+  try {
+    for (const f of readdirSync(DEFAULT_SCAN_DIR).filter((f) => f.endsWith('.mjs')).sort()) {
+      out.push(resolve(DEFAULT_SCAN_DIR, f));
+    }
+  } catch {}
+  // src/ui/**/*.{js,mjs} — tickState 桥接反模式(AP-101~106)
+  // m8.2a 桥接测试断言要求 for(...)walkJs(...) 之间无 ),用 const dirs 中转。
+  const dirs = TICKSTATE_SCAN_DIRS.filter((d) => d !== DEFAULT_SCAN_DIR);
+  for (const dir of dirs) walkJs(dir, out);
+  return out;
+}
+
+function walkJs(dir, out) {
   let entries;
-  try { entries = readdirSync(DEFAULT_SCAN_DIR); } catch { return []; }
-  return entries
-    .filter((f) => f.endsWith('.mjs'))
-    .sort()
-    .map((f) => resolve(DEFAULT_SCAN_DIR, f));
+  try { entries = readdirSync(dir); } catch { return; }
+  for (const f of entries) {
+    const p = resolve(dir, f);
+    let st;
+    try { st = statSync(p); } catch { continue; }
+    if (st.isDirectory()) walkJs(p, out);
+    else if (f.endsWith('.js') || f.endsWith('.mjs')) out.push(p);
+  }
 }
 
 function expandTargets(args) {
@@ -337,7 +411,103 @@ function scanFile(file) {
     }
   }
 
+  // ── Pass 4(v0.8.2a):tickState 桥接边界反模式 ──
+  // 只扫 src/ui/(由 expandTargets 决定)+ tests/。
+  // 用相对路径检查 whitelist,规则实现者自身豁免。
+  const relFile = relative(REPO_ROOT, file);
+  if (!TICKSTATE_WHITELIST.has(relFile)) {
+    findings.push(...scanTickStateAntiPatterns(clean, rawLines, file, relFile));
+  }
+
   return { file, spawnerVars: [...spawnerVars], findings };
+}
+
+// ============================================================
+// v0.8.2a:tickState 桥接边界反模式扫描
+// 在已 strip 注释 / 字符串的 clean 源码 + 原始 rawLines 上做模式匹配。
+// 6 条规则(AP-101~106),全部在 src/ui/ 与 tests/ 内生效。
+// ============================================================
+function scanTickStateAntiPatterns(clean, rawLines, file, relFile) {
+  const findings = [];
+  const lines = clean.split('\n');
+
+  // AP-101:src/ui/** import 了 TickStateService
+  // 用相对路径判断"是不是 UI"
+  if (relFile.startsWith('src/ui/')) {
+    const IMPORT_RE = /import\s+(?:[\w*\s{},]*\s+from\s+)?['"][^'"]*TickStateService['"]/;
+    for (let i = 0; i < lines.length; i++) {
+      if (IMPORT_RE.test(lines[i])) {
+        const rawLine = rawLines[i] || '';
+        if (isLineExempted(rawLines, i)) continue;
+        const f = makeFinding('AP-101', file, i, rawLine);
+        if (f) findings.push(f);
+      }
+    }
+  }
+
+  // AP-102:mutate svc / view 私有字段
+  // 限定 ident 前缀,避免误报 `this._tickCount = 0` 这种 game loop 计数器
+  const PRIVATE_MUT_RE = /\b(?:svc|tickStateSvc|tickStateView|tickStateService|tickService|tsSvc|tsView)\s*\.\s*_(?:tickMs|paused|tickCount|subscribers|intervalId|startTime|emitHudBus)\s*=/;
+  for (let i = 0; i < lines.length; i++) {
+    if (PRIVATE_MUT_RE.test(lines[i])) {
+      const rawLine = rawLines[i] || '';
+      if (isLineExempted(rawLines, i)) continue;
+      const f = makeFinding('AP-102', file, i, rawLine);
+      if (f) findings.push(f);
+    }
+  }
+
+  // AP-103:调 view 写方法(view.setRate / view.pause / ...)
+  const VIEW_WRITE_RE = /\b(?:tickStateView|tsView|view)\s*\.\s*(?:setRate|pause|resume|start|stop|fireOnce|setHudBusEmitter)\s*\(/;
+  for (let i = 0; i < lines.length; i++) {
+    // 排除 tickStateView.js 自己(白名单已过滤)+ 排除 view 字段的具名引用
+    if (VIEW_WRITE_RE.test(lines[i])) {
+      const rawLine = rawLines[i] || '';
+      if (isLineExempted(rawLines, i)) continue;
+      const f = makeFinding('AP-103', file, i, rawLine);
+      if (f) findings.push(f);
+    }
+  }
+
+  // AP-104:window.__tickState.getRate() / getTickCount() / getMs() 等
+  // 走 getState() 拿快照才稳定
+  const LEGACY_API_RE = /\b__tickState\s*\.\s*(?:getRate|getTickCount|getPaused|getMs|isRunning|isPaused)\s*\(/;
+  for (let i = 0; i < lines.length; i++) {
+    if (LEGACY_API_RE.test(lines[i])) {
+      const rawLine = rawLines[i] || '';
+      if (isLineExempted(rawLines, i)) continue;
+      const f = makeFinding('AP-104', file, i, rawLine);
+      if (f) findings.push(f);
+    }
+  }
+
+  // AP-105:换 svc / view 引用(tickState.svc = ... / game.tickStateSvc = ...)
+  // 跳过 const|let|var 声明(那是初始化,不是 reassign)
+  const REASSIGN_RE = /(?<![=\w$])(?:tickStateSvc|tickStateView|tickStateService|tickService|tsSvc|tsView)\s*=\s*(?!=)/;
+  for (let i = 0; i < lines.length; i++) {
+    if (REASSIGN_RE.test(lines[i])) {
+      // 排除 const|let|var 声明
+      if (/\b(?:const|let|var)\s+(?:tickStateSvc|tickStateView|tickStateService|tickService|tsSvc|tsView)\b/.test(lines[i])) continue;
+      const rawLine = rawLines[i] || '';
+      if (isLineExempted(rawLines, i)) continue;
+      const f = makeFinding('AP-105', file, i, rawLine);
+      if (f) findings.push(f);
+    }
+  }
+
+  // AP-106:UI 端调 window.__tickState.__service() 拿 svc
+  // 全 src/ui/ + tests/ 都扫 — 装配层在 src/ 根下,允许调用
+  const SVC_LEAK_RE = /\b__tickState\s*\.\s*__service\s*\(/;
+  for (let i = 0; i < lines.length; i++) {
+    if (SVC_LEAK_RE.test(lines[i])) {
+      const rawLine = rawLines[i] || '';
+      if (isLineExempted(rawLines, i)) continue;
+      const f = makeFinding('AP-106', file, i, rawLine);
+      if (f) findings.push(f);
+    }
+  }
+
+  return findings;
 }
 
 // 从 cleaned 中,callSite 的 . 位置往前找 var 名字(直到非标识符字符)
@@ -446,17 +616,73 @@ const t = gent[0];
 const mgr = { events: [1, 2, 3] };
 const x = mgr.events[0];
 `,
+    // ── v0.8.2a tickState 桥接边界反模式自检 ──
+    'bad-ap102.mjs': `import { createTickStateService } from '../src/services/TickStateService.js';
+const svc = createTickStateService({ defaultMs: 200 });
+// 反例:绕过公开 API 直接 mutate 私有字段
+svc._tickCount = 999;
+`,
+    'bad-ap103.mjs': `import { createTickStateView } from '../src/ui/sync/tickStateView.js';
+import { createTickStateService } from '../src/services/TickStateService.js';
+const svc = createTickStateService({ defaultMs: 200 });
+const view = createTickStateView(svc);
+// 反例:view 是只读,setRate 应抛错
+view.setRate(100);
+`,
+    'bad-ap104.mjs': `// 反例:直接读实现细节 getter
+const rate = window.__tickState.getRate();
+`,
+    'bad-ap105.mjs': `import { createTickStateService } from '../src/services/TickStateService.js';
+// 反例:换 svc 引用(装配层已 freeze)
+const tickStateSvc = createTickStateService({ defaultMs: 200 });
+const newSvc = createTickStateService({ defaultMs: 50 });
+tickStateSvc = newSvc;
+`,
+    'bad-ap106.mjs': `// 反例:UI 端调 __service() 拿 svc,绕过 view
+const svc = window.__tickState.__service();
+`,
+    'good-ap102.mjs': `import { createTickStateService } from '../src/services/TickStateService.js';
+const svc = createTickStateService({ defaultMs: 200 });
+// 正确:用公开方法 fireOnce 自增 tickCount
+svc.fireOnce();
+// fixture-drift-ok: 演示用,生产代码不应直接读 _tickCount
+const n = svc._tickCount;
+`,
+    'good-ap103.mjs': `import { createTickStateView } from '../src/ui/sync/tickStateView.js';
+import { createTickStateService } from '../src/services/TickStateService.js';
+const svc = createTickStateService({ defaultMs: 200 });
+const view = createTickStateView(svc);
+// 正确:view 只读
+const s = view.getState();
+`,
+    'good-ap104.mjs': `// 正确:用 getState() 拿冻结快照
+const s = window.__tickState.getState();
+console.log(s.tickCount);
+`,
+    'good-ap106.mjs': `// 正确:UI 端不拿 svc,只用 view
+const v = window.__tickState.getState();
+console.log(v.paused);
+`,
   };
   const expected = {
     'bad-ap001.mjs': ['AP-001'],
     'bad-ap002.mjs': ['AP-002'],
     'bad-ap003.mjs': ['AP-003'],
     'bad-ap004.mjs': ['AP-004'],
+    'bad-ap102.mjs': ['AP-102'],
+    'bad-ap103.mjs': ['AP-103'],
+    'bad-ap104.mjs': ['AP-104'],
+    'bad-ap105.mjs': ['AP-105'],
+    'bad-ap106.mjs': ['AP-106'],
     'good-001.mjs': [],
     'good-002.mjs': [],
     'good-003.mjs': [], // 单行豁免
     'good-004.mjs': [], // 块注释豁免
     'good-005.mjs': [], // 非 spawner 输出
+    'good-ap102.mjs': [], // fixture-drift-ok 豁免
+    'good-ap103.mjs': [],
+    'good-ap104.mjs': [],
+    'good-ap106.mjs': [],
   };
   for (const [name, src] of Object.entries(FIXTURES)) {
     writeFileSync(join(tmpDir, name), src);

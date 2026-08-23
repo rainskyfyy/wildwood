@@ -132,18 +132,3 @@ assert((grouped.tree || []).length >= 5);
 - **预防**:本规范 + `tests/v060c-spawner-fixture.mjs` 5 场景回归,从此 catalog 改一改不会引爆测试。
 
 > **一句话总结**:永远问"我的测试是不是在依赖 spawn 顺序?"如果是,改成 `findNearest` / `findInRange` / `groupById`。三行代码换一份安心。
-
-
----
-
-## 7. 自动化检查(v0.8.0b 起强制)
-
-`tools/check-fixture-drift.mjs` 自动扫描 `tests/*.mjs` 中违反本规范的反模式,在 `.github/workflows/ci.yml` 中作为 PR merge 前置 gate。
-
-检测 4 类反模式:
-- **AP-001** `.find()` 谓词含 `distTo`(M2.10c 那种)
-- **AP-002** `.find(...)[N]`(类型错)
-- **AP-003** `.filter(...)[N]`(spawn 顺序)
-- **AP-004** spawner 输出直接 `[N]`
-
-详细豁免机制、修复指南、CI 集成:见 `docs/fixture-drift-ci.md`。
