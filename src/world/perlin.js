@@ -8,7 +8,7 @@
 
 'use strict';
 
-class PerlinNoise {
+export class PerlinNoise {
   /**
    * @param {number} [seed=1337] — integer seed; deterministic across reloads
    */
