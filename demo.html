@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
- <title>Wildwood · v0.8.0 真实引擎接入(免 mock)</title>
+  <title>Wildwood · v0.8.0 真实引擎接入(免 mock)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- M1.7 UI 基础布局(tokens 必须先于其他) -->
   <link rel="stylesheet" href="./src/ui/layout/tokens.css">
@@ -135,41 +135,58 @@
       min-width: 120px;
       text-align: right;
     }
-    /* v0.8.0 加载层:引擎未就绪时覆盖整个 stage */
-    .LoadingOverlay {
+    /* v0.8.0: 引擎绑定角标(Anchor-TL 角落) */
+    .Anchor-BindBadge {
       position: absolute;
-      inset: 0;
-      background: rgba(13, 13, 24, 0.92);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 12px;
-      z-index: 200;
-      transition: opacity 360ms ease-out;
-      pointer-events: none;
-    }
-    .LoadingOverlay.is-hidden {
-      opacity: 0;
-    }
-    .LoadingOverlay-Spinner {
-      width: 32px; height: 32px;
-      border: 3px solid rgba(212, 166, 74, 0.2);
-      border-top-color: var(--accent, #d4a64a);
-      border-radius: 50%;
-      animation: LoadingSpin 800ms linear infinite;
-    }
-    @keyframes LoadingSpin {
-      to { transform: rotate(360deg); }
-    }
-    .LoadingOverlay-Text {
+      bottom: -2px; left: -2px;
       font-family: var(--font-pixel, monospace);
-      font-size: 14px;
-      color: var(--accent, #d4a64a);
-      letter-spacing: 1px;
+      font-size: 9px;
+      padding: 1px 4px;
+      background: var(--night-black, #0d0d18);
+      border: 1px solid var(--border-bold, #3a3a52);
+      letter-spacing: 0.5px;
+      pointer-events: none;
+      z-index: 4;
     }
-    .LoadingOverlay-Sub {
+    .Anchor-BindBadge.is-engine {
+      color: var(--accent, #d4a64a);
+      border-color: var(--accent, #d4a64a);
+    }
+    .Anchor-BindBadge.is-demo {
+      color: var(--fg-faint, #888);
+    }
+    /* v0.8.0: 屏级绑定角标(屏内顶部) */
+    .Screen-BindBadge {
+      display: inline-block;
       font-family: var(--font-pixel, monospace);
       font-size: 10px;
-      color: var(--fg-muted, #aaa);
+      padding: 2px 8px;
+      background: var(--night-black, #0d0d18);
+      border: 1px solid var(--accent, #d4a64a);
+      color: var(--accent, #d4a64a);
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .Screen-BindBadge.is-demo {
+      border-color: var(--border-bold, #3a3a52);
+      color: var(--fg-faint, #888);
+    }
+    .Screen-BindBadge.is-pending {
+      border-color: #6a6a8a;
+      color: #8a8aaa;
+    }
+    /* v0.8.0: 加载中状态 */
+    .is-loading {
+      color: var(--fg-faint, #888) !important;
+      font-style: italic;
+    }
+    /* v0.8.0: 只读物品槽(引擎模式下拖拽禁用) */
+    .ItemSlot.is-readonly {
+      cursor: not-allowed;
+      opacity: 0.85;
+    }
+    .ItemSlot.is-readonly .ItemSlot-Art {
+      filter: grayscale(0.3);
     }
   </style>
 </head>
@@ -178,14 +195,9 @@
     <h1>Wildwood · v0.8.0 真实引擎接入(免 mock)</h1>
     <div class="stage">
       <canvas id="game" width="1440" height="900"></canvas>
-      <!-- v0.8.0 加载层:引擎装配完成前覆盖 stage -->
-      <div class="LoadingOverlay" id="loading-overlay">
-        <div class="LoadingOverlay-Spinner"></div>
-        <div class="LoadingOverlay-Text">引擎装配中</div>
-        <div class="LoadingOverlay-Sub">等待 window.__game · 真实数据通道就绪</div>
-      </div>
       <!-- M1.7 + M1.8 + M2.12: 5 锚定区填上实际组件实例 + 队伍槽 + 三围条/小地图/快捷栏/聊天 -->
       <div class="UILayer">
+
         <!-- 左上 · 4 队伍槽 + 3 三围条 -->
         <div class="Anchor-TL">
           <div class="GridRow GridGap-8">
@@ -194,34 +206,37 @@
             <div class="PartySlot" data-party-color="party-3"></div>
             <div class="PartySlot" data-party-color="party-4"></div>
           </div>
-          <div class="VitalBar VitalBar-HP" data-value="--">
-            <div class="VitalBar-Fill" style="width: 0%"></div>
-            <div class="VitalBar-Value">--/--</div>
+          <div class="VitalBar VitalBar-HP" data-value="100">
+            <div class="VitalBar-Fill" style="width: 100%"></div>
+            <div class="VitalBar-Value">100/100</div>
           </div>
-          <div class="VitalBar VitalBar-Hunger" data-value="--">
-            <div class="VitalBar-Fill" style="width: 0%"></div>
-            <div class="VitalBar-Value">--/--</div>
+          <div class="VitalBar VitalBar-Hunger" data-value="80">
+            <div class="VitalBar-Fill" style="width: 80%"></div>
+            <div class="VitalBar-Value">80/100</div>
           </div>
-          <div class="VitalBar VitalBar-Sanity" data-value="--">
-            <div class="VitalBar-Fill" style="width: 0%"></div>
-            <div class="VitalBar-Value">--/--</div>
+          <div class="VitalBar VitalBar-Sanity" data-value="100">
+            <div class="VitalBar-Fill" style="width: 100%"></div>
+            <div class="VitalBar-Value">100/100</div>
           </div>
         </div>
-        <!-- 右上 · 时间 + 季节 -->
+
+        <!-- 右上 · 时间 + 群系/季节 -->
         <div class="Anchor-TR">
-          <div class="TimeDisplay">Day · --:--</div>
+          <div class="TimeDisplay">Day 12 · 14:32</div>
           <div class="SeasonTag">AUTUMN</div>
         </div>
-        <!-- v0.6.4a: NPC 演示区(右上)· 视野内 NPC 好感度 HUD + 喂食/切换按钮 -->
+
+        <!-- v0.8.0: NPC 演示区(右上)· 视野内 NPC 好感度 HUD + 喂食/切换按钮 -->
         <div class="Anchor-NPC" id="npc-demo">
           <div class="Anchor-NPC-Pigs" id="npc-demo-pigs"></div>
-          <div class="Anchor-NPC-Status" id="npc-demo-status">引擎未就绪 · 等待 npcMgr.piglins</div>
+          <div class="Anchor-NPC-Status" id="npc-demo-status">5Hz tick: 0 · 当前 NPC: -</div>
           <div class="Anchor-NPC-Actions">
             <button id="npc-demo-feed" type="button">喂食 +1 心 (F)</button>
             <button id="npc-demo-next" type="button">切换 NPC (N)</button>
             <button id="npc-demo-trade" type="button">交易 (T)</button>
           </div>
         </div>
+
         <!-- 右下 · 小地图 200×200 -->
         <div class="Anchor-BR">
           <div class="Minimap">
@@ -238,6 +253,7 @@
             </div>
           </div>
         </div>
+
         <!-- 左下 · 快捷栏 5 格 + 2 扩展(共 7) -->
         <div class="Anchor-BL">
           <div class="HotbarSlot HotbarSlot-Default">
@@ -262,6 +278,7 @@
             <span class="HotbarSlot-Key">7</span>
           </div>
         </div>
+
         <!-- 底部 · 聊天 -->
         <div class="Anchor-B">
           <div class="ChatChannel-Tab">
@@ -272,7 +289,9 @@
           <div id="ww-chat-log"></div>
           <input id="ww-chat-input" class="ChatInput" type="text" placeholder="按 Enter 发送消息(联机时广播)...">
         </div>
+
       </div>
+
       <!-- M2.13 · 4 屏 subtab 导航条(覆盖在 UILayer 之上) -->
       <div class="SubtabBar">
         <div class="Subtab is-active" data-tab="inventory">
@@ -288,8 +307,9 @@
           <span class="Subtab-Key">Q</span>任务
         </div>
         <div class="Subtab-Divider"></div>
-        <span class="Subtab-Hint">I / C / M / Q 切换 · Esc 返回 · B 建造 · 拖拽物品 4 状态</span>
+        <span class="Subtab-Hint">I / C / M / Q 切换 · Esc 返回 · B 建造 · 拖拽 4 状态(引擎模式只读)</span>
       </div>
+
       <!-- M2.13 · 4 屏容器(默认全部 hidden,JS 切换 display) -->
       <div id="screen-inventory" class="Screen" style="display: none; top: 36px;"></div>
       <div id="screen-crafting"  class="Screen" style="display: none; top: 36px;"></div>
@@ -301,157 +321,135 @@
       <span><kbd>1</kbd>~<kbd>5</kbd> 切快捷栏</span>
       <span><kbd>I</kbd> 背包 · <kbd>C</kbd> 合成 · <kbd>M</kbd> 地图 · <kbd>Q</kbd> 任务 · <kbd>Esc</kbd> 关闭</span>
       <span><kbd>B</kbd> 建造 · <kbd>N</kbd> 切换 NPC · <kbd>F</kbd> 喂食 · <kbd>T</kbd> 交易</span>
-      <span>v0.8.0 · 真实引擎接入(window.__game · notifyUI · 4 群系 · 删 mock)</span>
+      <span>v0.8.0 · 真实引擎接入(window.__game · engine:frame · biomeCodeToId)</span>
     </div>
   </div>
+
   <!-- v0.6.4a: 5Hz 同步抽象(基座,必须在 hud.js 之前) -->
   <script src="./src/ui/sync/tickState.js"></script>
-  <!-- M2.12: 顶层 HUD 状态机(EventTarget 总线 + 5Hz tick + 4 队伍槽 mock) -->
+  <!-- v0.8.0: 物品 / 配方 / 猪人 catalog(fetch JSON,UI 端 ESM-free 包装) -->
+  <script src="./src/ui/items-catalog.js"></script>
+  <!-- v0.8.0: 顶层 HUD 状态机(EventTarget 总线 + engine:frame 订阅 + 引擎就绪检测) -->
   <script src="./src/ui/hud.js"></script>
-  <!-- M2.13: 4 屏 subtab 路由 + 拖拽 4 状态机(订阅 hudBus 'engine:frame') -->
+  <!-- v0.8.0: 4 屏 subtab 路由 + 引擎 inventory/player 实时绑定(拖拽只读) -->
   <script src="./src/ui/screens/screens.js"></script>
-  <!-- v0.6.4a: NPC 好感度 HUD 组件(订阅 engine:frame 拉真实 npcMgr.piglins) -->
+  <!-- v0.6.4a: NPC 好感度 HUD 组件(跨屏复用:HUD 顶部栏/交易/对话气泡) -->
   <script src="./src/ui/components/NPCAffinityBar.js"></script>
   <!-- v0.5.4: NPC 系统(对话气泡 + 好感度动画 + 随从 HUD + 村落交易中心) -->
   <script src="./src/ui/npc/npc.js"></script>
   <!-- v0.5.4: 交易系统(交易窗口 + 价格模型 + 好感度门) -->
   <script src="./src/ui/trading/trading.js"></script>
-  <!-- v0.8.0: 加载层关闭(首帧 engine:frame 到达后淡出)+ 引擎状态自检日志 -->
+
+  <!-- v0.8.0: NPC 演示脚本(读真实 npcMgr.piglins,引擎就绪前用占位) -->
   <script>
     (function () {
       'use strict';
-      // 引擎状态自检(每 500ms,直至就绪)
-      var pollHandle = null;
-      function checkEngineReady() {
-        if (window.__game && window.__game.npcMgr && window.__game.inventory && window.__hudBus) {
-          if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
-          // 关闭加载层
-          var overlay = document.getElementById('loading-overlay');
-          if (overlay) {
-            overlay.classList.add('is-hidden');
-            setTimeout(function () {
-              if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            }, 500);
-          }
-          // 控制台输出真实数据通道
-          try {
-            var g = window.__game;
-            console.log('[v0.8.0 demo] window.__game ready', {
-              player: g.player ? { x: g.player.x, y: g.player.y, hp: g.player.hp } : null,
-              vitals: g.vitalsState,
-              inventory: g.inventory ? g.inventory.slots.filter(function (s) { return s; }).length + '/21' : 0,
-              dayCycle: g.dayCycle ? g.dayCycle.describe() : null,
-              npcCount: g.npcMgr && g.npcMgr.piglins ? g.npcMgr.piglins.length : 0,
-              biome: g.world ? g.world.biome : null
-            });
-          } catch (e) { /* swallow */ }
-          return true;
-        }
-        return false;
-      }
-      if (!checkEngineReady()) {
-        pollHandle = setInterval(checkEngineReady, 500);
-        // 30s 超时降级:不再显示加载层,但提示引擎未就绪
-        setTimeout(function () {
-          if (pollHandle) {
-            clearInterval(pollHandle); pollHandle = null;
-            var o = document.getElementById('loading-overlay');
-            if (o) {
-              var txt = o.querySelector('.LoadingOverlay-Text');
-              var sub = o.querySelector('.LoadingOverlay-Sub');
-              if (txt) txt.textContent = '引擎未就绪';
-              if (sub) sub.textContent = 'window.__game 不存在 · 检查 main.js 装配流程';
-            }
-          }
-        }, 30000);
-      }
-    })();
-  </script>
-  <!-- v0.8.0: NPC 演示脚本(从 window.__game.npcMgr.piglins 拉真实数据) -->
-  <script>
-    (function () {
-      'use strict';
-      // 本地 view 镜像(从引擎 npcMgr.piglins 同步)
-      // pig = { id, name, affinity, portrait }
-      var pigs = [];
+      // 引擎未就绪时的 fallback 演示数据(3 只 mock,UI 不再依赖)
+      var FALLBACK_PIGS = [
+        { id: 'pig-1', name: '猪长老',   affinity: 0, portrait: '🐷', preferences: { likes: ['food', 'plant'], dislikes: ['mineral', 'tool'] } },
+        { id: 'pig-2', name: '猪阿花',   affinity: 1, portrait: '🐖', preferences: { likes: ['plant'],         dislikes: ['meat'] } },
+        { id: 'pig-3', name: '猪小七',   affinity: 2, portrait: '🐽', preferences: { likes: ['food'],          dislikes: ['tool'] } }
+      ];
       var currentIdx = 0;
       var container = document.getElementById('npc-demo-pigs');
       var statusEl  = document.getElementById('npc-demo-status');
-      // mount:实时拉当前 NPC
-      var unmount = window.NPCAffinityBar.mount(function () {
-        return pigs.length ? pigs[currentIdx] : null;
-      }, container, { theme: 'top-hud' });
-      // 从引擎同步 pig 列表(过滤 DEAD)
-      function syncPigsFromEngine() {
-        var game = window.__game;
-        if (!game || !game.npcMgr || !Array.isArray(game.npcMgr.piglins)) return false;
-        var next = [];
-        var seenAlive = 0;
-        game.npcMgr.piglins.forEach(function (enginePig, i) {
-          // 过滤 DEAD
-          if (enginePig.state === 'DEAD' || enginePig.hp <= 0) return;
-          var def = window.NPCAffinityBar.fromEnginePig(enginePig, i);
-          if (def) { next.push(def); seenAlive++; }
-        });
-        // 如果引擎没猪人(初始状态),给一条占位(避免空状态)
-        if (next.length === 0) {
-          next.push({ id: 'pig-empty', name: '暂无视野内猪人', affinity: 0, portrait: '·', hint: '靠近猪人村落激活' });
-        }
-        pigs = next;
-        // 重置 currentIdx
-        if (currentIdx >= pigs.length) currentIdx = 0;
-        return true;
+
+      // 把 engine Piglin 适配为 NPCAffinityBar 期望的 shape
+      // 引擎字段: typeId, x, y, hp, maxHp, affection(0..3), state, _bubble
+      // UI 期望:   id, name, affinity(0..3), portrait, hint
+      var PORTRAITS = ['🐷', '🐖', '🐽', '🐗', '😺'];  // 5 个轮换(单类型 piglin 视觉区分)
+      function adaptEnginePiglin(p, idx) {
+        if (!p) return null;
+        var typeCfg = window.__itemsCatalog && window.__itemsCatalog.getPiglinType
+          ? window.__itemsCatalog.getPiglinType(p.typeId || 'piglin')
+          : null;
+        var name = typeCfg ? typeCfg.name : (p.typeId === 'piglin' ? '猪人' : (p.typeId || '猪人'));
+        return {
+          id: p.typeId + '-' + idx + '-' + Math.floor((p.x || 0) * 100) + '-' + Math.floor((p.y || 0) * 100),
+          name: name + ' · ' + (p.typeId || 'piglin') + '#' + (idx + 1),
+          affinity: clampAff(p.affection),
+          portrait: PORTRAITS[idx % PORTRAITS.length],
+          hint: p.state === 'sleep' ? '休息中...' : (p.state === 'dead' ? '已死亡' : '按 F 喂食')
+        };
       }
-      // 5Hz tick 显示状态(订阅 hudBus 'engine:frame' 推 tick 计数)
-      var tickCount = 0;
-      function updateStatus() {
-        if (!statusEl) return;
-        tickCount++;
-        if (!pigs.length) {
-          statusEl.textContent = '引擎未就绪 · 等待 npcMgr.piglins';
-          return;
-        }
-        var cur = pigs[currentIdx];
-        statusEl.textContent = 'engine:frame × ' + tickCount + ' · 当前 NPC: ' + cur.name + ' (' + cur.affinity + '/3) · 视野内: ' + pigs.length;
+      function clampAff(a) {
+        if (typeof a !== 'number' || a < 0) return 0;
+        if (a > 3) return 3;
+        return Math.round(a);
       }
-      // 喂食 +1 心
+
+      // 当前 NPC 来源:引擎 npcMgr.piglins(就绪时)/ fallback(未就绪时)
+      function getCurrentPig() {
+        var g = window.__game;
+        var livePigs = g && g.npcMgr && Array.isArray(g.npcMgr.piglins) ? g.npcMgr.piglins : null;
+        var list = (livePigs && livePigs.length) ? livePigs : FALLBACK_PIGS;
+        if (!list.length) return null;
+        var idx = currentIdx % list.length;
+        return livePigs
+          ? adaptEnginePiglin(list[idx], idx)
+          : list[idx];
+      }
+
+      // 用 NPCAffinityBar.mount 挂载(pigProvider 每 5Hz 重新计算)
+      var unmount = window.NPCAffinityBar.mount(getCurrentPig, container, { theme: 'top-hud' });
+
+      // 5Hz tick 状态显示
+      window.__tickState.subscribe(function (detail) {
+        if (statusEl) {
+          var g = window.__game;
+          var engineOk = !!(g && g.npcMgr && g.npcMgr.piglins);
+          var liveCount = engineOk ? g.npcMgr.piglins.length : 0;
+          var current = getCurrentPig();
+          var tag = engineOk ? '引擎' : 'fallback';
+          statusEl.textContent = tag + ' · tick: ' + detail.n + ' · 猪人 ' + liveCount + ' · 当前: ' + (current ? current.name : '-');
+        }
+      });
+
+      // 喂食 +1 心(引擎模式下 emit,本地 fallback 直接改)
       function feedPig() {
-        var pig = pigs[currentIdx];
-        if (!pig || pig.id === 'pig-empty') return;
-        if (pig.affinity >= 3) return;
-        pig.affinity = Math.min(3, pig.affinity + 1);
-        // 推送到总线(由 trading.js / npc.js 接收)
-        if (window.__hudBus) {
-          window.__hudBus.emit('npc:affinity-up', { pigId: pig.id, affinity: pig.affinity });
-        }
-        // 触发 +1 动画(从 npc.js affinityUp 拿)
-        var bar = container.querySelector('.NPCAffinityBar');
-        if (bar) {
-          var heart = bar.querySelector('.AffinityHeart[data-heart-idx="' + (pig.affinity - 1) + '"]');
-          if (heart && window.NPC && typeof window.NPC.affinityUp === 'function') {
-            window.NPC.affinityUp(heart, pig.affinity);
+        var g = window.__game;
+        if (g && g.npcMgr && g.npcMgr.piglins && g.npcMgr.piglins.length) {
+          // 引擎模式:emit 给引擎处理(等引擎实现 on('npc:feed'))
+          if (window.__hudBus) window.__hudBus.emit('npc:feed', { piglin: g.npcMgr.piglins[currentIdx % g.npcMgr.piglins.length] });
+          if (window.console) console.info('[demo] npc:feed requested (engine will handle)');
+        } else {
+          // fallback
+          var pig = FALLBACK_PIGS[currentIdx];
+          if (pig.affinity >= 3) return;
+          pig.affinity = Math.min(3, pig.affinity + 1);
+          if (window.__hudBus) {
+            window.__hudBus.emit('npc:affinity-up', { pigId: pig.id, affinity: pig.affinity });
+          }
+          var bar = container.querySelector('.NPCAffinityBar');
+          if (bar) {
+            var heart = bar.querySelector('.AffinityHeart[data-heart-idx="' + (pig.affinity - 1) + '"]');
+            if (heart && window.NPC && typeof window.NPC.affinityUp === 'function') {
+              window.NPC.affinityUp(heart, pig.affinity);
+            }
           }
         }
       }
-      // 切换 NPC
       function nextPig() {
-        if (!pigs.length) return;
-        currentIdx = (currentIdx + 1) % pigs.length;
+        var g = window.__game;
+        var livePigs = g && g.npcMgr && g.npcMgr.piglins;
+        var len = (livePigs && livePigs.length) ? livePigs.length : FALLBACK_PIGS.length;
+        currentIdx = (currentIdx + 1) % len;
       }
-      // 交易演示(用 v0.5.4 trading.js)
       function openTrade() {
-        var pig = pigs[currentIdx];
-        if (!pig || pig.id === 'pig-empty') return;
+        var pig = getCurrentPig();
+        if (!pig) { alert('当前没有 NPC'); return; }
         if (window.Trading && typeof window.Trading.open === 'function') {
           window.Trading.open(pig, undefined, { onClose: function () { /* demo */ } });
         } else {
           alert('Trading 模块未加载');
         }
       }
+
       // 按钮绑定
       document.getElementById('npc-demo-feed').addEventListener('click', feedPig);
       document.getElementById('npc-demo-next').addEventListener('click', nextPig);
       document.getElementById('npc-demo-trade').addEventListener('click', openTrade);
+
       // 快捷键
       document.addEventListener('keydown', function (e) {
         if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
@@ -460,31 +458,25 @@
         else if (k === 'n') { nextPig(); e.preventDefault(); }
         else if (k === 't') { openTrade(); e.preventDefault(); }
       });
-      // 引擎帧尾通知:同步真实 pig 数据 + 更新状态
-      function onFrame() {
-        syncPigsFromEngine();
-        updateStatus();
-      }
-      if (window.__hudBus) {
-        window.__hudBus.on('engine:frame', onFrame);
-      } else {
-        // 降级:100ms 轮询
-        setInterval(onFrame, 100);
-      }
+
       // 暴露给调试
-      window.__npcDemo = { get pigs() { return pigs; }, feedPig: feedPig, nextPig: nextPig, openTrade: openTrade, unmount: unmount };
+      window.__npcDemo = { currentIdx: function () { return currentIdx; }, setIdx: function (i) { currentIdx = i; }, feedPig: feedPig, nextPig: nextPig, openTrade: openTrade, unmount: unmount };
     })();
   </script>
+
   <!-- v0.4 联机:主菜单(单人/创建房间/加入房间)→ bootGame 注入联机参数 -->
   <script type="module">
     import { bootGame } from './src/main.js';
     import { NetMenu } from './src/net/menu.js';
+
     // relay URL 通过查询参数 ?relay=ws://host:port 覆盖,否则默认 localhost:8787
     const params = new URLSearchParams(location.search);
     const relayUrl = params.get('relay') || 'ws://localhost:8787';
     // 也支持 ?mode=offline 直接跳过菜单(调试用)
     const skipMenu = params.get('mode') === 'offline' && !params.get('forceMenu');
+
     const canvas = document.getElementById('game');
+
     async function start(result) {
       if (result.mode === 'offline' || result.mode === 'cancel') {
         // 单人或取消:offline
@@ -500,15 +492,15 @@
       window.__wildwood = {
         canvas,
         bus: window.__hudBus,
-        ready: () => window.__hudReady === true,
+        ready: () => window.__hudReady === true && !!window.__game,
         netResult: result,
       };
     }
+
     if (skipMenu) {
       start({ mode: 'offline', name: 'Player' });
     } else {
       const menu = new NetMenu(document.body);
-
       const result = await menu.show({ relayUrl });
       if (result.mode === 'cancel') {
         // 用户从主菜单取消:回退到单人模式而不是黑屏
