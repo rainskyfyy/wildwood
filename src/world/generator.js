@@ -27,10 +27,13 @@ import { pickBiome, getBiome, BIOMES } from './biome-config.js';
 
 // Map biome id -> integer code for compact Uint8Array storage.
 // M5: keep ordered by BIOMES key insertion so Uint8Array round-trips stable.
-const BIOME_TO_CODE = Object.fromEntries(
+// v0.8.0 P0-3:exported so runtime.js / biomeCodeToId uses the same
+// canonical mapping (was: hardcoded `['forest','plains','mines','snow']`
+// in runtime.js — wrong since M5 redesign to desert/marsh/snow/volcano).
+export const BIOME_TO_CODE = Object.fromEntries(
   Object.keys(BIOMES).map((id, i) => [id, i])
 );
-const CODE_TO_BIOME = Object.keys(BIOMES);
+export const CODE_TO_BIOME = Object.keys(BIOMES);
 
 export class WorldGrid {
   constructor({ width, height, seed }) {

@@ -18,6 +18,10 @@
 'use strict';
 
 import { getBiome } from './world/biome-config.js';
+// v0.8.0 P0-3:use canonical mapping from generator.js (was hardcoded
+// ['forest','plains','mines','snow'] — wrong since M5 redesign to
+// desert/marsh/snow/volcano). CODE_TO_BIOME order = BIOMES key order.
+import { CODE_TO_BIOME } from './world/generator.js';
 import { blendColors } from './world/transitions.js';
 import {
   TILE_W_HALF, TILE_H_HALF,
@@ -324,6 +328,16 @@ export function runGame(game) {
     // ---- 13. periodic save(每 60ms 一次) ----
     if ((now | 0) % 60 === 0) saveInventory(game.inventory);
 
+    // ---- 14. v0.8.0 P0-1:UI 数据通道 ----
+    // 引擎帧尾通知 UI 层,避免 UI 自己跑 tick 和引擎漂移。
+    // 默认实现由 assembly.js 注入到 game.notifyUI:
+    //   - 触发 window.__hudBus 'engine:frame' 事件(向后兼容)
+    //   - 调用 window.__wildwood.uiSubscribers(注册式)
+    // UI 侧订阅 'engine:frame' 后,从 event.game 读真实状态。
+    if (typeof game.notifyUI === 'function') {
+      try { game.notifyUI(game, dt, now); } catch (_) { /* swallow UI errors */ }
+    }
+
     rafId = requestAnimationFrame(frame);
   }
 
@@ -614,5 +628,12 @@ function drawNameHp(ctx, sx, sy, name, state, self) {
   ctx.textBaseline = 'alphabetic';
 }
 
-const CODE_TO_BIOME = ['forest', 'plains', 'mines', 'snow'];
-function biomeCodeToId(c) { return CODE_TO_BIOME[c] || 'plains'; }
+// v0.8.0 P0-3:CODE_TO_BIOME is now imported from world/generator.js
+// (single source of truth). The hardcoded `['forest','plains','mines','snow']`
+// in earlier versions was stale since M5 redesign to desert/marsh/snow/volcano
+// and made biomeCodeToId fall through to the non-existent 'plains' for
+// every other biome — breaking biome-transition blends for marsh/volcano.
+function biomeCodeToId(c) {
+  if (typeof c !== 'number' || c < 0 || c >= CODE_TO_BIOME.length) return CODE_TO_BIOME[0];
+  return CODE_TO_BIOME[c];
+}

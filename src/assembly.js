@@ -453,6 +453,33 @@ export function assembleGame(canvas, opts = {}) {
   }
 
   // ---------- 装配完成,统一返回 game 对象 ----------
+
+  // v0.8.0 P0-1:UI 数据通道 — 引擎帧尾通知 UI 层,避免 UI 自己跑
+  // tick 和引擎漂移。runtime.js 在 frame() 末尾调用 game.notifyUI(
+  // game, dt, now);默认实现桥接两路出口:
+  //   - window.__hudBus.emit('engine:frame', { now, dt, game }):向后兼容
+  //     v0.6.x IIFE 总线(已有 cooking/npc 模块订阅,不要破坏)
+  //   - window.__wildwood.uiSubscribers:注册式 API,新 UI 组件
+  //     `window.__wildwood.onFrame(cb)` 即可订阅,可返回 unsubscribe
+  // notifyUI 不放进 v0.8.0a 冻结列表 — 它是引擎→UI 回调入口,
+  // 后续可以由 UI 端自己替换(测试用 mock 注入)。
+  function defaultNotifyUI(game, dt, now) {
+    if (typeof window === 'undefined') return;
+    try {
+      if (window.__hudBus && typeof window.__hudBus.emit === 'function') {
+        window.__hudBus.emit('engine:frame', { now, dt, game });
+      }
+    } catch (_) { /* swallow UI bus errors */ }
+    try {
+      const subs = window.__wildwood && window.__wildwood.uiSubscribers;
+      if (Array.isArray(subs)) {
+        for (let i = 0; i < subs.length; i++) {
+          try { subs[i](game, dt, now); } catch (_) { /* per-subscriber */ }
+        }
+      }
+    } catch (_) { /* swallow window errors */ }
+  }
+
   const game = {
     // 顶层对象(由 setup 创建)
     ctx, canvas, mode, playerName, client, session,
@@ -473,6 +500,8 @@ export function assembleGame(canvas, opts = {}) {
     TILE_W_HALF, TILE_H_HALF, TILE_SIZE,
     // cooldown 常量(runtime 内快捷键逻辑用)
     EVENT_COOLDOWN_S, BOSS_COOLDOWN_S,
+    // v0.8.0 P0-1:引擎→UI 帧尾通知(非 pass-through,UI 端可替换)
+    notifyUI: defaultNotifyUI,
   };
 
   // 顶层 HUD:BossBar / EventBanner draw 注册到模块钩子(供 render 调)
@@ -504,6 +533,17 @@ export function assembleGame(canvas, opts = {}) {
     // 顶层上下文(装配完成,不应被换)
     'ctx', 'canvas',
   ]);
+
+  // v0.8.0 P0-1:把 game 暴露到 window,让 demo UI 能从真实引擎读状态。
+  // 字段集(vitalsState / inventory.slots+selected / npcMgr.piglins /
+  // dayCycle.describe() / player)都已经作为 pass-through 字段挂在
+  // game 上,UI 通过 window.__game 即可访问。
+  //   window.__hudBus / window.__tickState 保留向后兼容。
+  // 桥接后 UI 数据源:window.__game(真实引擎)而非 mock。
+  if (typeof window !== 'undefined') {
+    window.__game = game;
+    window.__wildwood = Object.assign(window.__wildwood || {}, { game });
+  }
 
   return game;
 }
