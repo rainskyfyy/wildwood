@@ -19,6 +19,7 @@ import { strict as assert } from 'node:assert';
 import { CookingPot, COOKING_SLOTS, findCookableRecipes, computeInventoryStats } from '../src/cooking/cooking.js';
 import { QUALITY, QUALITY_RANK, qualityMult, qualityBonus, qualityName } from '../src/cooking/quality.js';
 import { Inventory } from '../src/resources/inventory.js';
+import { InventoryService } from '../src/services/InventoryService.js';
 import { recipesForStation, allItems } from '../src/resources/catalog.js';
 import { cookingPanelOnClick } from '../src/cooking/cooking-renderer.js';
 
@@ -44,7 +45,7 @@ test('all 30 cooking recipes match correctly', () => {
     for (const cell of r.pattern) {
       if (cell !== '') inv.add(cell, 5);
     }
-    const pot = new CookingPot({ inventory: inv });
+    const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
     for (const cell of r.pattern) {
       if (cell !== '') pot.put(cell);
     }
@@ -61,7 +62,7 @@ test('multiset matching is order-independent', () => {
   inv.add('potato', 5);
   inv.add('water', 5);
   inv.add('salt', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('salt');
   pot.put('carrot');
   pot.put('potato');
@@ -79,7 +80,7 @@ test('extra ingredient prevents match', () => {
   inv.add('flint', 5);
   inv.add('dirt', 5);
   inv.add('petals', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('gold');
   pot.put('flint');
   pot.put('dirt');
@@ -95,7 +96,7 @@ test('cannot put tool/seed/fertilizer/placeable into pot', () => {
   inv.add('carrot_seed', 1);
   inv.add('compost', 1);
   inv.add('campfire', 1);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   assert.equal(pot.put('axe').ok, false);
   assert.equal(pot.put('carrot_seed').ok, false);
   assert.equal(pot.put('compost').ok, false);
@@ -106,7 +107,7 @@ test('cannot put tool/seed/fertilizer/placeable into pot', () => {
 test('put returns full when 4 slots used', () => {
   const inv = new Inventory();
   for (const id of ['carrot', 'potato', 'water', 'salt', 'meat']) inv.add(id, 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   assert.equal(pot.put('carrot').ok, true);
   assert.equal(pot.put('potato').ok, true);
   assert.equal(pot.put('water').ok, true);
@@ -120,7 +121,7 @@ test('roasted_potato (carrot+water) is GOOD (2 unique + fresh)', () => {
   const inv = new Inventory();
   inv.add('potato', 5);
   inv.add('water', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('potato');
   pot.put('water');
   const p = pot.preview(computeInventoryStats(inv));
@@ -137,7 +138,7 @@ test('hearty_stew with meat+carrot+potato+water is PERFECT', () => {
   inv.add('carrot', 5);
   inv.add('potato', 5);
   inv.add('water', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('meat');
   pot.put('carrot');
   pot.put('potato');
@@ -153,7 +154,7 @@ test('omelet (egg+salt) is NORMAL (1 unique base, no premium hit)', () => {
   const inv = new Inventory();
   inv.add('egg', 5);
   inv.add('salt', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('egg');
   pot.put('salt');
   const p = pot.preview(computeInventoryStats(inv));
@@ -168,7 +169,7 @@ test('cook consumes inputs and adds output', () => {
   inv.add('potato', 5);
   inv.add('water', 5);
   inv.add('salt', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('carrot');
   pot.put('potato');
   pot.put('water');
@@ -190,7 +191,7 @@ test('recipe unlocks on first cook', () => {
   inv.add('salt', 5);
   let unlockEvents = 0;
   const pot = new CookingPot({
-    inventory: inv,
+    invSvc: new InventoryService({ inventory: inv }),
     onUnlock: (id) => { unlockEvents++; }
   });
   pot.put('carrot');
@@ -219,7 +220,7 @@ test('cook refuses if inventory is full (no free slots)', () => {
   inv.add('carrot', 1);
   inv.add('water', 1);
   assert.equal(inv.slots.filter(s => s == null).length, 0, 'inventory should be full');
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('carrot');
   pot.put('water');
   // cooked_carrot pattern = [carrot, water] → matches
@@ -241,7 +242,7 @@ test('findCookableRecipes lists cookable-but-unlocked', () => {
   inv.add('potato', 5);
   inv.add('water', 5);
   inv.add('salt', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   const cookable = findCookableRecipes(pot, inv);
   const ids = cookable.map(r => r.id);
   assert.ok(ids.includes('vegetable_stew'), `expected vegetable_stew in cookable: ${ids.join(',')}`);
@@ -254,7 +255,7 @@ test('serialize/load roundtrip preserves slots and unlocked', () => {
   inv.add('potato', 5);
   inv.add('water', 5);
   inv.add('salt', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('carrot');
   pot.put('potato');
   pot.put('water');
@@ -265,7 +266,7 @@ test('serialize/load roundtrip preserves slots and unlocked', () => {
   assert.equal(snap.v, 1);
   assert.ok(snap.unlocked.includes('vegetable_stew'));
 
-  const pot2 = new CookingPot({ inventory: inv });
+  const pot2 = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot2.loadSnapshot(snap);
   assert.equal(pot2.unlocked.has('vegetable_stew'), true);
   assert.equal(pot2.slots[0], 'carrot');
@@ -286,7 +287,7 @@ test('qualityMult and qualityBonus values', () => {
 test('clear returns removed itemIds', () => {
   const inv = new Inventory();
   inv.add('carrot', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('carrot');
   pot.put('carrot');
   const removed = pot.clear();
@@ -299,7 +300,7 @@ test('foodValue preview scales with quality (roasted_potato GOOD)', () => {
   const inv = new Inventory();
   inv.add('potato', 5);
   inv.add('water', 5);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('potato');
   pot.put('water');
   const p = pot.preview(computeInventoryStats(inv));
@@ -313,7 +314,7 @@ test('foodValue preview scales with quality (roasted_potato GOOD)', () => {
 test('cookingPanelOnClick: click empty slot puts hotbar item', () => {
   const inv = new Inventory();
   inv.add('carrot', 3);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   // fake hitmap: 1 slot at (10,10) of size 48
   const hitMap = {
     panelRect: { x: 0, y: 0, w: 280, h: 280 },
@@ -331,7 +332,7 @@ test('cookingPanelOnClick: click empty slot puts hotbar item', () => {
 test('cookingPanelOnClick: click filled slot removes + refunds inventory', () => {
   const inv = new Inventory();
   inv.add('carrot', 3);
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   pot.put('carrot');
   const hitMap = {
     panelRect: { x: 0, y: 0, w: 280, h: 280 },
@@ -346,7 +347,7 @@ test('cookingPanelOnClick: click filled slot removes + refunds inventory', () =>
 
 test('cookingPanelOnClick: click outside panel is noop', () => {
   const inv = new Inventory();
-  const pot = new CookingPot({ inventory: inv });
+  const pot = new CookingPot({ invSvc: new InventoryService({ inventory: inv }) });
   const hitMap = {
     panelRect: { x: 100, y: 100, w: 200, h: 200 },
     cookBtn:   { x: 150, y: 250, w: 100, h: 28 },
