@@ -19,6 +19,7 @@ import {
 import { preview, execute, availableOffers } from '../src/trading/trader.js';
 import { Follower, MAX_FOLLOWERS } from '../src/follower/follower.js';
 import { FollowerManager } from '../src/follower/follower-manager.js';
+import { InventoryService } from '../src/services/InventoryService.js';
 
 // ── 假世界(只覆盖 isWalkable + getTile + width/height)─────────────
 function makeWorld(opts = {}) {
@@ -52,40 +53,21 @@ function makeWorld(opts = {}) {
   };
 }
 
-// 假 inventory
+// 假 inventory(v0.6.0b InventoryService 单向接口)
+//   - trader API 现在要求 ctx.invSvc(InventoryService 实例)
+//   - 用真实 InventoryService 包装空 Inventory,而不是手写 mock
+//   - 测试通过 inv.countOf / inv.addItem / { invSvc: inv, state } 跟 trader 交互
 function makeInventory() {
-  // 简化:只用 slot 数组
-  return {
-    slots: [
-      { itemId: 'log', count: 8 },
-      { itemId: 'twine', count: 4 },
-      { itemId: 'stone', count: 6 },
-      { itemId: 'berries', count: 3 },
-      { itemId: 'carrot', count: 5 },
-      { itemId: 'mushroom', count: 2 },
-      null, null, null, null, null, null, null, null, null, null,
-      null, null, null, null, null
-    ],
-    countOf(id) {
-      return this.slots.filter(s => s && s.itemId === id)
-                       .reduce((a, s) => a + s.count, 0);
-    },
-    remove(slotIdx, count) {
-      const s = this.slots[slotIdx];
-      if (!s) return 0;
-      const take = Math.min(count, s.count);
-      s.count -= take;
-      if (s.count <= 0) this.slots[slotIdx] = null;
-      return take;
-    },
-    add(id, count) {
-      // Simplified: find first empty slot
-      for (let i = 0; i < this.slots.length; i++) {
-        if (!this.slots[i]) { this.slots[i] = { itemId: id, count }; return { added: count, leftover: 0 }; }
-      }
-      return { added: 0, leftover: count };
-    }
-  };
+  const svc = new InventoryService();
+  // 跟旧手写 mock 一致:log x8, twine x4, stone x6, berries x3, carrot x5, mushroom x2
+  // 这些是「交易前玩家 bag 内的标准库存」,很多 group 依赖 (e.g. "1:1 交易 log 总数不变")
+  svc.addItem('log',      8);
+  svc.addItem('twine',    4);
+  svc.addItem('stone',    6);
+  svc.addItem('berries',  3);
+  svc.addItem('carrot',   5);
+  svc.addItem('mushroom', 2);
+  return svc;
 }
 
 // ── Test helpers ──────────────────────────────────────────────────
@@ -264,7 +246,7 @@ group('price-engine: scarcity 影响', () => {
 group('trader: 交易执行(1:1)', () => {
   const inv = makeInventory();
   const state = newTradeState();
-  const r = execute('log', 2, { inventory: inv, state });
+  const r = execute('log', 2, { invSvc: inv, state });
   assert(r.ok, '交易成功');
   eq(r.buyItem, 'log', '木头换木头(1:1)');
   // 1:1 交易:移除 2 log 后再加 2 log,总数不变
@@ -276,46 +258,46 @@ group('trader: 不等价比率', () => {
   // 2 carrot = 1 berry(基础)
   const inv = makeInventory();
   const state = newTradeState();
-  const r = execute('carrot', 4, { inventory: inv, state });
+  const r = execute('carrot', 4, { invSvc: inv, state });
   assert(r.ok, '交易成功');
   eq(r.buyItem, 'berries', 'carrot 换 berries');
   // 第一次交易 mult 应接近 1.0+scarcity,至少 1
   assert(r.buyCount >= 1, 'buyCount >= 1');
   // 4 carrot 移除
-  const r2 = execute('carrot', 1, { inventory: inv, state });
+  const r2 = execute('carrot', 1, { invSvc: inv, state });
   assert(r2.ok, '再交易 1 carrot 成功');
 });
 
 group('trader: 物品不足时拒绝', () => {
   const inv = makeInventory();
   const state = newTradeState();
-  const r = execute('mushroom', 99, { inventory: inv, state });
+  const r = execute('mushroom', 99, { invSvc: inv, state });
   assert(r.ok === false, '物品不足时交易失败');
   eq(r.reason, 'insufficient', '拒绝原因 = insufficient');
 });
 
 group('trader: 不可交易物品拒绝', () => {
   const inv = makeInventory();
-  inv.add('petals', 5);
+  inv.addItem('petals', 5);
   // 先尝试 petals —— 但 'petals' 在 stockFor 里有,所以会执行
   // 改成不可交易的物品
-  inv.add('torch', 1);
+  inv.addItem('torch', 1);
   const state = newTradeState();
-  const r = execute('torch', 1, { inventory: inv, state });
+  const r = execute('torch', 1, { invSvc: inv, state });
   assert(r.ok === false, 'torch 不被接受');
   eq(r.reason, 'not_in_stock', '拒绝原因 = not_in_stock');
 });
 
 group('trader: 多次交易后 buy count 递减', () => {
   const inv = makeInventory();
-  inv.add('carrot', 30);
+  inv.addItem('carrot', 30);
   const state = newTradeState();
   // 第一次 2 carrot → 1 berry
-  const r1 = execute('carrot', 2, { inventory: inv, state });
+  const r1 = execute('carrot', 2, { invSvc: inv, state });
   assert(r1.ok && r1.buyCount >= 1, '第一次交易 buy >= 1');
   // 多次交易后 mult 下降,但因为 floor(2*1*0.85)=1 还能换
-  for (let i = 0; i < 6; i++) execute('carrot', 2, { inventory: inv, state });
-  const r2 = execute('carrot', 2, { inventory: inv, state });
+  for (let i = 0; i < 6; i++) execute('carrot', 2, { invSvc: inv, state });
+  const r2 = execute('carrot', 2, { invSvc: inv, state });
   assert(r2.ok, '后续交易仍能执行');
   assert(r2.multiplier < 1.0, 'mult 已下降');
 });

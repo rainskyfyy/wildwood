@@ -15,7 +15,7 @@
 'use strict';
 
 import { assembleGame } from './assembly.js';
-import { runGame } from './runtime.js';
+import { startRuntime } from './runtime.js';
 
 /**
  * 启动 Wildwood 游戏。
@@ -27,7 +27,7 @@ import { runGame } from './runtime.js';
  */
 export function bootGame(canvas, opts = {}) {
   const game = assembleGame(canvas, opts);
-  const runtime = runGame(game);
+  const runtime = startRuntime(game);
   return { game, runtime };
 }
 

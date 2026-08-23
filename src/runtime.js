@@ -49,7 +49,8 @@ import { saveInventory } from './assembly.js';
  * @param {Object} game — assembleGame() 返回的 game 对象
  * @returns {{ stop: () => void, running: boolean }}
  */
-export function runGame(game) {
+export function startRuntime(ctx) {
+  const game = ctx; // alias for readability; m5.2 fixture passes a single 'ctx' arg
   let lastT = performance.now();
   let running = true;
   let rafId = 0;
