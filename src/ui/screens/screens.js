@@ -1,5 +1,5 @@
 /**
- * Wildwood UI · M2.13 4 屏交互
+ * Wildwood UI · M2.13 4 屏交互 (v0.8.0 · 真实引擎接入)
  *
  * 职责:
  *   1. 主 HUD 之外的 4 屏 subtab 路由(背包 / 合成 / 地图 / 任务)
@@ -9,44 +9,46 @@
  *      - 移动: 不同类或空格 → 位置交换/置入
  *      - 不可达回弹: 拖到非法目标 → 视觉回弹 + shake 动画
  *      - 拖到快捷栏替换: 拖到 hotbar 槽 → 替换(原物品回到背包空格)
- *   3. 物品点击 → 打开详情卡(复用 M1.8 Dialog + M2.11 codex 数据契约)
- *   4. 5Hz 状态同步: 订阅 window.__hudBus(M2.12),状态变化推回 bus
+ *   3. 物品点击 → 打开详情卡(复用 M1.8 Dialog + items.json 数据契约)
+ *   4. 5Hz 状态同步: 订阅 hudBus 'engine:frame' 事件
  *
  * 与其他子任务的关系:
+ *   - v0.8.0 引擎:event.game.inventory.slots(21 槽) + event.game.player
+ *     + event.game.world + event.game.dayCycle.describe() + event.game.npcMgr
  *   - M2.12 hud.js: 提供 window.__hudBus(同 5Hz TICK_MS = 200)
- *   - M2.11 codex.js: 提供 items.json / creatures.json 数据契约,
- *     screens.js 不直接 import,而是 fetch 自己的 data,避免与 M2.11 模块冲突
  *   - M1.8 components.css: 复用 .Panel / .Dialog / .Button / .HotbarSlot 类
  *   - M1.7 layout/tokens.css: 复用 --sp-* / --accent / --bg-panel 等 token
  *
  * 5Hz 同步:
- *   - 订阅 hudBus 'tick' 事件(每 200ms 一次)
+ *   - 订阅 hudBus 'engine:frame' 事件(每帧 1 次,引擎渲染时)
+ *   - 引擎帧尾同步 hotbar[0..5] + backpack[6..20] → 本地 view
  *   - 状态变更: hudBus.emit('inventory:change', {items, hotbar})
  *   - 拖拽完成: hudBus.emit('inventory:drag', {state, fromSlot, toSlot})
  *
+ * 数据源:
+ *   - items.json(展示元数据:name/icon/color/category/stackMax)
+ *   - recipes.json(合成配方)
+ *   - event.game.inventory.slots(真实槽位)
+ *
  * 安全:
  *   - 所有 DOM 查询防御性判空;无 DOM 时不抛错
- *   - 不修改 M2.12 hud.js / M1.7/M1.8 / M2.11 codex
+ *   - 不修改 M2.12 hud.js / M1.7/M1.8
  *   - 普通 <script src> 加载,非 ESM
  */
-
 (function () {
   'use strict';
-
   // ============================================================================
   // 配置
   // ============================================================================
-
   var TICK_MS = 200;            // 5Hz,与 M2.12 对齐
-  var HOTBAR_SIZE = 7;          // 与 M2.12 demo.html 的 5+2 槽对齐
-  var INVENTORY_COLS = 6;       // 背包 6 列
-  var INVENTORY_ROWS = 4;       // 背包 4 行(共 24 槽)
-  var STACK_MAX = 20;           // 同类物品堆叠上限(沿用 M2.10 规范)
-
+  var HOTBAR_SIZE = 6;          // 引擎 HOTBAR_SIZE=6(0..5 启用)
+  var BACKPACK_SIZE = 15;       // 引擎 BACKPACK_SIZE=15(6..20)
+  var INVENTORY_COLS = 5;       // 背包 5 列(15=5×3)
+  var INVENTORY_ROWS = 3;       // 背包 3 行
+  var STACK_MAX = 20;           // 默认堆叠上限(items.json 中各 item 自定义)
   // ============================================================================
   // 工具
   // ============================================================================
-
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function el(tag, attrs, children) {
@@ -75,92 +77,108 @@
     }
     return node;
   }
-
   // ============================================================================
-  // Mock 物品数据(沿用 M2.10 物品规范,等 M2.11 接入后只换 data 来源)
+  // 数据契约(items.json / recipes.json)
   // ============================================================================
-  // 物品: { id, name, icon, type, stackable, maxStack, description }
-  // type: 'resource' | 'tool' | 'food' | 'placeable'
-  var MOCK_ITEMS = [
-    { id: 'twigs',    name: '树枝',   icon: '枝', type: 'resource',  stackable: true,  maxStack: 20, description: '基础资源,3 棵 = 1 捆' },
-    { id: 'flint',    name: '燧石',   icon: '石', type: 'resource',  stackable: true,  maxStack: 20, description: '基础资源,概率刷新于沙漠/雪原' },
-    { id: 'log',      name: '圆木',   icon: '木', type: 'resource',  stackable: true,  maxStack: 20, description: '1 棵树 = 2 圆木,持斧砍伐' },
-    { id: 'cut_grass',name: '草',     icon: '草', type: 'resource',  stackable: true,  maxStack: 20, description: '基础资源,割草获得' },
-    { id: 'rope',     name: '绳索',   icon: '绳', type: 'resource',  stackable: true,  maxStack: 20, description: '3 草 = 1 绳,合成基础' },
-    { id: 'boards',   name: '木板',   icon: '板', type: 'resource',  stackable: true,  maxStack: 20, description: '圆木合成,建筑用' },
-    { id: 'stone',    name: '石头',   icon: '石', type: 'resource',  stackable: true,  maxStack: 20, description: '基础资源,镐采石' },
-    { id: 'gold',     name: '金块',   icon: '金', type: 'resource',  stackable: true,  maxStack: 20, description: '稀有资源,金矿冶炼' },
-    { id: 'axe',      name: '斧头',   icon: '斧', type: 'tool',      stackable: false, maxStack: 1,  description: '砍树/挖矿双用,耐久 20' },
-    { id: 'pickaxe',  name: '镐子',   icon: '镐', type: 'tool',      stackable: false, maxStack: 1,  description: '挖掘矿石/燧石,耐久 25' },
-    { id: 'torch',    name: '火把',   icon: '炬', type: 'tool',      stackable: true,  maxStack: 5,  description: '照明 + 驱虫,持续 90s' },
-    { id: 'shovel',   name: '铲子',   icon: '铲', type: 'tool',      stackable: false, maxStack: 1,  description: '挖掘/掩埋,耐久 15' }
-  ];
-  // 索引
+  // ITEMS_BY_ID: 物品 id → {id, name, icon, color, category, stackMax, maxDurability?, toolType?}
   var ITEMS_BY_ID = {};
-  MOCK_ITEMS.forEach(function (i) { ITEMS_BY_ID[i.id] = i; });
-
-  // 初始背包(随机 12 槽有物,12 槽空,共 24 槽)
-  function genInitialInventory() {
-    var inv = new Array(INVENTORY_COLS * INVENTORY_ROWS);
-    var used = {};
-    var stackCount = {};
-    for (var i = 0; i < 12; i++) {
-      var idx = Math.floor(Math.random() * MOCK_ITEMS.length);
-      var item = MOCK_ITEMS[idx];
-      // 同一 id 在 24 槽内最多 2 堆,避免初始太散
-      var key = item.id;
-      if ((used[key] || 0) >= 2) {
-        i--; continue;
-      }
-      used[key] = (used[key] || 0) + 1;
-      var stack = item.stackable ? (Math.floor(Math.random() * 8) + 1) : 1;
-      inv[i] = { itemId: item.id, count: stack };
-    }
-    return inv;
+  // RECIPES: 配方数组 {id, name, station, grid, pattern, output}
+  var RECIPES = [];
+  // dataLoaded: items.json + recipes.json 是否都已加载
+  var dataLoaded = false;
+  // 数据加载(fetch,异步,init 时启动)
+  function loadData() {
+    var pending = 2;
+    function check() { if (--pending === 0) { dataLoaded = true; hudBus.emit('screens:data-ready', {}); rerenderAll(); } }
+    function failItems() { ITEMS_BY_ID = {}; check(); }
+    function failRecipes() { RECIPES = []; check(); }
+    // items.json:键值对集合
+    fetch('./src/resources/items.json').then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (data) {
+        // items.json 是 {log: {...}, twine: {...}, ...} 格式
+        Object.keys(data).forEach(function (k) {
+          if (k === '_meta') return;
+          var item = data[k];
+          if (item && item.id) ITEMS_BY_ID[item.id] = item;
+        });
+        check();
+      }).catch(failItems);
+    // recipes.json:{recipes: [...]}
+    fetch('./src/resources/recipes.json').then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (data) {
+        RECIPES = (data && (data.recipes || data)) || [];
+        if (!Array.isArray(RECIPES)) RECIPES = [];
+        check();
+      }).catch(failRecipes);
   }
-
-  // 初始快捷栏(7 槽:5 启用 + 2 禁用,沿用 M2.12 demo.html 布局)
-  function genInitialHotbar() {
-    var bar = new Array(HOTBAR_SIZE);
-    for (var i = 0; i < 5; i++) {
-      var idx = i % 4;
-      bar[i] = { itemId: MOCK_ITEMS[idx].id, count: (i + 1) * 2 };
-    }
-    bar[5] = null; bar[6] = null;
-    return bar;
+  // 从 itemId 拿 UI 展示元数据
+  function getItemDef(itemId) {
+    if (!itemId) return null;
+    return ITEMS_BY_ID[itemId] || null;
   }
-
-  // 初始合成配方(简单 4 条,M2.10 recipes.json 对齐)
-  var MOCK_RECIPES = [
-    { id: 'r_rope',    name: '绳索',     result: { itemId: 'rope',     count: 1 }, cost: [{ itemId: 'cut_grass', count: 3 }], tab: 'basic' },
-    { id: 'r_boards',  name: '木板',     result: { itemId: 'boards',   count: 2 }, cost: [{ itemId: 'log',       count: 2 }], tab: 'basic' },
-    { id: 'r_torch',   name: '火把',     result: { itemId: 'torch',    count: 2 }, cost: [{ itemId: 'twigs',     count: 2 }, { itemId: 'cut_grass', count: 2 }], tab: 'basic' },
-    { id: 'r_axe',     name: '斧头',     result: { itemId: 'axe',      count: 1 }, cost: [{ itemId: 'twigs',     count: 2 }, { itemId: 'flint',    count: 2 }], tab: 'tools' }
-  ];
-
-  // 初始任务(沿用 M2.14 设计,3 主线 + 2 支线)
-  var MOCK_QUESTS = [
-    { id: 'q_intro',   title: '第一章 · 落地',  desc: '在荒野中醒来。收集 5 树枝,生起第一堆火。',         status: 'active',  progress: { twigs: 3 },   goal: { twigs: 5 } },
-    { id: 'q_shelter', title: '第二章 · 庇护所', desc: '夜幕将至。合成 1 绳索,搭建简易帐篷。',            status: 'active',  progress: { rope: 0 },    goal: { rope: 1 } },
-    { id: 'q_explore', title: '第三章 · 探索',   desc: '深入丛林。击杀 3 只猎犬,寻找失落的矿脉。',        status: 'locked',  progress: {},           goal: { hound: 3 } },
-    { id: 'q_side_a',  title: '支线 · 篝火晚宴', desc: '在篝火旁烹饪 1 份烤肉,恢复饥饿值。',              status: 'active',  progress: { cooked: 0 },  goal: { cooked: 1 } },
-    { id: 'q_side_b',  title: '支线 · 寻宝者',   desc: '收集 10 块石头,合成 1 把镐子。',                  status: 'done',    progress: { pickaxe: 1 }, goal: { pickaxe: 1 } }
-  ];
-
+  // 推断 stackable(从 items.json 推:stackMax > 1 即堆叠)
+  function isStackable(itemId) {
+    var def = getItemDef(itemId);
+    if (!def) return true;  // 未知物品默认可堆叠,避免 1 个变 N 个的 bug
+    return (def.stackMax || 1) > 1;
+  }
+  // 物品的 stackMax(默认 STACK_MAX)
+  function getStackMax(itemId) {
+    var def = getItemDef(itemId);
+    return def ? (def.stackMax || STACK_MAX) : STACK_MAX;
+  }
   // ============================================================================
-  // 应用状态(单例)
+  // 应用状态(单例)—— view 镜像,数据从 event.game.inventory.slots 同步
   // ============================================================================
   var state = {
-    activeTab: 'inventory',  // 'inventory' | 'crafting' | 'map' | 'quest'
-    inventory: genInitialInventory(),
-    hotbar: genInitialHotbar(),
-    drag: null,              // 当前拖拽上下文(见 DragContext)
+    activeTab: 'inventory',     // 'inventory' | 'crafting' | 'map' | 'quest'
+    inventory: new Array(BACKPACK_SIZE).fill(null),  // [0..14] 镜像背包 6..20
+    hotbar: new Array(HOTBAR_SIZE).fill(null),       // [0..5] 镜像快捷栏
+    dataReady: false,           // items.json + recipes.json 是否加载
+    engineReady: false,         // 引擎是否推送过 engine:frame
+    drag: null,
     tickCount: 0
   };
-
-  // 暴露给调试 + 未来联机同步
+  // 暴露给调试
   window.__screensState = state;
-
+  var hudBus = null;  // 延迟绑定
+  // ============================================================================
+  // 引擎数据同步(每 engine:frame 把 slots 切成 hotbar[0..5] + inventory[0..14])
+  // ============================================================================
+  function syncFromEngine(game) {
+    if (!game) return;
+    // 1. inventory
+    if (game.inventory && Array.isArray(game.inventory.slots)) {
+      var slots = game.inventory.slots;
+      var hotbarChanged = false;
+      var invChanged = false;
+      // 快捷栏 0..5
+      for (var i = 0; i < HOTBAR_SIZE; i++) {
+        var src = slots[i];
+        var view = toView(src);
+        if (!slotEqual(state.hotbar[i], view)) { state.hotbar[i] = view; hotbarChanged = true; }
+      }
+      // 背包 6..20(15 槽)→ 映射到 state.inventory[0..14]
+      for (var j = 0; j < BACKPACK_SIZE; j++) {
+        var src2 = slots[HOTBAR_SIZE + j];
+        var view2 = toView(src2);
+        if (!slotEqual(state.inventory[j], view2)) { state.inventory[j] = view2; invChanged = true; }
+      }
+      if (hotbarChanged || invChanged) {
+        rerenderAll();
+        if (hudBus) hudBus.emit('inventory:change', { items: state.inventory, hotbar: state.hotbar });
+      }
+    }
+  }
+  function toView(slot) {
+    if (!slot || !slot.itemId) return null;
+    return { itemId: slot.itemId, count: slot.count || 1 };
+  }
+  function slotEqual(a, b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    return a.itemId === b.itemId && a.count === b.count;
+  }
   // ============================================================================
   // 拖拽状态机(4 状态:合并 / 移动 / 不可达回弹 / 快捷栏替换)
   // ============================================================================
@@ -171,40 +189,32 @@
   //   DRAGGING + drop on 非法目标 → REJECTED(200ms 后回弹 → IDLE)
   //   DRAGGING + drop on 快捷栏槽 → HOTBAR_REPLACE
   //   any → dragend → IDLE
-
   var DRAG_STATE = {
-    IDLE: 'idle',
-    DRAGGING: 'dragging',
-    MERGE: 'merge',
-    MOVE: 'move',
-    REJECTED: 'rejected',
-    HOTBAR_REPLACE: 'hotbar-replace'
+    IDLE: 'idle', DRAGGING: 'dragging', MERGE: 'merge',
+    MOVE: 'move', REJECTED: 'rejected', HOTBAR_REPLACE: 'hotbar-replace'
   };
-
   function setDragFeedback(node, kind) {
-    // kind: 'merge' | 'move' | 'reject' | 'hotbar' | 'source'
     if (!node) return;
     node.classList.remove('DragSource', 'DragMerge', 'DragMove', 'DragReject', 'DragHotbarTarget');
     if (kind) node.classList.add('Drag' + kind.charAt(0).toUpperCase() + kind.slice(1));
   }
-
   function clearAllDragFeedback() {
     $$('.DragSource, .DragMerge, .DragMove, .DragReject, .DragHotbarTarget').forEach(function (n) {
       n.classList.remove('DragSource', 'DragMerge', 'DragMove', 'DragReject', 'DragHotbarTarget');
     });
   }
-
+  // 注意:拖拽只改本地 view,引擎端 inventory 后续由 v0.8.x 接入 InventoryService API
+  // 现在 UI 拖拽成功后,只在本地 view 数组里变更;真实写入引擎待后端
   function startDrag(item, slotEl, sourceKind, sourceIdx) {
     state.drag = {
       state: DRAG_STATE.DRAGGING,
       item: item,
-      source: { kind: sourceKind, idx: sourceIdx },  // kind: 'inventory' | 'hotbar'
+      source: { kind: sourceKind, idx: sourceIdx },
       el: slotEl
     };
     setDragFeedback(slotEl, 'source');
-    if (window.__hudBus) window.__hudBus.emit('inventory:drag-start', { itemId: item.itemId, source: sourceKind });
+    if (hudBus) hudBus.emit('inventory:drag-start', { itemId: item.itemId, source: sourceKind });
   }
-
   function endDrag(targetKind, targetIdx, targetSlotEl) {
     var drag = state.drag;
     if (!drag) return;
@@ -215,15 +225,13 @@
     clearAllDragFeedback();
     state.drag = null;
     if (result === 'rejected') {
-      // 视觉回弹 + shake 动画(由 CSS .DragRejectShake 触发,200ms 后自动消除)
       if (drag.el) {
         drag.el.classList.add('DragRejectShake');
         setTimeout(function () { drag.el.classList.remove('DragRejectShake'); }, 220);
       }
     }
-    // 推送到 hudBus(M2.12 同步)
-    if (window.__hudBus) {
-      window.__hudBus.emit('inventory:drag', {
+    if (hudBus) {
+      hudBus.emit('inventory:drag', {
         state: result,
         itemId: item.itemId,
         from: src,
@@ -231,31 +239,23 @@
       });
     }
   }
-
   function tryDrop(src, targetKind, targetIdx, item) {
-    // 不可达情况 1: 源 == 目标
     if (src.kind === targetKind && src.idx === targetIdx) return 'rejected';
-    // 不可达情况 2: 目标槽不可用(快捷栏 disabled)
-    if (targetKind === 'hotbar' && targetIdx >= 5) return 'rejected';
-
     var srcArr = src.kind === 'hotbar' ? state.hotbar : state.inventory;
     var tgtArr = targetKind === 'hotbar' ? state.hotbar : state.inventory;
     var target = tgtArr[targetIdx];
-
-    // 目标为空 → MOVE
+    // 1. 目标为空 → MOVE
     if (!target) {
       tgtArr[targetIdx] = { itemId: item.itemId, count: item.count };
       srcArr[src.idx] = null;
       rerenderAll();
       return 'move';
     }
-
-    // 目标同类 + 可堆叠 + 未满 → MERGE
-    var def = ITEMS_BY_ID[item.itemId];
-    if (def.stackable && target.itemId === item.itemId) {
-      var space = def.maxStack - target.count;
+    // 2. 目标同类 + 可堆叠 + 未满 → MERGE
+    if (isStackable(item.itemId) && target.itemId === item.itemId) {
+      var max = getStackMax(item.itemId);
+      var space = max - target.count;
       if (space <= 0) {
-        // 满了,只能交换(MOVE)
         tgtArr[targetIdx] = { itemId: item.itemId, count: item.count };
         srcArr[src.idx] = { itemId: target.itemId, count: target.count };
         rerenderAll();
@@ -272,92 +272,36 @@
       rerenderAll();
       return 'merge';
     }
-
-    // 目标为不同物品 → 交换(MOVE 形式)
+    // 3. 不同物品 → 交换
     tgtArr[targetIdx] = { itemId: item.itemId, count: item.count };
     srcArr[src.idx] = { itemId: target.itemId, count: target.count };
     rerenderAll();
     return 'move';
   }
-
-  // 拖到快捷栏专用逻辑(快捷栏替换语义,不动背包原有物品)
-  function dropToHotbar(src, targetIdx, item) {
-    var hotbar = state.hotbar;
-    var inv = state.inventory;
-    var existing = hotbar[targetIdx];
-
-    // 不可达: 快捷栏 disabled 槽(targetIdx >= 5)
-    if (targetIdx >= 5) return 'rejected';
-
-    // 目标为空 → 直接置入
-    if (!existing) {
-      hotbar[targetIdx] = { itemId: item.itemId, count: item.count };
-      // 源槽置空(若源是背包)
-      if (src.kind === 'inventory') inv[src.idx] = null;
-      else hotbar[src.idx] = null;
-      rerenderAll();
-      return 'hotbar-replace';
-    }
-
-    // 目标同类 + 可堆叠 → merge
-    var def = ITEMS_BY_ID[item.itemId];
-    if (def.stackable && existing.itemId === item.itemId) {
-      var space = def.maxStack - existing.count;
-      if (space <= 0) {
-        // 满,作 hotbar-replace(全量替换,背包端物品回到原槽)
-        hotbar[targetIdx] = { itemId: item.itemId, count: item.count };
-        if (src.kind === 'inventory') inv[src.idx] = { itemId: existing.itemId, count: existing.count };
-        else hotbar[src.idx] = { itemId: existing.itemId, count: existing.count };
-        rerenderAll();
-        return 'hotbar-replace';
-      }
-      var take = Math.min(space, item.count);
-      existing.count += take;
-      item.count -= take;
-      if (item.count <= 0) {
-        if (src.kind === 'inventory') inv[src.idx] = null;
-        else hotbar[src.idx] = null;
-      } else {
-        if (src.kind === 'inventory') inv[src.idx] = { itemId: item.itemId, count: item.count };
-        else hotbar[src.idx] = { itemId: item.itemId, count: item.count };
-      }
-      rerenderAll();
-      return 'merge';
-    }
-
-    // 目标为不同物品 → hotbar-replace(全量替换,原物品回到源槽)
-    hotbar[targetIdx] = { itemId: item.itemId, count: item.count };
-    if (src.kind === 'inventory') inv[src.idx] = { itemId: existing.itemId, count: existing.count };
-    else hotbar[src.idx] = { itemId: existing.itemId, count: existing.count };
-    rerenderAll();
-    return 'hotbar-replace';
-  }
-
   // ============================================================================
   // 物品槽渲染
   // ============================================================================
-
   function renderItemSlot(arr, idx, kind, opts) {
     var item = arr[idx];
-    var def = item ? ITEMS_BY_ID[item.itemId] : null;
+    var def = item ? getItemDef(item.itemId) : null;
     var slot = el('div', {
-      class: 'ItemSlot' + (item ? ' is-filled' : ' is-empty') + (opts && opts.disabled ? ' is-disabled' : ''),
+      class: 'ItemSlot' + (item ? ' is-filled' : ' is-empty') + (opts && opts.disabled ? ' is-disabled' : '') + (!def && item ? ' is-unknown' : ''),
       dataset: { kind: kind, idx: String(idx) },
-      draggable: !!(item && !(opts && opts.disabled)),
+      draggable: !!(item && def && !(opts && opts.disabled)),
       tabindex: '0',
       role: 'button',
-      'aria-label': item ? (def.name + ' × ' + item.count) : '空槽'
+      'aria-label': item ? ((def ? def.name : item.itemId) + ' × ' + item.count) : '空槽'
     });
-
     if (item && def) {
-      // 1px 边 + 缩写字母(占位,等 M2.14 美术到位换 24px 图标)
-      var art = el('div', { class: 'ItemSlot-Art' }, def.icon);
+      // icon 字段是 png key;display 阶段暂用 name[0](首字)做字母占位
+      var glyph = def.icon ? def.icon.charAt(0).toUpperCase() : (def.name ? def.name.charAt(0) : '?');
+      var art = el('div', { class: 'ItemSlot-Art' }, glyph);
+      if (def.color) art.style.color = def.color;
       slot.appendChild(art);
       slot.appendChild(el('div', { class: 'ItemSlot-Name' }, def.name));
-      if (def.stackable && item.count > 1) {
+      if (isStackable(item.itemId) && item.count > 1) {
         slot.appendChild(el('div', { class: 'ItemSlot-Stack' }, '×' + item.count));
       }
-      // 拖拽事件
       slot.addEventListener('dragstart', function (e) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', JSON.stringify({ kind: kind, idx: idx, itemId: item.itemId }));
@@ -365,7 +309,6 @@
       });
       slot.addEventListener('dragend', function () {
         if (state.drag) {
-          // 取消拖拽:清理
           setDragFeedback(state.drag.el, null);
           clearAllDragFeedback();
           state.drag = null;
@@ -375,8 +318,7 @@
         if (!state.drag) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        var def2 = ITEMS_BY_ID[item.itemId];
-        if (def2 && def2.stackable && state.drag.item.itemId === item.itemId && item.count < def2.maxStack) {
+        if (isStackable(item.itemId) && state.drag.item.itemId === item.itemId && item.count < getStackMax(item.itemId)) {
           setDragFeedback(slot, 'merge');
         } else {
           setDragFeedback(slot, 'move');
@@ -387,11 +329,8 @@
       });
       slot.addEventListener('drop', function (e) {
         e.preventDefault();
-        if (state.drag) {
-          endDrag(kind, idx, slot);
-        }
+        if (state.drag) endDrag(kind, idx, slot);
       });
-      // 点击 → 打开详情卡
       slot.addEventListener('click', function () { openItemDetail(item.itemId); });
     } else {
       slot.appendChild(el('div', { class: 'ItemSlot-Empty' }, '·'));
@@ -406,18 +345,14 @@
       });
       slot.addEventListener('drop', function (e) {
         e.preventDefault();
-        if (state.drag) {
-          endDrag(kind, idx, slot);
-        }
+        if (state.drag) endDrag(kind, idx, slot);
       });
     }
     return slot;
   }
-
   // ============================================================================
   // 4 屏渲染
   // ============================================================================
-
   function renderInventory(container) {
     container.innerHTML = '';
     var grid = el('div', { class: 'InventoryGrid' });
@@ -425,76 +360,41 @@
       grid.appendChild(renderItemSlot(state.inventory, i, 'inventory'));
     }
     container.appendChild(grid);
-
-    // 槽位计数提示
     var used = state.inventory.filter(function (s) { return s; }).length;
     var summary = el('div', { class: 'InventorySummary' }, '槽位: ' + used + ' / ' + state.inventory.length);
     container.appendChild(summary);
   }
-
   function renderCrafting(container) {
     container.innerHTML = '';
+    if (!dataLoaded) {
+      container.appendChild(el('div', { class: 'CraftingEmpty' }, '加载配方中...'));
+      return;
+    }
+    if (!RECIPES.length) {
+      container.appendChild(el('div', { class: 'CraftingEmpty' }, '暂无可用配方'));
+      return;
+    }
     // 左侧:配方列表
     var list = el('div', { class: 'CraftingList' });
-    list.appendChild(el('div', { class: 'Panel-Header' }, '合成配方 · ' + MOCK_RECIPES.length));
-    MOCK_RECIPES.forEach(function (r) {
+    list.appendChild(el('div', { class: 'Panel-Header' }, '合成配方 · ' + RECIPES.length));
+    RECIPES.forEach(function (r) {
       var card = el('div', { class: 'CraftingCard' });
       card.appendChild(el('div', { class: 'CraftingCard-Name' }, '▸ ' + r.name));
-      var costText = r.cost.map(function (c) {
-        var def = ITEMS_BY_ID[c.itemId];
-        return def.name + ' ×' + c.count;
-      }).join(' + ');
-      card.appendChild(el('div', { class: 'CraftingCard-Cost' }, '需求: ' + costText));
-      var resDef = ITEMS_BY_ID[r.result.itemId];
-      card.appendChild(el('div', { class: 'CraftingCard-Result' }, '产出: ' + resDef.name + ' ×' + r.result.count));
-      // 能否合成(简单判断,实际合成要 M2.10 inventory API)
-      var canCraft = r.cost.every(function (c) {
-        var have = 0;
-        state.inventory.forEach(function (s) { if (s && s.itemId === c.itemId) have += s.count; });
-        return have >= c.count;
-      });
-      var btn = el('button', { class: 'Button Button-Primary CraftingCard-Craft' }, canCraft ? '合成' : '材料不足');
-      if (!canCraft) btn.setAttribute('disabled', '');
-      btn.addEventListener('click', function () {
-        if (!canCraft) return;
-        // 简化逻辑:消耗材料 + 产出物品(找一个空格)
-        r.cost.forEach(function (c) {
-          var need = c.count;
-          for (var i = 0; i < state.inventory.length && need > 0; i++) {
-            var s = state.inventory[i];
-            if (s && s.itemId === c.itemId) {
-              var take = Math.min(s.count, need);
-              s.count -= take; need -= take;
-              if (s.count <= 0) state.inventory[i] = null;
-            }
-          }
-        });
-        // 找空格塞入结果
-        var placed = false;
-        for (var j = 0; j < state.inventory.length; j++) {
-          if (!state.inventory[j]) {
-            state.inventory[j] = { itemId: r.result.itemId, count: r.result.count };
-            placed = true; break;
-          }
-        }
-        if (!placed) {
-          // 背包满,合并到已有同类
-          for (var k = 0; k < state.inventory.length; k++) {
-            var s2 = state.inventory[k];
-            if (s2 && s2.itemId === r.result.itemId) {
-              s2.count += r.result.count; break;
-            }
-          }
-        }
-        rerenderAll();
-        if (window.__hudBus) window.__hudBus.emit('crafting:complete', { recipeId: r.id });
-      });
-      card.appendChild(btn);
+      // 配方 cost:从 pattern 推?这里用 output 倒推,简化:取 output.itemId 关联材料
+      // v0.8.0: 简化显示——仅显示 output 信息;详细材料点击后展示
+      var resDef = getItemDef((r.output && r.output.itemId) || '');
+      var outName = resDef ? resDef.name : (r.output && r.output.itemId) || '?';
+      var outCount = (r.output && r.output.count) || 1;
+      card.appendChild(el('div', { class: 'CraftingCard-Result' }, '产出: ' + outName + ' ×' + outCount));
+      if (r.station) {
+        card.appendChild(el('div', { class: 'CraftingCard-Cost' }, '工作站: ' + r.station));
+      }
+      var btn = el('button', { class: 'Button Button-Primary CraftingCard-Craft' }, '合成(预留)');
+      btn.setAttribute('disabled', '');
       list.appendChild(card);
     });
     container.appendChild(list);
-
-    // 右侧:分类 Tab(basic / tools / 预留)
+    // 右侧:分类 Tab(占位,后续按 station 过滤)
     var tabs = el('div', { class: 'CraftingTabs' });
     ['basic', 'tools', 'survival', 'magic'].forEach(function (t) {
       var tab = el('span', { class: 'CraftingTab' + (t === 'basic' ? ' is-active' : '') }, t);
@@ -506,60 +406,59 @@
     });
     container.appendChild(tabs);
   }
-
   function renderMap(container) {
     container.innerHTML = '';
-    // 地图屏:大地图占位 + POI 标记
     var wrap = el('div', { class: 'MapWrap' });
     var canvas = el('canvas', { class: 'MapCanvas' });
     canvas.width = 800; canvas.height = 500;
     wrap.appendChild(canvas);
-
-    // 地图覆盖层(POI 标记)
+    // POI:从引擎读 village + npcMgr 推断
     var overlay = el('div', { class: 'MapOverlay' });
-    [
-      { x: '20%', y: '30%', label: '营地',   color: 'var(--accent)' },
-      { x: '55%', y: '20%', label: '矿脉',   color: 'var(--fg-muted)' },
-      { x: '70%', y: '65%', label: '沼泽',   color: '#5a7a4a' },
-      { x: '40%', y: '80%', label: '森林',   color: 'var(--accent-3)' },
-      { x: '85%', y: '40%', label: '遗迹',   color: 'var(--warn-sanity)' }
-    ].forEach(function (p) {
+    var pois = [{ x: '20%', y: '30%', label: '营地', color: 'var(--accent)' }];
+    var game = (typeof window !== 'undefined') ? window.__game : null;
+    if (game && game.village && game.village.buildings) {
+      game.village.buildings.forEach(function (b, i) {
+        pois.push({
+          x: (15 + i * 12) + '%', y: (40 + i * 8) + '%',
+          label: b.name || ('建筑' + i), color: 'var(--accent-3)'
+        });
+      });
+    }
+    pois.forEach(function (p) {
       var pin = el('div', { class: 'MapPin' });
       pin.style.left = p.x; pin.style.top = p.y;
       pin.style.background = p.color;
-      var tip = el('div', { class: 'MapPin-Tip' }, p.label);
-      pin.appendChild(tip);
+      pin.appendChild(el('div', { class: 'MapPin-Tip' }, p.label));
       overlay.appendChild(pin);
     });
     wrap.appendChild(overlay);
-
-    // 地图底部:当前坐标 + 缩放
+    // 地图底部:从 engine 读 player.x/y + dayCycle + biome
+    var px = (game && game.player) ? Math.round(game.player.x || 0) : 0;
+    var py = (game && game.player) ? Math.round(game.player.y || 0) : 0;
+    var biome = (game && game.world && game.world.biome) || '--';
+    var timeText = (game && game.dayCycle && typeof game.dayCycle.describe === 'function') ? game.dayCycle.describe() : '--';
     var info = el('div', { class: 'MapInfo' }, [
       el('span', {}, '坐标: '),
-      el('span', { style: { color: 'var(--accent)' } }, 'X: 124  Y: 88'),
+      el('span', { style: { color: 'var(--accent)' } }, 'X: ' + px + '  Y: ' + py),
       el('span', { style: { marginLeft: 'var(--sp-24)' } }, '群系: '),
-      el('span', { style: { color: 'var(--accent)' } }, '森林'),
-      el('span', { style: { marginLeft: 'var(--sp-24)' } }, 'Day 12 · 14:32')
+      el('span', { style: { color: 'var(--accent)' } }, biome),
+      el('span', { style: { marginLeft: 'var(--sp-24)' } }, timeText)
     ]);
     wrap.appendChild(info);
     container.appendChild(wrap);
-
-    // 绘制简化地形(Canvas 2D 网格)
-    drawMapTerrain(canvas);
+    drawMapTerrain(canvas, game);
   }
-
-  function drawMapTerrain(canvas) {
+  function drawMapTerrain(canvas, game) {
     var ctx = canvas.getContext('2d');
     if (!ctx) return;
-    // 底色
     ctx.fillStyle = '#0d1a14';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // 群系色块(简化)
-    ctx.fillStyle = '#1a3a1a'; ctx.fillRect(0, 0, 400, 250);
-    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(400, 0, 400, 250);
-    ctx.fillStyle = '#1a2a3a'; ctx.fillRect(0, 250, 300, 250);
-    ctx.fillStyle = '#2a1a3a'; ctx.fillRect(300, 250, 500, 250);
-    // 网格线
+    // 4 群系色块(desert / marsh / snow / volcano,v0.8.0 P0-3 修复后)
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(0, 0, 400, 250);   // desert
+    ctx.fillStyle = '#1a2a3a'; ctx.fillRect(400, 0, 400, 250);  // marsh
+    ctx.fillStyle = '#2a2a3a'; ctx.fillRect(0, 250, 400, 250);  // snow
+    ctx.fillStyle = '#3a1a1a'; ctx.fillRect(400, 250, 400, 250); // volcano
+    // 网格
     ctx.strokeStyle = 'rgba(212, 166, 74, 0.15)';
     ctx.lineWidth = 1;
     for (var x = 0; x < canvas.width; x += 32) {
@@ -568,90 +467,56 @@
     for (var y = 0; y < canvas.height; y += 32) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
-    // 玩家位置(中心)
+    // 玩家位置(中心 = 引擎 player.x/y 映射到 canvas 中心)
     ctx.fillStyle = '#d4a64a';
     ctx.beginPath(); ctx.arc(canvas.width / 2, canvas.height / 2, 6, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#f0f0f0';
     ctx.lineWidth = 2;
     ctx.stroke();
   }
-
   function renderQuest(container) {
     container.innerHTML = '';
+    // v0.8.0 任务系统未在引擎端实现,UI 屏显示占位
     var list = el('div', { class: 'QuestList' });
-    var active = MOCK_QUESTS.filter(function (q) { return q.status === 'active'; });
-    var done = MOCK_QUESTS.filter(function (q) { return q.status === 'done'; });
-    var locked = MOCK_QUESTS.filter(function (q) { return q.status === 'locked'; });
-
-    function makeSection(title, quests) {
-      if (!quests.length) return null;
-      var sec = el('div', { class: 'QuestSection' });
-      sec.appendChild(el('div', { class: 'Panel-Header' }, title + ' · ' + quests.length));
-      quests.forEach(function (q) {
-        var card = el('div', { class: 'QuestCard QuestCard-' + q.status });
-        card.appendChild(el('div', { class: 'QuestCard-Title' }, q.title));
-        card.appendChild(el('div', { class: 'QuestCard-Desc' }, q.desc));
-        // 进度条
-        var progKeys = Object.keys(q.progress);
-        if (progKeys.length) {
-          progKeys.forEach(function (k) {
-            var p = q.progress[k] || 0;
-            var g = q.goal[k] || 1;
-            var ratio = Math.min(1, p / g);
-            var bar = el('div', { class: 'QuestCard-Progress' });
-            var fill = el('div', { class: 'QuestCard-Progress-Fill' });
-            fill.style.width = (ratio * 100) + '%';
-            bar.appendChild(fill);
-            bar.appendChild(el('span', { class: 'QuestCard-Progress-Text' }, p + ' / ' + g));
-            card.appendChild(bar);
-          });
-        }
-        list.appendChild(card);
-      });
-      return sec;
-    }
-    makeSection('进行中', active) && list.appendChild(makeSection('进行中', active));
-    makeSection('已完成', done) && list.appendChild(makeSection('已完成', done));
-    makeSection('未解锁', locked) && list.appendChild(makeSection('未解锁', locked));
-
+    var empty = el('div', { class: 'QuestSection QuestSection-Empty' });
+    empty.appendChild(el('div', { class: 'Panel-Header' }, '任务系统'));
+    empty.appendChild(el('div', { class: 'QuestEmpty' }, '系统暂无任务'));
+    empty.appendChild(el('div', { class: 'QuestEmpty-Hint' }, '后续 v0.9.x 接入任务数据源后,此处显示主线 / 支线 / 委托'));
+    list.appendChild(empty);
     container.appendChild(list);
   }
-
   // ============================================================================
   // 详情卡(复用 M1.8 Dialog)
   // ============================================================================
   function openItemDetail(itemId) {
-    var def = ITEMS_BY_ID[itemId];
+    var def = getItemDef(itemId);
     if (!def) return;
-
-    // 关闭已有
     var old = $('.Dialog-ScreenOverlay');
     if (old) old.remove();
-
     var overlay = el('div', { class: 'Dialog-Overlay Dialog-ScreenOverlay' });
     var dialog = el('div', { class: 'Dialog', role: 'dialog', 'aria-label': def.name });
     var closeBtn = el('button', { class: 'Dialog-Close', 'aria-label': '关闭' }, '×');
     closeBtn.addEventListener('click', function () { overlay.remove(); });
+    var glyph = def.icon ? def.icon.charAt(0).toUpperCase() : (def.name ? def.name.charAt(0) : '?');
     var header = el('div', { class: 'Dialog-Header' }, [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: 'var(--sp-8)' } }, [
-        el('div', { class: 'Codex-Item-Art' }, [
-          el('span', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-18)', color: 'var(--accent)' } }, def.icon)
-        ]),
+        el('div', { class: 'Codex-Item-Art', style: { color: def.color || 'var(--accent)' } }, glyph),
         el('div', {}, [
           el('div', { class: 'Dialog-Title' }, def.name),
-          el('div', { class: 'Codex-Detail-Sci' }, '类型: ' + def.type)
+          el('div', { class: 'Codex-Detail-Sci' }, '类型: ' + (def.category || '?'))
         ])
       ]),
       closeBtn
     ]);
     var body = el('div', { class: 'Dialog-Body' }, [
       el('div', { class: 'Codex-Detail-Section' }, [
-        el('div', { class: 'Codex-Detail-Section-Title' }, '▸ 描述'),
-        el('div', { class: 'Codex-Detail-Section-Body' }, def.description)
-      ]),
-      el('div', { class: 'Codex-Detail-Section' }, [
         el('div', { class: 'Codex-Detail-Section-Title' }, '▸ 属性'),
-        el('div', { class: 'Codex-Detail-Section-Body' }, '堆叠: ' + (def.stackable ? '是(上限 ' + def.maxStack + ')' : '否'))
+        el('div', { class: 'Codex-Detail-Section-Body' },
+          '堆叠: ' + (isStackable(itemId) ? ('是(上限 ' + getStackMax(itemId) + ')') : '否') +
+          (def.maxDurability ? '\n耐久: ' + def.maxDurability : '') +
+          (def.toolType ? '\n工具类型: ' + def.toolType : '') +
+          (def.foodValue ? '\n饱腹: ' + def.foodValue : '')
+        )
       ])
     ]);
     var footer = el('div', { class: 'Dialog-Footer' }, [
@@ -662,26 +527,31 @@
     overlay.addEventListener('click', function () { overlay.remove(); });
     document.body.appendChild(overlay);
     document.body.appendChild(dialog);
-
-    // ESC 关闭
     var onKey = function (e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); } };
     document.addEventListener('keydown', onKey);
   }
-
   // ============================================================================
   // 5Hz 同步订阅
   // ============================================================================
   function bindHudBus() {
-    if (!window.__hudBus) {
-      // M2.12 还没初始化,等一下
-      setTimeout(bindHudBus, 100);
-      return;
-    }
-    window.__hudBus.on('tick', function () {
-      state.tickCount++;
+    hudBus = window.__hudBus;
+    if (!hudBus) { setTimeout(bindHudBus, 100); return; }
+    // 引擎帧尾通知(主数据源)
+    hudBus.on('engine:frame', function (d) {
+      if (d && d.game) {
+        if (!state.engineReady) {
+          state.engineReady = true;
+          state.dataReady = state.dataReady || dataLoaded;
+        }
+        syncFromEngine(d.game);
+      }
     });
-    window.__hudBus.on('hotbar:select', function (d) {
-      // 外部选中快捷栏(数字键 1-7)→ 同步本地 hotbar 状态(高亮槽)
+    hudBus.on('screens:data-ready', function () {
+      state.dataReady = dataLoaded;
+      rerenderAll();
+    });
+    hudBus.on('tick', function () { state.tickCount++; });
+    hudBus.on('hotbar:select', function (d) {
       if (!d || typeof d.index !== 'number') return;
       $$('.HotbarSlotMirror').forEach(function (s, i) {
         s.classList.toggle('HotbarSlot-Active', i === d.index);
@@ -689,7 +559,6 @@
       });
     });
   }
-
   // ============================================================================
   // 路由(SPA hash)
   // ============================================================================
@@ -698,17 +567,14 @@
     var hash = (location.hash || '').replace('#/', '').replace('#', '');
     var target = SCREENS.indexOf(hash) >= 0 ? hash : 'inventory';
     state.activeTab = target;
-    // 切换 subtab active 样式
     $$('.Subtab').forEach(function (t) {
       var on = t.getAttribute('data-tab') === target;
       t.classList.toggle('is-active', on);
     });
-    // 切换屏显示
     SCREENS.forEach(function (s) {
       var node = $('#screen-' + s);
       if (node) node.style.display = (s === target ? '' : 'none');
     });
-    // 渲染当前屏
     var mount = $('#screen-' + target);
     if (!mount) return;
     if (target === 'inventory') renderInventory(mount);
@@ -716,24 +582,12 @@
     else if (target === 'map') renderMap(mount);
     else if (target === 'quest') renderQuest(mount);
   }
-
   function rerenderAll() {
     var mount = $('#screen-' + state.activeTab);
     if (!mount) return;
     if (state.activeTab === 'inventory') renderInventory(mount);
     else if (state.activeTab === 'crafting') renderCrafting(mount);
-    // 重新绑定快捷栏镜像
-    bindHotbarMirror();
   }
-
-  // ============================================================================
-  // 快捷栏镜像(把 M2.12 主 HUD 的 .HotbarSlot 状态同步到本屏)
-  // ============================================================================
-  function bindHotbarMirror() {
-    // 本屏只读主 HUD 的快捷栏(不重复渲染),通过 .HotbarSlotMirror 标记
-    // 这里只触发 hotbar:select 同步
-  }
-
   // ============================================================================
   // subtab 导航条 + 快捷键
   // ============================================================================
@@ -747,20 +601,16 @@
       });
     });
   }
-
   function bindKeys() {
     document.addEventListener('keydown', function (e) {
-      // I / C / M / Q 切屏
       var map = { 'i': 'inventory', 'c': 'crafting', 'm': 'map', 'q': 'quest' };
       var k = (e.key || '').toLowerCase();
       if (map[k] && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // 输入框里不抢
         var t = e.target;
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
         location.hash = '#/' + map[k];
         e.preventDefault();
       }
-      // ESC → 回到 inventory
       if (k === 'escape') {
         if (location.hash !== '#/inventory') {
           location.hash = '#/inventory';
@@ -769,20 +619,20 @@
       }
     });
   }
-
   // ============================================================================
   // 初始化
   // ============================================================================
   function init() {
-    // 1. 防御:确认 DOM 已就绪
     if (!$('.SubtabBar') || !$('#screen-inventory')) {
       return false;
     }
-    // 2. 绑定 subtab 导航 + 键盘
+    // 1. 启动 items.json + recipes.json 加载
+    loadData();
+    // 2. 绑定 hudBus
+    bindHudBus();
+    // 3. 绑定 subtab + 键盘
     bindSubtabs();
     bindKeys();
-    // 3. 绑定 hudBus(异步等 M2.12)
-    bindHudBus();
     // 4. 监听 hash 变化 + 首次路由
     window.addEventListener('hashchange', route);
     route();
@@ -790,7 +640,6 @@
     window.__screensReady = true;
     return true;
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { init(); });
   } else {
