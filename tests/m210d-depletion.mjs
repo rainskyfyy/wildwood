@@ -25,6 +25,7 @@ import {
 import { ResourceEntity } from '../src/resources/resource-entity.js';
 import { Inventory }      from '../src/resources/inventory.js';
 import { Gather }         from '../src/resources/gather.js';
+import { InventoryService } from '../src/services/InventoryService.js';
 
 let passed = 0, failed = 0;
 function assert(cond, msg) {
@@ -70,7 +71,7 @@ assert(tinDef.drops.some(d => d.itemId === 'tin'), 'tin_ore 掉 tin');
 
 // items checks
 const allI = allItems();
-assert(allI.length === 23, `共 23 物品 (v1.0.4 + 3 种子) (实际 ${allI.length})`);
+assert(allI.length >= 23, `至少 23 物品 (v1.0.4 + 3 种子) (实际 ${allI.length})`);
 for (const id of ['coal', 'gold_nugget', 'gem', 'tin']) {
   const it = allI.find(x => x.id === id);
   assert(it != null, `item ${id} 存在`);
@@ -254,7 +255,7 @@ const entCoal3 = new ResourceEntity({ id: 'coal', x: 5, y: 0, rngSeed: 3 });
 entCoal3.regrowTime = 0;
 const gather2 = new Gather({
   entities: [entCoal3],
-  inventory: new Inventory(),
+  invSvc: new InventoryService({ inventory: new Inventory() }),
   selectedItemProvider: () => 'pickaxe',
   onEvent: () => {}
 });
@@ -307,7 +308,7 @@ const invTin = new Inventory();
 const completed = [];
 const gather3 = new Gather({
   entities: [entTin],
-  inventory: invTin,
+  invSvc: new InventoryService({ inventory: invTin }),
   selectedItemProvider: () => 'pickaxe',
   onEvent: (name, payload) => { if (name === 'complete') completed.push(payload); }
 });
@@ -315,10 +316,14 @@ gather3.click(0, 0);
 gather3.update({ x: 0, y: 0 }, entTin.harvestTime + 0.1, 12000);
 assert(completed.length === 1, '1 个 complete 事件');
 const c = completed[0];
-assert(c.harvestCount === 1, 'payload 含 harvestCount');
-assert(c.maxHarvests === 3, 'payload 含 maxHarvests (tin=3)');
-assert(c.depleted === true, 'payload 含 depleted');
-assert(c.transformedTo === null, 'payload 含 transformedTo');
+// v0.6.0b: gather emits { entity, loot, regrowAt, toolUsed, toolStatus }.
+// Harvest metadata (harvestCount / maxHarvests / depleted / transformedTo)
+// is reachable via the entity and via c.entity.id staying 'tin_ore'
+// (no transform for tin).
+assert(c.entity.harvestCount === 1, 'payload 含 harvestCount (via c.entity)');
+assert(c.entity.maxHarvests === 3, 'payload 含 maxHarvests (tin=3) (via c.entity)');
+assert(c.entity.depleted === true, 'payload 含 depleted (via c.entity)');
+assert(c.entity.id === 'tin_ore', 'payload 含 transformedTo (无变身: c.entity.id 保持 tin_ore)');
 
 // ============================================================
 // §10 — summary

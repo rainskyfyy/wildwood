@@ -15,6 +15,7 @@ import { ResourceEntity } from '../src/resources/resource-entity.js';
 import { Gather, GATHER_IDLE, GATHER_GATHERING, DEFAULT_RANGE } from '../src/resources/gather.js';
 import { matchRecipe, craft, emptyGrid } from '../src/resources/crafting.js';
 import { generateWorld } from '../src/world/generator.js';
+import { InventoryService } from '../src/services/InventoryService.js';
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -110,7 +111,10 @@ ok('every entity has a defined icon', r1.every(e => !!e.icon));
 // ---------- 4. resource entity ----------
 console.log('resource-entity');
 const bag = new Inventory();
-const tree = new ResourceEntity({ id: 'tree', x: 10, y: 10, rngSeed: 42 });
+const tree = new ResourceEntity({ id: 'tree', x: 10, y: 10, rngSeed: 42, now: 0 });
+// v1.1.0: tree is growth-capable — advance to stage 1 (mature) to test
+// the mature tree's harvestTime / drops / depletion semantics.
+tree.update(31 * 1000);
 ok('tree.hp = 1', tree.hp === 1);
 ok('tree.harvestTime = 1.5', tree.harvestTime === 1.5);
 ok('tree.distTo self = 0', tree.distTo(10, 10) < 0.001);
@@ -138,11 +142,13 @@ console.log('gather');
 const gatherWorld = generateWorld({ width: 30, height: 30, seed: 7 });
 const ents = spawnResources(gatherWorld, { seed: 7 });
 const gInv = new Inventory();
-const gather = new Gather({ entities: ents, inventory: gInv, range: DEFAULT_RANGE });
+const gather = new Gather({ entities: ents, invSvc: new InventoryService({ inventory: gInv }), range: DEFAULT_RANGE });
 
 ok('initial state = idle', gather.state === GATHER_IDLE);
 
-ents.push(new ResourceEntity({ id: 'tree', x: 15.5, y: 15.5, rngSeed: 1 }));
+ents.push(new ResourceEntity({ id: 'tree', x: 15.5, y: 15.5, rngSeed: 1, now: 0 }));
+// Advance the gather-test tree to stage 1 (mature) so it drops log.
+ents[ents.length - 1].update(31 * 1000);
 const player = { x: 15.5, y: 15.5 };
 ok('click on in-range resource starts gathering',
    gather.click(15.5, 15.5) === true && gather.state === GATHER_GATHERING);
@@ -162,6 +168,7 @@ ok('inventory gained at least 1 log', gInv.countOf('log') >= 1, `log=${gInv.coun
 // ---------- 6. crafting ----------
 console.log('crafting');
 const cInv = new Inventory();
+const cInvSvc = new InventoryService({ inventory: cInv });
 cInv.add('log', 4);
 cInv.add('twine', 4);
 cInv.add('stone', 2);
@@ -174,7 +181,7 @@ ok('match torch recipe', matchRecipe(grid1, 'hand')?.id === 'torch');
 
 const beforeLog = cInv.countOf('log');
 const beforeTwine = cInv.countOf('twine');
-const r1c = craft(grid1, 'hand', cInv);
+const r1c = craft(grid1, 'hand', cInvSvc);
 ok('craft torch returns ok', r1c.ok === true);
 ok('craft torch consumed 1 log', cInv.countOf('log') === beforeLog - 1);
 ok('craft torch consumed 1 twine', cInv.countOf('twine') === beforeTwine - 1);
@@ -185,7 +192,7 @@ const grid2 = [
   ['twine', 'stone']
 ];
 ok('match campfire recipe', matchRecipe(grid2, 'hand')?.id === 'campfire');
-const r2c = craft(grid2, 'hand', cInv);
+const r2c = craft(grid2, 'hand', cInvSvc);
 ok('craft campfire ok', r2c.ok === true);
 ok('craft produced 1 campfire', cInv.countOf('campfire') === 1);
 
@@ -194,12 +201,13 @@ const gridBad = [
   ['log', 'log']
 ];
 ok('match fails for unknown pattern', matchRecipe(gridBad, 'hand') === null);
-ok('craft unknown returns no_match', craft(gridBad, 'hand', cInv).reason === 'no_match');
+ok('craft unknown returns no_match', craft(gridBad, 'hand', cInvSvc).reason === 'no_match');
 
 ok('match 2x2 in 3x3 station fails', matchRecipe(grid1, 'science') === null);
 
 const emptyInv = new Inventory();
-const r3c = craft(grid1, 'hand', emptyInv);
+const emptyInvSvc = new InventoryService({ inventory: emptyInv });
+const r3c = craft(grid1, 'hand', emptyInvSvc);
 ok('craft with empty inventory returns insufficient_items',
    r3c.reason === 'insufficient_items');
 
@@ -209,8 +217,13 @@ ok('emptyGrid is 2x2 of ""', g3.length === 2 && g3[0][0] === '' && g3[1][1] === 
 ok('all recipe patterns reference real items', (() => {
   const itemIds = new Set(allItems().map(i => i.id));
   for (const r of allRecipes()) {
-    for (const row of r.pattern) for (const c of row) {
-      if (c !== '' && !itemIds.has(c)) return false;
+    for (const row of r.pattern) {
+      // 1D pattern (1x4 / 1x1 grid): row is a string item id
+      // 2D pattern (2x2 / 3x3 grid): row is an array of strings
+      const cells = Array.isArray(row) ? row : [row];
+      for (const c of cells) {
+        if (c !== '' && !itemIds.has(c)) return false;
+      }
     }
   }
   return true;

@@ -23,6 +23,7 @@ import { Gather, GATHER_IDLE, DEFAULT_RANGE } from '../src/resources/gather.js';
 import { RegrowManager } from '../src/resources/regrow.js';
 import { spawnResources } from '../src/resources/spawner.js';
 import { generateWorld } from '../src/world/generator.js';
+import { InventoryService } from '../src/services/InventoryService.js';
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -258,7 +259,7 @@ invG.selectHotbar(0);
 let lastEvent = null;
 const gather = new Gather({
   entities: [gatherTree],
-  inventory: invG,
+  invSvc: new InventoryService({ inventory: invG }),
   range: 5,
   selectedItemProvider: () => {
     const s = invG.hotbarSelected();
@@ -290,7 +291,7 @@ const tree2 = trees[1];
 if (tree2) {
   const gatherW = new Gather({
     entities: [tree2],
-    inventory: invW,
+    invSvc: new InventoryService({ inventory: invW }),
     range: 5,
     selectedItemProvider: () => 'pickaxe',
     onEvent: (n, p) => { if (n === 'complete') wrongEvent = p; }
@@ -310,7 +311,7 @@ let berryEvent = null;
 if (berry) {
   const gatherB = new Gather({
     entities: [berry],
-    inventory: invB,
+    invSvc: new InventoryService({ inventory: invB }),
     range: 5,
     selectedItemProvider: () => null,
     onEvent: (n, p) => { if (n === 'complete') berryEvent = p; }
@@ -331,7 +332,7 @@ invBr.selectHotbar(0);
 let brEvent = null;
 const gatherBr = new Gather({
   entities: [tree],
-  inventory: invBr,
+  invSvc: new InventoryService({ inventory: invBr }),
   range: 5,
   selectedItemProvider: () => 'axe',
   onEvent: (n, p) => { if (n === 'complete') brEvent = p; }
