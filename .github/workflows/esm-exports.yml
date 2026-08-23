@@ -1,0 +1,49 @@
+name: esm-exports
+
+# Audit every .js file under src/ for ESM import/export mismatches.
+# Catches:
+#   - missing_named_export    : `import { X } from './m'` but m doesn't export X
+#   - missing_default_export  : `import X from './m'` but m has no export default
+#   - missing_target_file     : module path resolves to a non-existent file
+#   - missing_reexport_source : `export { X } from './m'` but m doesn't export X
+#
+# Exit 0 on clean, 1 on any mismatch — gate merges against new ESM bugs.
+# See docs/esm-export-audit.md for full rules + exemptions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**/*.js'
+      - 'tools/check-esm-exports.py'
+  pull_request:
+    paths:
+      - 'src/**/*.js'
+      - 'tools/check-esm-exports.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: esm-exports
+  cancel-in-progress: true
+
+jobs:
+  check-esm-exports:
+    name: esm-exports check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run check-esm-exports
+        run: python3 tools/check-esm-exports.py
