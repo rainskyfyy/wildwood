@@ -25,7 +25,7 @@ import {
 /**
  * 简单事件发射器。
  */
-class Emitter {
+export class Emitter {
   constructor() { this._h = new Map(); }
   on(ev, fn) {
     if (!this._h.has(ev)) this._h.set(ev, new Set());
