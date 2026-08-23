@@ -1,32 +1,33 @@
 /**
- * Wildwood UI · HUD 顶层状态机 (M2.12 + v0.8.3a)
+ * Wildwood UI · HUD 顶层状态机 (M2.12 + v0.8.3a + v0.8.3b)
  *
  * 职责:
  *   1. 在 demo.html 顶层建立 EventTarget 抽象层(window.__hudBus)
  *      M4 引擎 / M2.11 图鉴系统 / 任何屏都通过它推/订阅状态
- *   2. 5Hz 渲染节流:每 200ms 把引擎 vitalsState 推到 DOM。
- *      **数据源是引擎**(subscribe 'engine:frame'),不再本地 mock 衰减。
+ *   2. 5Hz 渲染节流:每 200ms 把引擎 vitalsState / dayCycle / inventory.selected
+ *      推到 DOM。**数据源是引擎**(subscribe 'engine:frame'),不再本地 mock。
  *   3. 4 队伍槽 mock 数据:写入玩家名 + 队伍色
- *   4. 点击快捷栏切换 active(替代 demo.html 里的内联 JS)
+ *   4. 点击快捷栏切换 active(替代 demo.html 里的内联 JS)— P2 起写到引擎
  *
- * 与 M4 引擎的关系(v0.8.3a 起):
- *   - 之前 v0.6.4a 设计:UI 自己 5Hz tick 推进三围衰减(演示用 mock)
+ * 与 M4 引擎的关系(v0.8.3a + v0.8.3b 起):
+ *   - v0.6.4a 设计:UI 自己 5Hz tick 推进三围衰减(演示用 mock)
  *   - v0.7/v0.8 引擎已经 dt-based 推进 game.vitalsState,但 UI 仍然
  *     用本地 mock,两套 vitals 各自跑、互相漂移 — 见 dispatcher 报告 #6
  *   - v0.8.3a P1 统一:UI 删本地衰减,改订阅 'engine:frame',
  *     读 event.game.vitalsState 作为唯一数据源(同对象引用,引擎 dt tick
  *     推进的 cur 值直接反映到 DOM)
+ *   - v0.8.3b P2 统一:同样把时间 (event.game.dayCycle.describe()) 和
+ *     快捷栏选中 (event.game.inventory.selected) 切到引擎单源
  *   - 引擎未就绪时(demo.html 脚本先于 bootGame 加载),本地初始值
- *     {hp:100, hunger:80, sanity:100} 作为占位,首次 'engine:frame' 到达
- *     后自动切换到真实值
+ *     作为占位,首次 'engine:frame' 到达后自动切换到真实值
  *
  * 5Hz 同步规范:
  *   - TICK_MS = 200 (5Hz 渲染节流 — 数据更新由 'engine:frame' 触发,~60Hz)
  *   - 引擎 → UI: window.__hudBus.emit('engine:frame', { now, dt, game })
- *   - 任何订阅: hudBus.on('engine:frame', (e) => { e.game.vitalsState ... })
+ *   - 任何订阅: hudBus.on('engine:frame', (e) => { e.game.X ... })
  *   - 事件类型:
  *     - 'engine:frame'  : detail = { now, dt, game } ← 引擎 ~60Hz
- *     - 'hotbar:select'  : detail = {index: 0..6}
+ *     - 'hotbar:select'  : detail = {index: 0..6, source: 'click'|'keydown'}
  *     - 'tick'           : detail = {t: DOMHighResTimeStamp} 每 200ms 触发
  *     - 'party:join'     : detail = {slot: 0..3, player: {id, name, cls, color}}
  *     - 'party:leave'    : detail = {slot: 0..3}
@@ -35,6 +36,7 @@
  *   - 所有 DOM 查询防御性判空;无 DOM 时不抛错
  *   - 不依赖任何 ESM 引入,使用普通 <script src> 加载
  *   - DOMContentLoaded 后才初始化,避免 demo.html 解析未完成
+ *   - 写到引擎 inventory.selected 用 try/catch 防 v0.8.0a 冻结边界情况
  */
 
 (function () {
@@ -93,6 +95,10 @@
     sanity: { cur: 100, max: 100 }
   };
 
+  // v0.8.3b P2 — 时间 + 快捷栏的引擎数据源(同 vitalsState 模式)
+  var dayCycle = null;             // 引擎 dayCycle 实例,describe() 给出 "Day · HH:MM" / "Night · HH:MM"
+  var engineInventorySelected = 0; // 引擎 inventory.selected 缓存,点击/按键会更新
+
   // ===== DOM 引用 =====
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -148,10 +154,14 @@
   }
 
   // 时间 + 季节
+  // v0.8.3b P2:时间从引擎 dayCycle.describe() 读(8min day + 4min night 循环)。
+  // 引擎未就绪时显示占位 'Day · --:--'。
+  // 季节:引擎 dayCycle 没有 season 概念(只追踪 day/night 切换,720s 周期),
+  // SEASONS 保持为静态 UI 装饰,等未来引擎接季节系统后再统一。
   function renderTime() {
     var el = $('.Anchor-TR .TimeDisplay');
     if (el) {
-      el.textContent = 'Day 12 · 14:32';
+      el.textContent = dayCycle ? dayCycle.describe() : 'Day · --:--';
     }
     var tag = $('.Anchor-TR .SeasonTag');
     if (tag) {
@@ -161,12 +171,13 @@
   }
 
   // 快捷栏 active 切换(被点击 + 数字键触发)
-  var hotbarSelected = 1;  // 默认第 2 槽(沿用 demo.html 现状)
+  // v0.8.3b P2:数据源 = 引擎 inventory.selected(v0.6.0b 起的 InventoryService.pass-through)。
+  // 点击/数字键通过 writeHotbar() 写到引擎 inventory 实例属性,这里只读不写。
   function renderHotbarSelection() {
     var slots = $$('.Anchor-BL .HotbarSlot');
     slots.forEach(function (slot, i) {
       if (slot.getAttribute('aria-disabled') === 'true') return;
-      if (i === hotbarSelected) {
+      if (i === engineInventorySelected) {
         slot.classList.add('HotbarSlot-Active');
         slot.classList.remove('HotbarSlot-Default');
       } else {
@@ -177,9 +188,9 @@
   }
 
   // ===== 5Hz 渲染 tick =====
-  // v0.8.3a P1:tick 不再 mutate 任何状态 — 只负责按 5Hz 节流把
-  // vitalsState(由 'engine:frame' 回调写入)推到 DOM。数据源是引擎,
-  // 本模块对 vitalsState 只读不写。
+  // v0.8.3a P1 + v0.8.3b P2:tick 不再 mutate 任何状态 — 只负责按 5Hz 节流把
+  // 引擎数据(vitalsState / dayCycle / inventory.selected,由 'engine:frame' 回调写入)
+  // 推到 DOM。数据源是引擎,本模块对所有引用只读不写。
   function tick() {
     // 1. 渲染 DOM(vitalsState 引用是引擎对象,引擎 dt tick 推进的 cur 直接反映)
     renderVitals();
@@ -191,21 +202,42 @@
 
   // ===== 事件订阅 =====
 
-  // 1. v0.8.3a P1 — 引擎推 vitals 状态(单源,数据来自 event.game.vitalsState)
+  // 1. 引擎 ~60Hz 推帧 — v0.8.3a P1 接管 vitalsState;v0.8.3b P2 接管 dayCycle + inventory.selected
+  // 数据源 = 引擎。UI 只读,所有写由 writeHotbar() / setVitals() API 显式触发。
   hudBus.on('engine:frame', function (e) {
-    if (e && e.game && e.game.vitalsState &&
-        e.game.vitalsState.hp && e.game.vitalsState.hunger && e.game.vitalsState.sanity) {
-      // 引擎对象是 dt tick 推进的,取同对象引用即可。
-      // v0.8.0a 冻结的是 game 字段层(不可 reassign),但 vitalsState 对象的
-      // cur 值仍是 mutable,UI 渲染读到的就是最新值。
-      vitalsState = e.game.vitalsState;
+    if (!e || !e.game) return;
+    var g = e.game;
+    // (a) vitalsState:引擎对象是 dt tick 推进的,取同对象引用即可。
+    // v0.8.0a 冻结的是 game 字段层(不可 reassign),但 vitalsState 对象的
+    // cur 值仍是 mutable,UI 渲染读到的就是最新值。
+    if (g.vitalsState && g.vitalsState.hp && g.vitalsState.hunger && g.vitalsState.sanity) {
+      vitalsState = g.vitalsState;
+    }
+    // (b) dayCycle:引擎 8min day + 4min night 循环,describe() 给出 "Day · HH:MM" / "Night · HH:MM"
+    if (g.dayCycle) {
+      dayCycle = g.dayCycle;
+    }
+    // (c) inventory.selected:快捷栏选中(0..6)
+    if (g.inventory && typeof g.inventory.selected === 'number') {
+      engineInventorySelected = g.inventory.selected;
     }
   });
 
-  // 2. M4 引擎或外部推快捷栏选中
+  // v0.8.3b P2 辅助:把快捷栏选择写回引擎 inventory(单源)。
+  // v0.8.0a 冻结 game.inventory 字段描述符(writable:false),
+  // 但 inventory 实例的 selected 属性可 mutate(对象自身属性不在冻结范围)。
+  // try/catch 兜底,万一被整体冻结也只是本地缓存,不会抛错中断 tick。
+  function writeHotbar(idx) {
+    engineInventorySelected = idx;
+    if (window.__game && window.__game.inventory) {
+      try { window.__game.inventory.selected = idx; } catch (_) { /* swallow */ }
+    }
+  }
+
+  // 2. M4 引擎或外部推快捷栏选中(例如 M2.11 任务系统) — 也走 writeHotbar
   hudBus.on('hotbar:select', function (detail) {
     if (detail && typeof detail.index === 'number') {
-      hotbarSelected = detail.index;
+      writeHotbar(detail.index);
       renderHotbarSelection();
     }
   });
@@ -222,14 +254,14 @@
     renderPartySlots();
   });
 
-  // 4. 数字键 1-5 切快捷栏(与 M4 hotbar.js 行为一致,这里用 DOM 入口)
+  // 4. 数字键 1-7 切快捷栏(与 M4 hotbar.js 行为一致,这里用 DOM 入口)
   document.addEventListener('keydown', function (e) {
     var k = e.key;
     if (k >= '1' && k <= String(HOTBAR_SLOT_COUNT)) {
       var idx = parseInt(k, 10) - 1;
       var slots = $$('.Anchor-BL .HotbarSlot');
       if (slots[idx] && slots[idx].getAttribute('aria-disabled') !== 'true') {
-        hotbarSelected = idx;
+        writeHotbar(idx);
         renderHotbarSelection();
         hudBus.emit('hotbar:select', { index: idx, source: 'keydown' });
         e.preventDefault();
@@ -245,7 +277,7 @@
     var slots = $$('.Anchor-BL .HotbarSlot');
     var idx = slots.indexOf(slot);
     if (idx >= 0) {
-      hotbarSelected = idx;
+      writeHotbar(idx);
       renderHotbarSelection();
       hudBus.emit('hotbar:select', { index: idx, source: 'click' });
     }
@@ -266,20 +298,27 @@
     renderHotbarSelection();
     // 3. 启动 5Hz tick
     setInterval(tick, TICK_MS);
-    // 4. 暴露 API(v0.8.3a P1:移除 setDemoEnabled,数据源已统一到引擎)
+    // 4. 暴露 API(v0.8.3a P1 删 setDemoEnabled;v0.8.3b P2 setHotbar 改走 writeHotbar 写引擎)
     window.HudBusAPI = {
       bus: hudBus,
       setVitals: function (v) { vitalsState = v; renderVitals(); },
-      setHotbar: function (i) { hotbarSelected = i; renderHotbarSelection(); },
+      setHotbar: function (i) { writeHotbar(i); renderHotbarSelection(); },
       getParty: function () { return PARTY.slice(); }
     };
     // 5. 标记就绪(M4 main.js 可检测)
     window.__hudReady = true;
-    // 6. v0.8.3a P1:如果引擎已经先于本脚本加载,立即抓取 vitalsState
-    if (window.__game && window.__game.vitalsState &&
-        window.__game.vitalsState.hp && window.__game.vitalsState.hunger && window.__game.vitalsState.sanity) {
-      vitalsState = window.__game.vitalsState;
-      renderVitals();
+    // 6. v0.8.3a P1 + v0.8.3b P2:如果引擎已经先于本脚本加载,立即抓取所有数据源
+    if (window.__game) {
+      var g = window.__game;
+      if (g.vitalsState && g.vitalsState.hp && g.vitalsState.hunger && g.vitalsState.sanity) {
+        vitalsState = g.vitalsState;
+        renderVitals();
+      }
+      if (g.dayCycle) { dayCycle = g.dayCycle; renderTime(); }
+      if (g.inventory && typeof g.inventory.selected === 'number') {
+        engineInventorySelected = g.inventory.selected;
+        renderHotbarSelection();
+      }
     }
     return true;
   }

@@ -86,12 +86,12 @@ describe('m8.3a-vitals-unify · file content (engine single source)', () => {
   });
 
   it('engine:frame handler reads event.game.vitalsState', () => {
-    // 订阅体里读 e.game.vitalsState
+    // 订阅体里读 e.game.vitalsState(也接受 var g = e.game 之后的 g.vitalsState 简写)
     const subMatch = src.match(/hudBus\.on\(\s*['"]engine:frame['"]\s*,\s*function\s*\(\s*\w+\s*\)\s*\{([\s\S]*?)\n\s*\}\s*\)/);
     assert.ok(subMatch, "找不到 'engine:frame' 订阅函数体");
     const body = subMatch[1];
-    assert.match(body, /event\.game\.vitalsState|e\.game\.vitalsState/,
-      "'engine:frame' 订阅体未读 event.game.vitalsState");
+    assert.match(body, /(?:event\.game\.vitalsState|e\.game\.vitalsState|g\.vitalsState)/,
+      "'engine:frame' 订阅体未读 vitalsState");
   });
 
   it('exposes setVitals debug API (保留向后兼容)', () => {
