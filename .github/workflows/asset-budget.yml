@@ -1,0 +1,75 @@
+name: asset-budget
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/art/**'
+      - 'tools/check-asset-budget.py'
+  pull_request:
+    paths:
+      - 'assets/art/**'
+      - 'tools/check-asset-budget.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: asset-budget
+  cancel-in-progress: true
+
+jobs:
+  check-asset-budget:
+    name: asset-budget (${{ github.event_name }} / ${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Checkout repo (for script availability)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Primary check: query GitHub Trees API for the *exact* SHA being
+      # built. For PRs this is the PR head; for pushes it's the pushed
+      # commit. Avoids race with concurrent pushes.
+      - name: Run check-asset-budget (--github, ref=${{ github.sha }})
+        env:
+          ASSET_BUDGET_FAIL_THRESHOLD: '512000'
+          ASSET_BUDGET_WARN_THRESHOLD: '51200'
+        run: |
+          python3 tools/check-asset-budget.py \
+            --github \
+            --repo rainskyfyy/wildwood \
+            --ref "${{ github.sha }}" \
+            --fail-threshold "${ASSET_BUDGET_FAIL_THRESHOLD}" \
+            --warn-threshold "${ASSET_BUDGET_WARN_THRESHOLD}" \
+            --format summary
+
+      # Secondary: run locally on the checked-out tree, with --analyze
+      # so the table includes WxH / bit depth / compression ratio.
+      # This catches the case where the PR hasn't been pushed yet
+      # (e.g. local pre-commit-like check) and gives a richer report.
+      - name: Run check-asset-budget (--root assets/art --analyze)
+        if: hashFiles('assets/art/**') != ''
+        run: |
+          python3 tools/check-asset-budget.py \
+            --root assets/art \
+            --analyze \
+            --show FAIL | head -50
+        continue-on-error: true
+
+      - name: Upload findings as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-budget-report
+          path: |
+            asset-budget-summary.txt
+            asset-budget-fail-table.txt
+          if-no-files-found: ignore
