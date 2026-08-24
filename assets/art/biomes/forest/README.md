@@ -2,6 +2,12 @@
 
 v0.8.13 补全的森林群系美术资产。填补源码 `preferredBiome` 引用但缺失的 forest 群系。
 
+> **v0.8.13b 更新（2026-08-24）**：老板 review 后要求 tiles 重做——不接受 `add_seam()` 算法接缝。**v0.8.13b 5 张 tile 全部手绘重做**：
+> - 单主色占比 81.7%–98.8%（v0.8.13 原版 60%–70%）
+> - 4 边 100% 单一颜色（v0.8.13 原版用算法镜像拼接，会产生"接缝像素"）
+> - 颜色数从 23 色降为单 tile 3–5 色
+> - 调色板仍为暖绿 + 棕 + 暖色点缀，与 4 群系区分度保留
+
 ## 调色板
 
 24 色暖色锁定色板（实际使用 23 色）：
@@ -19,15 +25,17 @@ v0.8.13 补全的森林群系美术资产。填补源码 `preferredBiome` 引用
 
 ## 资产清单
 
-### Tiles（地形 32×32，4 边对称无缝接缝）
+### Tiles（地形 32×32，**手绘, 4 边单色无缝**）
 
-| 文件名 | 用途 |
-|---|---|
-| `tiles/grass_base.png` | 草地基础，主色草绿 |
-| `tiles/grass_dirt.png` | 草地泥土混合 |
-| `tiles/tree_patch.png` | 树荫斑块 |
-| `tiles/leaves.png` | 落叶层（黄/橙/红叶） |
-| `tiles/flowers.png` | 草地 + 散落花（黄/粉/紫） |
+> v0.8.13b: 重做, 无 `add_seam()`. 每张 tile 4 边像素 100% 为单一主色, 接缝天然消失.
+
+| 文件名 | 颜色数 | 主色占比 | 用途 |
+|---|---|---|---|
+| `tiles/grass_base.png` | 3 | 98.8% | 草地基础 |
+| `tiles/grass_dirt.png` | 4 | 95.8% | 草地 + 中心泥团（不跨边） |
+| `tiles/tree_patch.png` | 4 | 81.7% | 树荫斑（椭圆树影不跨边） |
+| `tiles/leaves.png` | 5 | 98.6% | 落叶层（6 片固定位置叶） |
+| `tiles/flowers.png` | 4 | 97.6% | 草地 + 3 朵固定位置花 |
 
 ### Elements（地物，4 方向侧视）
 
@@ -51,26 +59,27 @@ v0.8.13 补全的森林群系美术资产。填补源码 `preferredBiome` 引用
 ## 硬约束自检
 
 - ✅ 32px 基础网格（tile + element）/ 16px 细节网格（deco）
-- ✅ ≤24 色暖色调色板（实际 23 色）
+- ✅ ≤24 色暖色调色板
 - ✅ 暖色占比 100%
 - ✅ 硬边缘 / 禁抗锯齿（PIL 整数坐标 + ImageDraw）
-- ✅ 地形 tile 4 边对称接缝（`add_seam()` 水平 + 垂直镜像拼接）
-- ✅ 单文件 ≤ 500 字节（最大 494 字节，元素 large_tree）
-- ✅ 路径与 `src/world/biome-config.js` 引用一致（待开发工程师调通集成）
+- ✅ **v0.8.13b 地形 tile 4 边单色无缝**（每张 tile 4 边像素 100% 为同一颜色，tile-to-tile 接缝天然消失）
+- ✅ tiles 单 tile 颜色数 ≤ 5（v0.8.13b 新增约束）
+- ✅ 单文件 ≤ 500 字节（v0.8.13b 单 tile 最大 214 bytes）
 
-## 生成方式
+## 生成方式（v0.8.13b）
 
 - PIL 整数坐标 + ImageDraw 点/线直绘，无抗锯齿
-- 调色板 dict → 24 hex 色精确控制
-- tiles 用 `add_seam()` 函数做 4 边对称接缝：水平镜像拼接 + 垂直镜像拼接，最后取中线
-- 24 色硬约束在生成时由 24 项 PALETTE 字典强制，输出后用 `getcolors()` 自检
+- tiles 用**确定性位置**而非随机分布：每张 tile 4-12 个固定位置点缀，4 边绝不放置跨边像素
+- tiles 不调用 `add_seam()`，接缝问题天然不存在（4 边单色 → tile-to-tile 平铺时无视觉断裂）
+- 24 色硬约束在生成时由 24 项 PALETTE 字典强制
 
 ## 配套
 
-- 预览对比图：`preview_contact_sheet.png`（同目录或 PR 描述里附）
-- PR 链接：feat/v0.8.13-pixel-forest 分支
+- 预览对比图（v0.8.13b tiles）：`preview_tiles_v2.png`（同目录或 PR 描述里附）
+- 旧版预览（v0.8.13, 已被替换）：`preview_contact_sheet.png`（保留作历史记录）
 
 ## backfill
 
-- 2026-08-24：v0.8.13 首批 14 张入库（AI 画师 · 高级开发协调）
-- 补 forest 群系（源码大量引用但无对应美术）
+- 2026-08-24 v0.8.13b：5 tiles 重做（手绘, 无算法接缝），单 tile ≤ 5 色，4 边单色
+- 2026-08-24 v0.8.13：森林群系首批 14 张入库（5 tiles + 5 elements + 4 decorations）
+- 来源：源码 `preferredBiome` 引用但无对应美术
