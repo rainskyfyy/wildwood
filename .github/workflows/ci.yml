@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Run fixture-drift detector
         run: node tools/check-fixture-drift.mjs --verbose
@@ -72,6 +72,6 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Run ${{ matrix.test }}
         run: node tests/${{ matrix.test }}
