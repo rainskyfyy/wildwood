@@ -59,6 +59,10 @@ jobs:
           - m5.3-processing-smoke.mjs
           - m6.0b-integration.mjs
           - m6.0b-inventory-svc.mjs
+          - m8.0a-freeze-passthrough.mjs
+          - m8.2a-tickstate-bridge.mjs
+          - m8.3a-vitals-unify.mjs
+          - m8.3b-time-hotbar-unify.mjs
           - v051-ecology-smoke.mjs
           - v054-smoke.mjs
           - v060c-spawner-fixture.mjs
