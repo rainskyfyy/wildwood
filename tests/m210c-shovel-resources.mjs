@@ -24,6 +24,7 @@ import {
   checkTool, allowedTools, getResource
 } from '../src/resources/catalog.js';
 import { Inventory, HOTBAR_SIZE, TOTAL_SLOTS } from '../src/resources/inventory.js';
+import { InventoryService } from '../src/services/InventoryService.js';
 import { ResourceEntity } from '../src/resources/resource-entity.js';
 import { Gather, GATHER_IDLE, DEFAULT_RANGE } from '../src/resources/gather.js';
 import { RegrowManager } from '../src/resources/regrow.js';
@@ -155,7 +156,7 @@ invS.selectHotbar(0);
 let evtS = null;
 const gatherS = new Gather({
   entities: [dm],
-  inventory: invS,
+  invSvc: new InventoryService({ inventory: invS }),
   range: 5,
   selectedItemProvider: () => 'shovel',
   onEvent: (n, p) => { if (n === 'complete') evtS = p; }
@@ -177,7 +178,7 @@ invA.selectHotbar(0);
 let evtA = null;
 const gatherA = new Gather({
   entities: [dm2],
-  inventory: invA,
+  invSvc: new InventoryService({ inventory: invA }),
   range: 5,
   selectedItemProvider: () => 'axe',
   onEvent: (n, p) => { if (n === 'complete') evtA = p; }
@@ -197,7 +198,7 @@ const invB = new Inventory();
 let evtB = null;
 const gatherB = new Gather({
   entities: [mu2],
-  inventory: invB,
+  invSvc: new InventoryService({ inventory: invB }),
   range: 5,
   selectedItemProvider: () => null,
   onEvent: (n, p) => { if (n === 'complete') evtB = p; }
@@ -218,7 +219,7 @@ invM.selectHotbar(0);
 let evtM = null;
 const gatherM = new Gather({
   entities: [mu3],
-  inventory: invM,
+  invSvc: new InventoryService({ inventory: invM }),
   range: 5,
   selectedItemProvider: () => 'shovel',
   onEvent: (n, p) => { if (n === 'complete') evtM = p; }
