@@ -11,7 +11,12 @@ export class AmbientController {
   constructor(audio, opts = {}) {
     this.audio = audio;
     this.currentBiome = null;
-    this.lastSwitchAt = 0;
+    // Sentinel: "never switched yet", so the first updateBiome() is never blocked
+    // by the debounce window. Using -Infinity guarantees now - lastSwitchAt is
+    // always > debounceMs on the first call, even if performance.now() is < 250ms
+    // after a fresh process start (which can happen in CI matrix jobs that run
+    // the test file in isolation).
+    this.lastSwitchAt = -Infinity;
     this.debounceMs = opts.debounceMs ?? SMOOTH_DEBOUNCE_MS;
     this.onChange = opts.onChange || null;
   }
@@ -40,5 +45,5 @@ export class AmbientController {
     }
   }
 
-  reset() { this.currentBiome = null; this.lastSwitchAt = 0; }
+  reset() { this.currentBiome = null; this.lastSwitchAt = -Infinity; }
 }
