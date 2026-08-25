@@ -211,33 +211,37 @@ export class NetMenu {
       session.removeAll();
       if (reason) console.warn(`[net] host flow ended: ${reason}`);
     };
-
+    // v0.8.18-P0: await client.connect() 后再 host(),避免在 CONNECTING 态发指令触发 "ws not open"。
+    // done 守卫:connect reject 与 'error'/'close' 事件会竞争,靠它保证只弹一次错。
+    let done = false;
+    const retry = () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect();
     client.on('error', (e) => {
-      this._showError(overlay, relayUrl, `连接失败:${e?.message || e}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `连接失败:${e?.message || e}`, retry);
       cleanup('error');
     });
     client.on('error_msg', (m) => {
-      this._showError(overlay, relayUrl, `服务器错误:${m.msg || m.err}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `服务器错误:${m.msg || m.err}`, retry);
       cleanup('error_msg');
     });
     client.on('kicked', (m) => {
-      this._showError(overlay, relayUrl, `被踢出:${m.reason || ''}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `被踢出:${m.reason || ''}`, retry);
       cleanup('kicked');
     });
     client.on('hosted', (m) => {
+      if (done) return; done = true;
       session.setHosted({ code: m.code, token: m.token });
       this._renderLobby(overlay, relayUrl, name, client, session, resolve, /*isHost*/ true);
     });
 
     try {
-      client.connect();
+      await client.connect();
       client.host(name);
     } catch (e) {
-      this._showError(overlay, relayUrl, `启动失败:${e?.message || e}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `启动失败:${e?.message || e}`, retry);
       cleanup('host start failed');
     }
   }
@@ -294,28 +298,32 @@ export class NetMenu {
       client.disconnect();
       session.removeAll();
     };
-
+    // v0.8.18-P0: await client.connect() 后再 join(),避免在 CONNECTING 态发指令触发 "ws not open"。
+    // done 守卫:connect reject 与 'error' 事件竞争,靠它保证只弹一次错。
+    let done = false;
+    const retry = () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect();
     client.on('error', (e) => {
-      this._showError(overlay, relayUrl, `连接失败:${e?.message || e}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `连接失败:${e?.message || e}`, retry);
       cleanup();
     });
     client.on('error_msg', (m) => {
-      this._showError(overlay, relayUrl, `加入失败:${m.msg || m.err}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `加入失败:${m.msg || m.err}`, retry);
       cleanup();
     });
     client.on('joined', (m) => {
+      if (done) return; done = true;
       session.setJoined({ token: m.token, id: m.id, code: m.code, snapshot: m.snapshot });
       this._renderLobby(overlay, relayUrl, name, client, session, resolve, /*isHost*/ false);
     });
 
     try {
-      client.connect();
+      await client.connect();
       client.join(code, name);
     } catch (e) {
-      this._showError(overlay, relayUrl, `启动失败:${e?.message || e}`,
-        () => this._renderModeSelect(overlay, relayUrl, name, resolve).modeSelect());
+      if (done) return; done = true;
+      this._showError(overlay, relayUrl, `启动失败:${e?.message || e}`, retry);
       cleanup();
     }
   }

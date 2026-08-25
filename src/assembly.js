@@ -47,6 +47,7 @@ import { spawnResources } from './resources/spawner.js';
 import { Inventory } from './resources/inventory.js';
 import { Gather } from './resources/gather.js';
 import { TOTAL_SLOTS } from './resources/inventory.js';
+import { InventoryService } from './services/InventoryService.js';
 import { BuildingManager } from './buildings/placer.js';
 import { BuildingMenu } from './buildings/building-menu.js';
 import { drawBuilding, drawPlacementPreview } from './buildings/building-renderer.js';
@@ -146,6 +147,11 @@ export function assembleGame(canvas, opts = {}) {
     inventory.add('berries', 3);
   }
 
+  // v0.8.18-P0: InventoryService 是 mutation 唯一入口(gather.js v0.6.0b 起期望 invSvc)。
+  // 装配层此前漏实例化 InventoryService,把裸 inventory 当 invSvc 传给 Gather,
+  // resource-entity.harvest 拿到 undefined 即 TypeError 崩溃。
+  const invSvc = new InventoryService({ inventory });
+
   // 闭包状态:在 game 对象上集中,避免散落在 bootGame 体内
   const runtime = {
     mp: null,
@@ -171,7 +177,7 @@ export function assembleGame(canvas, opts = {}) {
 
   const gather = new Gather({
     entities: resources,
-    inventory,
+    invSvc,
     onEvent: (name, payload) => {
       if (name === 'complete') {
         const lootStr = (payload.loot || []).map(l => `${l.itemId}×${l.count}`).join(' ');
