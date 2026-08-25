@@ -37,6 +37,9 @@ jobs:
 
       - name: 跑 24 色硬约束检查
         id: check
+        # 基础模式 exit 2 是 warm advisory(非硬约束), 不标记 job failure;
+        # 真正结果由下方"检查结果"步骤依据 budget_pass 判定
+        continue-on-error: true
         run: |
           python3 tools/check-palette-budget.py --json > /tmp/budget-result.json
           cat /tmp/budget-result.json
