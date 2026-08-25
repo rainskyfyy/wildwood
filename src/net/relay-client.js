@@ -8,7 +8,7 @@
  *   client.on('hosted', m => ...);
  *   client.on('joined', m => ...);
  *   client.on('state', m => ...);
- *   client.connect();
+ *   await client.connect();   // v0.8.18: ws open 后再发指令
  *   client.host('Alice');
  */
 
@@ -78,13 +78,37 @@ export class RelayClient extends Emitter {
     this._reconnectAttempt = 0;
     this._reconnectTimer = null;
     this._intentionalClose = false;
+    // v0.8.18-P0: connect() 现在返回 Promise,ws open 后 resolve,
+    // 连接失败(error / close-before-open)reject。调用方应 `await client.connect()`
+    // 再 host()/join(),避免在 CONNECTING 态发指令触发 "ws not open"。
+    this._connectPromise = null;
+    this._resolveConnect = null;
+    this._rejectConnect = null;
   }
 
-  /** 打开连接。 */
+  /** 打开连接。返回 Promise:ws open 后 resolve,连接失败(error / close-before-open)reject。 */
   connect() {
-    if (this.ws) return;
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) return Promise.resolve();
+    if (this._connectPromise) return this._connectPromise;
     this._intentionalClose = false;
+    this._connectPromise = new Promise((resolve, reject) => {
+      this._resolveConnect = resolve;
+      this._rejectConnect = reject;
+    });
     this._openSocket();
+    return this._connectPromise;
+  }
+
+  /** 结算 pending 的 connect Promise。ok=true → resolve;否则 reject(err)。 */
+  _settleConnect(ok, err) {
+    if (!this._resolveConnect) return;
+    const resolve = this._resolveConnect;
+    const reject = this._rejectConnect;
+    this._connectPromise = null;
+    this._resolveConnect = null;
+    this._rejectConnect = null;
+    if (ok) resolve();
+    else reject(err || new Error('connect failed'));
   }
 
   /** 主动关闭,不重连。 */
@@ -117,6 +141,7 @@ export class RelayClient extends Emitter {
       this.connected = true;
       this._reconnectAttempt = 0;
       this.emit('open');
+      this._settleConnect(true);
       // 自动重连
       if (this._token) {
         try { this.sendRaw(envelope(C_RECONNECT, { token: this._token })); }
@@ -136,10 +161,12 @@ export class RelayClient extends Emitter {
       this.connected = false;
       this.ws = null;
       this.emit('close', { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
+      if (!wasConnected) this._settleConnect(false, new Error(`socket closed (code ${ev.code})`));
       if (wasConnected && !this._intentionalClose) this._scheduleReconnect();
     });
     ws.addEventListener('error', (e) => {
       this.emit('error', e);
+      if (!this.connected) this._settleConnect(false, e instanceof Error ? e : new Error('ws connect error'));
     });
   }
 
