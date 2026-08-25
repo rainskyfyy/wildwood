@@ -22,6 +22,29 @@
 import { RelayClient } from './relay-client.js';
 import { Session } from './session.js';
 import { MODE_OFFLINE } from './session.js';
+import { VERSION, VERSION_PREFIX } from '../version.js';
+
+/*
+ * 视觉对齐 src/ui/layout/tokens.css(0/2px 圆角 + 2px 硬阴影 + CSS 变量)。
+ * 本浮层以行内 style 注入,无法直接复用 tokens.css 的类;为保持与设计 token 一致,
+ * 这里把 token 值映射为局部常量,替换原先硬编码的 4px/6px 圆角与 8px 软阴影。
+ */
+const T = {
+  nightBlack: '#101820',
+  nightDeep:  '#0d0d18',
+  nightElev:  '#1a1a2a',
+  fg:         '#f0f0f0',
+  fgMuted:    '#aaa',
+  fgFaint:    '#666',
+  accent:     '#d4a64a',
+  accent2:    '#e0b85a',
+  border:     '#2a2a3a',
+  borderBold: '#444',
+  r0:  '0',
+  r2:  '2px',
+  shadow2: '2px 2px 0 #101820',
+  warnHp: '#c43a3a',
+};
 
 /* ---------- 工具 ---------- */
 
@@ -54,7 +77,7 @@ function showOverlay(root) {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       font-family: ui-monospace, "SF Mono", Consolas, monospace;
-      color: #f0f0f0; z-index: 9999;
+      color: ${T.fg}; z-index: 9999;
     `,
   });
   root.appendChild(overlay);
@@ -66,14 +89,14 @@ function button(label, { primary = false, onClick } = {}) {
     style: `
       padding: 10px 24px; min-width: 180px;
       font-family: inherit; font-size: 14px; letter-spacing: 1px;
-      background: ${primary ? '#d4a64a' : '#2a2a3a'};
-      color: ${primary ? '#0d0d18' : '#f0f0f0'};
-      border: 1px solid ${primary ? '#d4a64a' : '#444'};
-      border-radius: 4px; cursor: pointer;
+      background: ${primary ? T.accent : T.border};
+      color: ${primary ? T.nightDeep : T.fg};
+      border: 1px solid ${primary ? T.accent : T.borderBold};
+      border-radius: ${T.r2}; cursor: pointer;
       transition: background 0.1s, transform 0.05s;
     `,
-    onmouseenter: (e) => { e.target.style.background = primary ? '#e0b85a' : '#3a3a4a'; },
-    onmouseleave: (e) => { e.target.style.background = primary ? '#d4a64a' : '#2a2a3a'; },
+    onmouseenter: (e) => { e.target.style.background = primary ? T.accent2 : '#3a3a4a'; },
+    onmouseleave: (e) => { e.target.style.background = primary ? T.accent : T.border; },
     onmousedown: (e) => { e.target.style.transform = 'scale(0.97)'; },
     onmouseup:   (e) => { e.target.style.transform = 'scale(1)'; },
     onclick: onClick || (() => {}),
@@ -86,8 +109,8 @@ function input({ placeholder = '', value = '', maxLength = 32, onKey = null } = 
     style: `
       padding: 8px 12px; min-width: 200px;
       font-family: inherit; font-size: 16px; letter-spacing: 2px;
-      background: #1a1a2a; color: #f0f0f0;
-      border: 1px solid #444; border-radius: 4px;
+      background: ${T.nightElev}; color: ${T.fg};
+      border: 1px solid ${T.borderBold}; border-radius: ${T.r2};
       text-transform: uppercase;
     `,
     maxlength: maxLength,
@@ -101,35 +124,35 @@ function row(...children) {
 }
 
 function label(text) {
-  return el('div', { style: 'font-size: 12px; color: #888; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;' }, [text]);
+  return el('div', { style: `font-size: 12px; color: ${T.fgMuted}; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;` }, [text]);
 }
 
 function panel(...children) {
   return el('div', {
     style: `
-      background: #16162a; border: 1px solid #2a2a3a; border-radius: 6px;
+      background: ${T.nightElev}; border: 1px solid ${T.border}; border-radius: ${T.r0};
       padding: 24px 32px; max-width: 480px; width: 90%;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      box-shadow: ${T.shadow2};
     `,
   }, children);
 }
 
 function title(text) {
   return el('h1', {
-    style: 'margin: 0 0 16px 0; font-size: 22px; color: #d4a64a; letter-spacing: 2px; text-align: center;'
+    style: `margin: 0 0 16px 0; font-size: 22px; color: ${T.accent}; letter-spacing: 2px; text-align: center;`
   }, [text]);
 }
 
 function subtitle(text) {
-  return el('div', { style: 'font-size: 13px; color: #888; text-align: center; margin-bottom: 16px;' }, [text]);
+  return el('div', { style: `font-size: 13px; color: ${T.fgMuted}; text-align: center; margin-bottom: 16px;` }, [text]);
 }
 
 function error(text) {
   return el('div', {
     style: `
-      color: #ff6b6b; background: rgba(255, 107, 107, 0.1);
-      border: 1px solid rgba(255, 107, 107, 0.3);
-      padding: 8px 12px; border-radius: 4px; font-size: 12px;
+      color: ${T.warnHp}; background: rgba(196, 58, 58, 0.1);
+      border: 1px solid rgba(196, 58, 58, 0.3);
+      padding: 8px 12px; border-radius: ${T.r2}; font-size: 12px;
       margin-top: 12px; text-align: center;
     `
   }, [text]);
@@ -165,7 +188,7 @@ export class NetMenu {
         const nameInput = input({ placeholder: '你的名字', value: defaultName, maxLength: 16 });
         const name = () => (nameInput.value || 'Player').trim().slice(0, 16) || 'Player';
 
-        const titleEl = title('Wildwood · v0.4');
+        const titleEl = title(`Wildwood · ${VERSION_PREFIX}${VERSION}`);
         const subEl = subtitle('2-4 人联机合作 · 类饥荒 × 星露谷');
 
         const offlineBtn = button('单人游戏', { primary: true, onClick: () => {
@@ -333,9 +356,9 @@ export class NetMenu {
     const codeBox = el('div', {
       style: `
         font-size: 48px; font-weight: 700; letter-spacing: 12px;
-        color: #d4a64a; background: #0d0d18;
-        padding: 16px 24px; border: 1px solid #d4a64a;
-        border-radius: 4px; text-align: center;
+        color: ${T.accent}; background: ${T.nightDeep};
+        padding: 16px 24px; border: 1px solid ${T.accent};
+        border-radius: ${T.r2}; text-align: center;
         cursor: pointer; user-select: all;
         font-family: ui-monospace, "SF Mono", Consolas, monospace;
       `,
@@ -351,14 +374,14 @@ export class NetMenu {
     const peerList = el('div', { style: 'min-height: 100px;' });
     const updatePeerList = () => {
       peerList.innerHTML = '';
-      const self = el('div', { style: 'padding: 6px 8px; color: #d4a64a;' }, [`▸ ${name} (你, ${isHost ? '房主' : '玩家'})`]);
+      const self = el('div', { style: `padding: 6px 8px; color: ${T.accent};` }, [`▸ ${name} (你, ${isHost ? '房主' : '玩家'})`]);
       peerList.appendChild(self);
       if (session.peers.size === 0) {
-        peerList.appendChild(el('div', { style: 'padding: 6px 8px; color: #666; font-style: italic;' },
+        peerList.appendChild(el('div', { style: `padding: 6px 8px; color: ${T.fgFaint}; font-style: italic;` },
           ['等待其他玩家加入…']));
       } else {
         for (const p of session.peers.values()) {
-          peerList.appendChild(el('div', { style: 'padding: 6px 8px; color: #ccc;' },
+          peerList.appendChild(el('div', { style: `padding: 6px 8px; color: #ccc;` },
             [`▸ ${p.name}${p.state ? ` (${p.state.x?.toFixed?.(1) || '?'}, ${p.state.y?.toFixed?.(1) || '?'})` : ''}`]));
         }
       }
@@ -393,7 +416,7 @@ export class NetMenu {
       el('div', { style: 'margin-top: 16px;' }, [
         label('玩家'),
         el('div', {
-          style: 'background: #0d0d18; border: 1px solid #2a2a3a; border-radius: 4px; padding: 4px;'
+          style: `background: ${T.nightDeep}; border: 1px solid ${T.border}; border-radius: ${T.r2}; padding: 4px;`
         }, [peerList]),
       ]),
       row(startBtn, leaveBtn),
@@ -423,7 +446,7 @@ export class NetMenu {
     return el('div', {
       style: `
         width: 32px; height: 32px; margin: 16px auto 0;
-        border: 3px solid #2a2a3a; border-top-color: #d4a64a;
+        border: 3px solid ${T.border}; border-top-color: ${T.accent};
         border-radius: 50%; animation: ww-spin 0.8s linear infinite;
       `
     },
