@@ -23,13 +23,13 @@ function ensureStyles() {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     background: rgba(20,20,30,0.95);
-    border: 2px solid #d4a64a;
-    border-radius: 6px;
+    border: 2px solid var(--accent, #d4a64a);
+    border-radius: 0;
     padding: 12px 16px;
     color: #f0f0f0;
     font: 12px/1.4 ui-monospace, monospace;
     min-width: 320px;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+    box-shadow: 2px 2px 0 var(--night-black, #101820);
     z-index: 200;
   }
   .ww-trade-panel h3 {
@@ -48,9 +48,9 @@ function ensureStyles() {
   .ww-trade-panel .trade-empty {
     color: #888; font-style: italic; padding: 8px;
   }
-  .ww-trade-panel .trade-close {
-    position: absolute; top: 6px; right: 8px;
-    color: #d4a64a; cursor: pointer; font-size: 14px;
+  .ww-trade-panel .trade-close-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
   }
   `;
   const s = document.createElement('style');
@@ -81,14 +81,26 @@ export class TradeUI {
     ensureStyles();
     const el = document.createElement('div');
     el.className = 'ww-trade-panel';
-    el.innerHTML = `
-      <span class="trade-close" data-act="close">×</span>
-      <h3>猪人交易</h3>
-      <div data-role="body"></div>
-    `;
+    // P1-13: 统一关闭按钮形态 —— 用 DOM 组件 .Dialog-Close × 按钮
+    // (见 src/ui/components/components.css:.Dialog-Close),替换原先自绘的 .trade-close。
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'Dialog-Close';
+    closeBtn.setAttribute('aria-label', '关闭');
+    closeBtn.setAttribute('data-act', 'close');
+    closeBtn.textContent = '×';
+    const header = document.createElement('div');
+    header.className = 'trade-close-bar';
+    const title = document.createElement('h3');
+    title.textContent = '猪人交易';
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    const body = document.createElement('div');
+    body.setAttribute('data-role', 'body');
+    el.appendChild(header);
+    el.appendChild(body);
     el.addEventListener('click', (e) => {
       const t = e.target;
-      if (t.matches('.trade-close') || t.dataset.act === 'close') {
+      if (t.matches('.Dialog-Close') || t.dataset.act === 'close') {
         this.close();
         return;
       }
