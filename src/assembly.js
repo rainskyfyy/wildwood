@@ -35,7 +35,7 @@ import { getBiome } from './world/biome-config.js';
 import { Player } from './player/player.js';
 import { Camera } from './player/camera.js';
 import { Input } from './utils/input.js';
-import { HUD } from './hud/hud.js';
+import { Minimap } from './hud/minimap.js';
 import {
   TILE_W_HALF, TILE_H_HALF, TILE_SIZE,
   worldToScreen, depthKey
@@ -201,7 +201,46 @@ export function assembleGame(canvas, opts = {}) {
     viewportWidth: canvas.width, viewportHeight: canvas.height
   });
   const player = new Player({ world, x: 40, y: 30, speed: 5.0 });
-  const hud = new HUD(ctx, input, world, inventory);
+  // v0.8.18-P1-11:双 HUD 收敛 — DOM 版(src/ui/hud.js,经 window.__hudBus
+  // 'engine:frame' 驱动三围/时间/快捷栏;src/ui/screens/screens.js 键盘路由
+  // i/c/m/q 四屏)是唯一权威 HUD。canvas 版 src/hud/hud.js 已 @deprecated
+  // 冻结,装配段不再构造它 — 旧写法 new HUD(ctx,...) 还会把 ctx 错当
+  // containerEl 传给 M2.12 DOM 版 Minimap(它要 .Anchor-BR 容器),浏览器
+  // 启动即 TypeError、小地图从不渲染。
+  // 这里保留 Minimap(M2.12 DOM 版,画在 .Anchor-BR .MinimapCanvas 上)作为
+  // 引擎侧唯一每帧绘制的 HUD 部件;并用轻量 hud 适配对象保住 runtime.js 的
+  // game.hud 契约(processPanelToggles / handlePanelClick / inventoryPanel.
+  // visible / craftingPanel.visible / update / draw / setAudio)。
+  // resolveMinimapContainer 防御性判空:测试/无头环境 querySelector 返回
+  // 非 canvas mock 时不构造,Minimap 内部全 null → draw() 早退,不抛错。
+  function resolveMinimapContainer() {
+    try {
+      if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
+      const c = document.querySelector('.Anchor-BR');
+      if (!c || typeof c.querySelector !== 'function') return null;
+      const mm = c.querySelector('.Minimap');
+      const cv = mm && mm.querySelector('.MinimapCanvas');
+      if (!cv || typeof cv.getContext !== 'function') return null;
+      return c;
+    } catch (_) { return null; }
+  }
+  const minimap = new Minimap(resolveMinimapContainer(), { x: 0, y: 0, w: 160, h: 120 });
+  const hud = {
+    minimap,
+    // 面板归 DOM screens(i/c/m/q 由 screens.js keydown 路由);canvas 面板
+    // 已废弃,visible 恒 false — 运动门控不误伤,旧字段读法不炸。
+    inventoryPanel: { visible: false },
+    craftingPanel: { visible: false, onClick() { return false; } },
+    processPanelToggles() {},
+    handlePanelClick() { return false; },
+    update() {},
+    setAudio() {},
+    draw(cw, ch, _vitals, worldRef, cameraRef) {
+      minimap.x = cw - 160 - 12;
+      minimap.y = 12;
+      minimap.draw(worldRef, cameraRef);
+    },
+  };
 
   // 3b. Monsters + Bosses + Events (v0.5.2) — 必须在 player 之后构造
   const monsterMgr = new MonsterManager({
