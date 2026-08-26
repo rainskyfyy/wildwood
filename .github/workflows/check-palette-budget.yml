@@ -37,6 +37,9 @@ jobs:
 
       - name: 跑 24 色硬约束检查
         id: check
+        # 基础模式 exit 2 是 warm advisory(非硬约束), 不标记 job failure;
+        # 真正结果由下方"检查结果"步骤依据 budget_pass 判定
+        continue-on-error: true
         run: |
           python3 tools/check-palette-budget.py --json > /tmp/budget-result.json
           cat /tmp/budget-result.json
@@ -50,7 +53,30 @@ jobs:
           cat /tmp/budget-strict.json
 
       - name: 检查结果
-        if: steps.check.outcome == 'failure' || steps.check-strict.outcome == 'failure'
+        if: always()
         run: |
-          echo "❌ 调色板预算 CI 失败"
-          exit 1
+          python3 - <<'PY'
+          import json, os
+          ok = True
+          # 基础模式 (PR): 仅 24 色硬约束判定, warm advisory 不阻断
+          try:
+            d = json.load(open('/tmp/budget-result.json'))
+            for biome, r in d.items():
+              if r.get('files_n', 0) > 0 and not r.get('budget_pass', True):
+                print(f"FAIL {biome}: {r.get('unique_colors')} 色 > 24 硬约束"); ok = False
+              elif r.get('files_n', 0) > 0:
+                warm = r.get('warm_pct', 0); target = r.get('warm_target', '?')
+                print(f"OK {biome}: {r.get('unique_colors')} 色 (warm {warm}% target {target})")
+          except Exception as e:
+            print("无法解析 budget-result.json:", e); ok = False
+          # 严格模式 (main/manual): warm 也判定
+          if os.path.exists('/tmp/budget-strict.json'):
+            try:
+              d2 = json.load(open('/tmp/budget-strict.json'))
+              for biome, r in d2.items():
+                if r.get('files_n', 0) > 0 and not r.get('warm_pass', True):
+                  print(f"STRICT FAIL {biome}: warm {r.get('warm_pct')}% 不达 {r.get('warm_target')}"); ok = False
+            except Exception as e:
+              print("无法解析 budget-strict.json:", e); ok = False
+          print("✅ 调色板预算 CI 通过" if ok else "❌ 调色板预算 CI 失败")
+          exit(0 if ok else 1)

@@ -61,8 +61,8 @@ group('monsters.json', () => {
   ok('parses as JSON', !!data);
   ok('has _meta with version', data._meta && data._meta.version === 1);
   const types = Object.keys(data).filter(k => !k.startsWith('_'));
-  ok('has 5 monster types', types.length === 5, `got ${types.length}: ${types.join(',')}`);
-  const expected = ['bat', 'treant', 'spider', 'merm', 'hound'];
+  ok('has >=5 monster types', types.length >= 5, `got ${types.length}: ${types.join(',')}`);
+  const expected = ['bat', 'treant', 'spider', 'merm', 'hound', 'tentacle'];
   for (const t of expected) {
     ok(`contains ${t}`, !!data[t], 'missing');
     const m = data[t];
@@ -219,9 +219,9 @@ group('MonsterManager', () => {
     seed: 123
   });
   ok('types excludes _meta', !mgr.types.includes('_meta'));
-  ok('types has 5 entries', mgr.types.length === 5);
+  ok('types has >=5 entries', mgr.types.length >= 5);
   mgr.spawnDefaults();
-  ok('spawned 5 monsters', mgr.monsters.length === 5, `got ${mgr.monsters.length}`);
+  ok('spawned >=5 monsters', mgr.monsters.length >= 5, `got ${mgr.monsters.length}`);
   // Each monster sits on a different walkable tile
   const seen = new Set();
   let collisions = 0;

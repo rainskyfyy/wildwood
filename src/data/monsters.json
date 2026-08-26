@@ -9,7 +9,10 @@
     "framesDir": "assets/art/monsters/bat_20frames",
     "frameSize": 32,
     "frameCount": 1,
-    "actions": ["idle", "walk"],
+    "actions": [
+      "idle",
+      "walk"
+    ],
     "fps": 8,
     "speed": 4.5,
     "hp": 30,
@@ -28,7 +31,10 @@
     "framesDir": "assets/art/monsters/treant_20frames",
     "frameSize": 32,
     "frameCount": 1,
-    "actions": ["idle", "walk"],
+    "actions": [
+      "idle",
+      "walk"
+    ],
     "fps": 6,
     "speed": 1.8,
     "hp": 200,
@@ -47,7 +53,10 @@
     "framesDir": "assets/art/monsters/spider_20frames",
     "frameSize": 32,
     "frameCount": 1,
-    "actions": ["idle", "walk"],
+    "actions": [
+      "idle",
+      "walk"
+    ],
     "fps": 10,
     "speed": 3.8,
     "hp": 60,
@@ -66,7 +75,10 @@
     "framesDir": "assets/art/monsters/merm_20frames",
     "frameSize": 32,
     "frameCount": 1,
-    "actions": ["idle", "walk"],
+    "actions": [
+      "idle",
+      "walk"
+    ],
     "fps": 8,
     "speed": 3.0,
     "hp": 90,
@@ -85,7 +97,10 @@
     "framesDir": "assets/art/monsters/hound_20frames",
     "frameSize": 32,
     "frameCount": 1,
-    "actions": ["idle", "walk"],
+    "actions": [
+      "idle",
+      "walk"
+    ],
     "fps": 12,
     "speed": 5.2,
     "hp": 50,
@@ -98,5 +113,30 @@
     "color": "#8a5a2a",
     "preferredBiome": "volcano",
     "notes": "高侦测范围 + 高速；M2.15 起会按气味追踪。"
+  },
+  "tentacle": {
+    "name": "触手",
+    "framesDir": "assets/art/monsters/tentacle_20frames",
+    "frameSize": 64,
+    "frameCount": 1,
+    "actions": [
+      "idle",
+      "walk",
+      "attack",
+      "hurt",
+      "death"
+    ],
+    "fps": 7,
+    "speed": 1.5,
+    "hp": 120,
+    "maxHp": 120,
+    "atk": 18,
+    "detectRange": 4,
+    "attackRange": 2,
+    "wanderRadius": 0,
+    "size": 0.9,
+    "color": "#945844",
+    "preferredBiome": "marsh",
+    "notes": "marsh 伏击触手；静止待机，玩家进入攻击范围后伸触攻击。M2 战斗接入。"
   }
 }
