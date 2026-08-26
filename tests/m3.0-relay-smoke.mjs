@@ -226,7 +226,7 @@ async function main() {
         { id: 1, name: 'Alice', x: 10, y: 5, hp: 90, hunger: 80, sanity: 100, facing: 'right' },
         { id: 2, name: 'Bob',   x: 12, y: 7, hp: 80, hunger: 70, sanity: 100, facing: 'down' },
       ],
-      snapshot: { buildings: [{ id: 1, typeId: 'campfire', tx: 10, ty: 5 }], resources: [] },
+      snapshot: { buildings: [{ entityId: 1, typeId: 'campfire', tx: 10, ty: 5 }], resources: [] },
     }));
     const bobState = await bob.waitFor(G_STATE, { filter: m => m.tick === 1 });
     await carol.waitFor(G_STATE, { filter: m => m.tick === 1 });
@@ -248,17 +248,17 @@ async function main() {
     bob.send(envelope(G_WORLD, {
       op: WORLD_PLACE_BUILDING,
       tx: 12, ty: 7, typeId: 'campfire',
-      building: { id: 99, typeId: 'campfire', tx: 12, ty: 7, w: 1, h: 1, hp: 30, maxHp: 30 },
+      building: { entityId: 99, typeId: 'campfire', tx: 12, ty: 7, w: 1, h: 1, hp: 30, maxHp: 30 },
     }));
     const carolWorld = await carol.waitFor(G_WORLD, { filter: m => m.op === WORLD_PLACE_BUILDING });
-    ok(carolWorld.by === bob.id && carolWorld.building.id === 99, 'place_building broadcast + by tag');
+    ok(carolWorld.by === bob.id && carolWorld.building.entityId === 99, 'place_building broadcast + by tag');
 
     /* ---------- world: remove building ---------- */
     alice.send(envelope(G_WORLD, {
       op: WORLD_REMOVE_BUILDING,
-      id: 99,
+      entityId: 99,
     }));
-    const daveRemove = await dave.waitFor(G_WORLD, { filter: m => m.op === WORLD_REMOVE_BUILDING && m.id === 99 });
+    const daveRemove = await dave.waitFor(G_WORLD, { filter: m => m.op === WORLD_REMOVE_BUILDING && m.entityId === 99 });
     ok(!!daveRemove, 'remove_building broadcast');
 
     /* ---------- world: gather ---------- */

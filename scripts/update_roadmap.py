@@ -66,7 +66,7 @@ DEFAULT_OUTPUT_PATH  = str(Path.home() / ".aily" / "workspace" / "wildwood" / "w
 
 # 可观测性产物路径
 WORKSPACE_DIR       = Path.home() / ".aily" / "workspace"
-SYNC_METRICS_PATH   = WORKSPACE_DIR / "sync_metrics.jsonl"
+SYNC_METRICS_PATH   = WORKSPACE_DIR / "metrics" / "update_roadmap.jsonl"
 ALERT_DRYRUN_LOG    = WORKSPACE_DIR / "lark_alert_dryrun.log"
 
 # 告警阈值
@@ -131,13 +131,14 @@ def record_sync_metric(start_ts, status, duration_seconds, commit_count, task_co
         "commit_count": commit_count, "task_count": task_count,
         "commit_sha": commit_sha, "error": error,
         "source": SCRIPT_SOURCE,
+        "schema_version": "1.0",
     }
     try:
-        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+        (WORKSPACE_DIR / "metrics").mkdir(parents=True, exist_ok=True)
         with SYNC_METRICS_PATH.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception as e:
-        print(f"  WARN: 写 sync_metrics.jsonl 失败: {e}", file=sys.stderr)
+        print(f"  WARN: 写 update_roadmap.jsonl 失败: {e}", file=sys.stderr)
     return record
 
 

@@ -455,8 +455,8 @@ function handleGameMessage(peer, msg) {
       if (msg.op === 'place_building' && msg.building) {
         peer.room.lastBuildings = peer.room.lastBuildings || [];
         peer.room.lastBuildings.push(msg.building);
-      } else if (msg.op === 'remove_building' && Number.isInteger(msg.id)) {
-        peer.room.lastBuildings = (peer.room.lastBuildings || []).filter(b => b.id !== msg.id);
+      } else if (msg.op === 'remove_building' && Number.isInteger(msg.entityId)) {
+        peer.room.lastBuildings = (peer.room.lastBuildings || []).filter(b => b.entityId !== msg.entityId);
       } else if (msg.op === 'gather_complete' && Number.isInteger(msg.entityId)) {
         peer.room.lastResources = (peer.room.lastResources || []).map(r =>
           r.id === msg.entityId ? { ...r, depleted: true, regrowAt: msg.regrowAt || null } : r

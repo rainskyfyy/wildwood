@@ -42,6 +42,18 @@ function ensureStyles() {
   .ww-trade-panel th { color: #d4a64a; border-bottom: 1px solid #444; }
   .ww-trade-panel tr.trade-row { background: rgba(212,166,74,0.05); }
   .ww-trade-panel tr.trade-row:hover { background: rgba(212,166,74,0.15); cursor: pointer; }
+  .ww-trade-panel tr.trade-row.selected { background: rgba(212,166,74,0.25); }
+  .ww-trade-panel .trade-qty {
+    width: 42px; background: #222; color: #f0f0f0;
+    border: 1px solid #555; border-radius: 2px;
+    padding: 1px 3px; font-size: 11px; text-align: center;
+  }
+  .ww-trade-panel .trade-confirm {
+    background: #d4a64a; color: #1a1a2e; border: none;
+    border-radius: 3px; padding: 2px 8px; font-size: 11px;
+    cursor: pointer; font-weight: bold;
+  }
+  .ww-trade-panel .trade-confirm:hover { background: #e8b85a; }
   .ww-trade-panel .trade-multi {
     color: #88c8ff; font-size: 10px; margin-left: 4px;
   }
@@ -92,11 +104,31 @@ export class TradeUI {
         this.close();
         return;
       }
-      const row = t.closest('tr.trade-row');
-      if (row) {
-        const sell = row.dataset.sell;
-        const count = parseInt(row.dataset.count, 10) || 1;
+      // 确认按钮:批量成交
+      const confirmBtn = t.closest('[data-act="confirm"]');
+      if (confirmBtn) {
+        const sell = confirmBtn.dataset.sell;
+        const row = confirmBtn.closest('tr.trade-row');
+        const qtyInput = row ? row.querySelector('.trade-qty') : null;
+        const count = parseInt(qtyInput ? qtyInput.value : row?.dataset.count, 10) || 1;
         this._tryTrade(sell, count);
+        return;
+      }
+      // 点击行:仅选中高亮,不立即成交
+      const row = t.closest('tr.trade-row');
+      if (row && !t.matches('.trade-qty')) {
+        this._el.querySelectorAll('tr.trade-row').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+      }
+    });
+    // 输入数量时同步 data-count
+    el.addEventListener('input', (e) => {
+      if (e.target.matches('.trade-qty')) {
+        const row = e.target.closest('tr.trade-row');
+        if (row) {
+          const v = parseInt(e.target.value, 10);
+          row.dataset.count = (v > 0) ? String(v) : '1';
+        }
       }
     });
     document.body.appendChild(el);
@@ -151,11 +183,13 @@ export class TradeUI {
         <td>→ ${buyMeta.name} ×${q.buyCount}</td>
         <td class="trade-multi">×${q.multiplier.toFixed(2)}</td>
         <td style="color:#888">库存 ${sellHave}</td>
+        <td><input type="number" class="trade-qty" min="1" max="${maxQty}" value="1"></td>
+        <td><button class="trade-confirm" data-act="confirm" data-sell="${sellId}">确认</button></td>
       </tr>`;
     }).filter(Boolean).join('');
     body.innerHTML = `
       <table>
-        <thead><tr><th>给我</th><th>换</th><th>倍率</th><th>库存</th></tr></thead>
+        <thead><tr><th>给我</th><th>换</th><th>倍率</th><th>库存</th><th>数量</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
