@@ -178,6 +178,7 @@ export class TradeUI {
       const sellMeta = getItem(sellId);
       const buyMeta = getItem(q.buyItem);
       const sellHave = this.invSvc.countOf(sellId);
+      const maxQty = Math.min(Math.max(sellHave, 1), 99);
       return `<tr class="trade-row" data-sell="${sellId}" data-count="1">
         <td>${sellMeta.name} ×1</td>
         <td>→ ${buyMeta.name} ×${q.buyCount}</td>
