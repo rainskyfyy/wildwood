@@ -209,7 +209,7 @@ export class Multiplayer {
 
   _applyRemoteRemove(m) {
     if (!this.buildingMgr) return;
-    const idx = this.buildingMgr.buildings.findIndex(b => b.entityId === m.id);
+    const idx = this.buildingMgr.buildings.findIndex(b => b.entityId === m.entityId);
     if (idx >= 0) this.buildingMgr.remove(this.buildingMgr.buildings[idx]);
   }
 
@@ -273,7 +273,7 @@ export class Multiplayer {
     }
     // 附上世界 snapshot(供新加入者)
     const buildings = (this.buildingMgr?.buildings || []).map(b => ({
-      id: b.entityId, typeId: b.typeId, tx: b.tx, ty: b.ty,
+      entityId: b.entityId, typeId: b.typeId, tx: b.tx, ty: b.ty,
       w: b.w, h: b.h, hp: b.hp, maxHp: b.maxHp,
     }));
     const resources = (this.resources || []).map(r => ({
@@ -293,7 +293,7 @@ export class Multiplayer {
       op: WORLD_PLACE_BUILDING,
       tx: building.tx, ty: building.ty, typeId: building.typeId,
       building: {
-        id: building.entityId, typeId: building.typeId, tx: building.tx, ty: building.ty,
+        entityId: building.entityId, typeId: building.typeId, tx: building.tx, ty: building.ty,
         w: building.w, h: building.h, hp: building.hp, maxHp: building.maxHp,
       },
     });
@@ -302,7 +302,7 @@ export class Multiplayer {
   /** 玩家拆除了建筑(本地),需要广播。 */
   broadcastRemove(entityId) {
     if (this.mode !== 'host' || !this.client?.connected) return;
-    this.client.sendWorld({ op: WORLD_REMOVE_BUILDING, id: entityId });
+    this.client.sendWorld({ op: WORLD_REMOVE_BUILDING, entityId });
   }
 
   /** 玩家完成了采集(本地),需要广播。 */

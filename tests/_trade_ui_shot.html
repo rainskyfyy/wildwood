@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>TradeUI xN shot</title>
+<style>body{margin:0;background:#0d0d16;width:560px;height:420px}.scene-label{color:#888;font:12px ui-monospace,monospace;padding:8px 12px}</style>
+</head><body>
+<div class="scene-label">Wildwood · 交易面板 ×N 批量输入(P1-15) — 点击行只选中,需点"确认"按钮批量成交</div>
+<script type="module">
+import { TradeUI } from '../src/trading/trade-ui.js';
+import { newTradeState, setScarcity, traderStock } from '../src/trading/price-engine.js';
+const bag = new Map([['log', 12], ['carrot', 8], ['mushroom', 4], ['stone', 6]]);
+const invSvc = { countOf(id){return bag.get(id)||0}, consumeByItem(id,n){const h=bag.get(id)||0;const r=Math.min(h,n);bag.set(id,h-r);return r}, addItem(id,n){const h=bag.get(id)||0;bag.set(id,h+n);return{added:n,leftover:0}} };
+const state = newTradeState();
+for (const id of traderStock()) setScarcity(state, id, invSvc.countOf(id));
+const ui = new TradeUI({ invSvc, state, onTrade: () => {} });
+ui.open();
+requestAnimationFrame(() => {
+  const prefill = { log: 5, carrot: 3, mushroom: 2 };
+  ui._el.querySelectorAll('tr.trade-row').forEach(row => {
+    const sell = row.dataset.sell;
+    const inp = row.querySelector('.trade-qty');
+    if (prefill[sell] != null && inp) { inp.value = prefill[sell]; row.dataset.count = String(prefill[sell]); }
+    if (sell === 'log') row.classList.add('selected');
+  });
+  window.__shotReady = true;
+});
+</script></body></html>

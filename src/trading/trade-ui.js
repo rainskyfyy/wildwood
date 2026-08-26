@@ -23,13 +23,13 @@ function ensureStyles() {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
     background: rgba(20,20,30,0.95);
-    border: 2px solid var(--accent, #d4a64a);
-    border-radius: 0;
+    border: 2px solid #d4a64a;
+    border-radius: 6px;
     padding: 12px 16px;
     color: #f0f0f0;
     font: 12px/1.4 ui-monospace, monospace;
     min-width: 320px;
-    box-shadow: 2px 2px 0 var(--night-black, #101820);
+    box-shadow: 0 6px 30px rgba(0,0,0,0.5);
     z-index: 200;
   }
   .ww-trade-panel h3 {
@@ -42,15 +42,27 @@ function ensureStyles() {
   .ww-trade-panel th { color: #d4a64a; border-bottom: 1px solid #444; }
   .ww-trade-panel tr.trade-row { background: rgba(212,166,74,0.05); }
   .ww-trade-panel tr.trade-row:hover { background: rgba(212,166,74,0.15); cursor: pointer; }
+  .ww-trade-panel tr.trade-row.selected { background: rgba(212,166,74,0.25); }
+  .ww-trade-panel .trade-qty {
+    width: 42px; background: #222; color: #f0f0f0;
+    border: 1px solid #555; border-radius: 2px;
+    padding: 1px 3px; font-size: 11px; text-align: center;
+  }
+  .ww-trade-panel .trade-confirm {
+    background: #d4a64a; color: #1a1a2e; border: none;
+    border-radius: 3px; padding: 2px 8px; font-size: 11px;
+    cursor: pointer; font-weight: bold;
+  }
+  .ww-trade-panel .trade-confirm:hover { background: #e8b85a; }
   .ww-trade-panel .trade-multi {
     color: #88c8ff; font-size: 10px; margin-left: 4px;
   }
   .ww-trade-panel .trade-empty {
     color: #888; font-style: italic; padding: 8px;
   }
-  .ww-trade-panel .trade-close-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 4px;
+  .ww-trade-panel .trade-close {
+    position: absolute; top: 6px; right: 8px;
+    color: #d4a64a; cursor: pointer; font-size: 14px;
   }
   `;
   const s = document.createElement('style');
@@ -81,34 +93,42 @@ export class TradeUI {
     ensureStyles();
     const el = document.createElement('div');
     el.className = 'ww-trade-panel';
-    // P1-13: 统一关闭按钮形态 —— 用 DOM 组件 .Dialog-Close × 按钮
-    // (见 src/ui/components/components.css:.Dialog-Close),替换原先自绘的 .trade-close。
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'Dialog-Close';
-    closeBtn.setAttribute('aria-label', '关闭');
-    closeBtn.setAttribute('data-act', 'close');
-    closeBtn.textContent = '×';
-    const header = document.createElement('div');
-    header.className = 'trade-close-bar';
-    const title = document.createElement('h3');
-    title.textContent = '猪人交易';
-    header.appendChild(title);
-    header.appendChild(closeBtn);
-    const body = document.createElement('div');
-    body.setAttribute('data-role', 'body');
-    el.appendChild(header);
-    el.appendChild(body);
+    el.innerHTML = `
+      <span class="trade-close" data-act="close">×</span>
+      <h3>猪人交易</h3>
+      <div data-role="body"></div>
+    `;
     el.addEventListener('click', (e) => {
       const t = e.target;
-      if (t.matches('.Dialog-Close') || t.dataset.act === 'close') {
+      if (t.matches('.trade-close') || t.dataset.act === 'close') {
         this.close();
         return;
       }
-      const row = t.closest('tr.trade-row');
-      if (row) {
-        const sell = row.dataset.sell;
-        const count = parseInt(row.dataset.count, 10) || 1;
+      // 确认按钮:批量成交
+      const confirmBtn = t.closest('[data-act="confirm"]');
+      if (confirmBtn) {
+        const sell = confirmBtn.dataset.sell;
+        const row = confirmBtn.closest('tr.trade-row');
+        const qtyInput = row ? row.querySelector('.trade-qty') : null;
+        const count = parseInt(qtyInput ? qtyInput.value : row?.dataset.count, 10) || 1;
         this._tryTrade(sell, count);
+        return;
+      }
+      // 点击行:仅选中高亮,不立即成交
+      const row = t.closest('tr.trade-row');
+      if (row && !t.matches('.trade-qty')) {
+        this._el.querySelectorAll('tr.trade-row').forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+      }
+    });
+    // 输入数量时同步 data-count
+    el.addEventListener('input', (e) => {
+      if (e.target.matches('.trade-qty')) {
+        const row = e.target.closest('tr.trade-row');
+        if (row) {
+          const v = parseInt(e.target.value, 10);
+          row.dataset.count = (v > 0) ? String(v) : '1';
+        }
       }
     });
     document.body.appendChild(el);
@@ -158,16 +178,19 @@ export class TradeUI {
       const sellMeta = getItem(sellId);
       const buyMeta = getItem(q.buyItem);
       const sellHave = this.invSvc.countOf(sellId);
+      const maxQty = Math.min(Math.max(sellHave, 1), 99);
       return `<tr class="trade-row" data-sell="${sellId}" data-count="1">
         <td>${sellMeta.name} ×1</td>
         <td>→ ${buyMeta.name} ×${q.buyCount}</td>
         <td class="trade-multi">×${q.multiplier.toFixed(2)}</td>
         <td style="color:#888">库存 ${sellHave}</td>
+        <td><input type="number" class="trade-qty" min="1" max="${maxQty}" value="1"></td>
+        <td><button class="trade-confirm" data-act="confirm" data-sell="${sellId}">确认</button></td>
       </tr>`;
     }).filter(Boolean).join('');
     body.innerHTML = `
       <table>
-        <thead><tr><th>给我</th><th>换</th><th>倍率</th><th>库存</th></tr></thead>
+        <thead><tr><th>给我</th><th>换</th><th>倍率</th><th>库存</th><th>数量</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;

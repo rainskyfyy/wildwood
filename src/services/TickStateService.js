@@ -156,8 +156,8 @@ export class TickStateService {
   }
 
   /**
-   * 手动触发一次 tick(用于演示/测试/进度推进)。pause 时仍会触发
-   * (与 setInterval 行为一致 — pause 仅影响周期触发)。
+   * 手动触发一次 tick(用于演示/测试/进度推进)。pause 时不触发
+   * (与 _tick 内 `if (this._paused) return null` 行为一致 — pause 阻断所有 tick)。
    * @returns {Object|null} 触发时推送给订阅者的 detail,或 null(无订阅者)
    */
   fireOnce() {

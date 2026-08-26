@@ -54,6 +54,7 @@ export function startRuntime(ctx) {
   let lastT = performance.now();
   let running = true;
   let rafId = 0;
+  let lastSaveAt = 0;
 
   function frame(now) {
     if (!running) return;
@@ -326,8 +327,8 @@ export function startRuntime(ctx) {
     // ---- 12. 建造 menu 渲染 ----
     game.buildingMenu.draw(game.ctx, game.canvas.width, game.canvas.height);
 
-    // ---- 13. periodic save(每 60ms 一次) ----
-    if ((now | 0) % 60 === 0) saveInventory(game.inventory);
+    // ---- 13. periodic save(每 60s 一次) ----
+    if (now - lastSaveAt >= 60000) { saveInventory(game.inventory); lastSaveAt = now; }
 
     // ---- 14. v0.8.0 P0-1:UI 数据通道 ----
     // 引擎帧尾通知 UI 层,避免 UI 自己跑 tick 和引擎漂移。
